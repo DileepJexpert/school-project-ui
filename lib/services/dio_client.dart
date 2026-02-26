@@ -3,8 +3,8 @@ import 'package:dio/dio.dart';
 class DioClient {
   static late Dio _dio;
 
-  static const String _baseUrl = 'http://localhost:8080/api/v1';
-  // TODO: Update to your Spring Boot server URL in production
+  static const String _baseUrl = 'http://localhost:8080/api';
+  // Update to your production Spring Boot server URL when deploying
 
   DioClient._();
 
