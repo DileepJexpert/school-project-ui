@@ -4,10 +4,71 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/responsive.dart';
+
+// ── Existing live screens ──────────────────────────────────────────────────
 import 'screens/attendance_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/students_screen.dart';
 import 'screens/timetable_screen.dart';
+
+// ── New screens (this PR) ──────────────────────────────────────────────────
+import 'screens/admission_screen.dart';
+import 'screens/expense_screen.dart';
+import 'screens/fee_screen.dart';
+import 'screens/reports_screen.dart';
+import 'screens/results_admin_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/transport_admin_screen.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Menu data
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MenuItem {
+  final IconData icon;
+  final String label;
+  final bool isLive;
+  const _MenuItem({required this.icon, required this.label, this.isLive = false});
+}
+
+class _MenuGroup {
+  final String title;
+  final List<_MenuItem> items;
+  const _MenuGroup({required this.title, required this.items});
+}
+
+// Flat list used for switch / index lookup (order must match _groups expansion)
+const _allItems = [
+  // ── ACADEMICS ──
+  _MenuItem(icon: Icons.dashboard_outlined,      label: 'Overview',       isLive: true),  // 0
+  _MenuItem(icon: Icons.people_alt_outlined,     label: 'Students',       isLive: true),  // 1
+  _MenuItem(icon: Icons.person_add_alt_1_outlined, label: 'Admissions',   isLive: true),  // 2
+  // ── FINANCE ──
+  _MenuItem(icon: Icons.receipt_long_outlined,   label: 'Fees',           isLive: true),  // 3
+  _MenuItem(icon: Icons.money_off_outlined,      label: 'Expenses',       isLive: true),  // 4
+  _MenuItem(icon: Icons.assessment_outlined,     label: 'Reports',        isLive: true),  // 5
+  // ── SCHOOL OPERATIONS ──
+  _MenuItem(icon: Icons.rule_folder_outlined,    label: 'Attendance',     isLive: true),  // 6
+  _MenuItem(icon: Icons.table_chart_outlined,    label: 'Timetable',      isLive: true),  // 7
+  _MenuItem(icon: Icons.emoji_events_outlined,   label: 'Results',        isLive: true),  // 8
+  _MenuItem(icon: Icons.directions_bus_outlined, label: 'Transport',      isLive: true),  // 9
+  // ── COMMUNICATION ──
+  _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 10
+  // ── ADMINISTRATION ──
+  _MenuItem(icon: Icons.settings_outlined,       label: 'Settings',       isLive: true),  // 11
+];
+
+const _groups = [
+  _MenuGroup(title: 'ACADEMICS',          items: [_allItems[0], _allItems[1], _allItems[2]]),
+  _MenuGroup(title: 'FINANCE',            items: [_allItems[3], _allItems[4], _allItems[5]]),
+  _MenuGroup(title: 'SCHOOL OPERATIONS',  items: [_allItems[6], _allItems[7], _allItems[8], _allItems[9]]),
+  _MenuGroup(title: 'COMMUNICATION',      items: [_allItems[10]]),
+  _MenuGroup(title: 'ADMINISTRATION',     items: [_allItems[11]]),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────────────────────
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -20,36 +81,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int _selectedIndex = 0;
   bool _sideMenuVisible = true;
 
-  static final _menuItems = [
-    _MenuItem(icon: Icons.dashboard_outlined, label: 'Overview'),         // 0
-    _MenuItem(icon: Icons.people_alt_outlined, label: 'Students'),        // 1  ← live
-    _MenuItem(icon: Icons.badge_outlined, label: 'Staff'),                // 2
-    _MenuItem(icon: Icons.school_outlined, label: 'Classes'),             // 3
-    _MenuItem(icon: Icons.receipt_long_outlined, label: 'Fees'),          // 4
-    _MenuItem(icon: Icons.directions_bus_outlined, label: 'Transport'),   // 5
-    _MenuItem(icon: Icons.rule_folder_outlined, label: 'Attendance'),     // 6  ← live
-    _MenuItem(icon: Icons.table_chart_outlined, label: 'Timetable'),      // 7  ← live
-    _MenuItem(icon: Icons.assessment_outlined, label: 'Results'),         // 8
-    _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications'), // 9 ← live
-    _MenuItem(icon: Icons.event_outlined, label: 'Events'),               // 10
-    _MenuItem(icon: Icons.photo_library_outlined, label: 'Gallery'),      // 11
-    _MenuItem(icon: Icons.settings_outlined, label: 'Settings'),          // 12
-  ];
-
   Widget _buildContent() {
     switch (_selectedIndex) {
-      case 0:
-        return _OverviewContent();
-      case 1:
-        return const StudentsScreen();
-      case 6:
-        return const AttendanceScreen();
-      case 7:
-        return const TimetableScreen();
-      case 9:
-        return const NotificationsScreen();
-      default:
-        return _PlaceholderContent(title: _menuItems[_selectedIndex].label);
+      case 0:  return const _OverviewContent();
+      case 1:  return const StudentsScreen();
+      case 2:  return const AdmissionScreen();
+      case 3:  return const FeeScreen();
+      case 4:  return const ExpenseScreen();
+      case 5:  return const ReportsScreen();
+      case 6:  return const AttendanceScreen();
+      case 7:  return const TimetableScreen();
+      case 8:  return const ResultsAdminScreen();
+      case 9:  return const TransportAdminScreen();
+      case 10: return const NotificationsScreen();
+      case 11: return const SettingsScreen();
+      default: return const SizedBox.shrink();
     }
   }
 
@@ -73,7 +119,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     Navigator.pushReplacementNamed(context, AppRouter.home),
               ),
         title: Text(
-          _menuItems[_selectedIndex].label,
+          _allItems[_selectedIndex].label,
           style: GoogleFonts.cormorantGaramond(
               fontWeight: FontWeight.w700, fontSize: 22),
         ),
@@ -113,12 +159,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildMenuList() {
+    // Build a flat index so that tapping a group item knows its global index.
+    int globalIndex = 0;
+    final groupWidgets = <Widget>[];
+
+    for (final group in _groups) {
+      groupWidgets.add(_buildGroupHeader(group.title));
+      for (final item in group.items) {
+        final idx = globalIndex;
+        groupWidgets.add(_buildMenuItem(item, idx));
+        globalIndex++;
+      }
+    }
+
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        // Sidebar header
+        // ── Sidebar header ─────────────────────────────────────────────────
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
           color: AppColors.navy,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,63 +196,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ),
         const SizedBox(height: 8),
-        ...List.generate(_menuItems.length, (i) {
-          final item = _menuItems[i];
-          final isActive = _selectedIndex == i;
-          // Live modules get a gold dot indicator
-          final isLive = [1, 6, 7, 9].contains(i);
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            child: Material(
-              color: isActive
-                  ? AppColors.navy.withOpacity(0.08)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () {
-                  setState(() => _selectedIndex = i);
-                  if (!Responsive.isDesktop(context)) Navigator.pop(context);
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(item.icon,
-                          size: 20,
-                          color: isActive
-                              ? AppColors.navy
-                              : AppColors.textSecondary),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(item.label,
-                            style: GoogleFonts.nunitoSans(
-                              fontWeight: isActive
-                                  ? FontWeight.w700
-                                  : FontWeight.w400,
-                              color: isActive
-                                  ? AppColors.navy
-                                  : AppColors.textPrimary,
-                              fontSize: 14,
-                            )),
-                      ),
-                      if (isLive)
-                        Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: AppColors.success,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-        const Divider(indent: 16, endIndent: 16),
+        // ── Grouped items ──────────────────────────────────────────────────
+        ...groupWidgets,
+        const Divider(indent: 16, endIndent: 16, height: 24),
+        // ── Logout ─────────────────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: InkWell(
@@ -201,8 +207,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content:
-                        Text('Logout — implement with Spring Security'),
+                    content: Text('Logout — implement with Spring Security'),
                     backgroundColor: AppColors.navy),
               );
             },
@@ -221,15 +226,87 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
       ],
+    );
+  }
+
+  Widget _buildGroupHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+      child: Text(
+        title,
+        style: GoogleFonts.nunitoSans(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textLight,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem(_MenuItem item, int index) {
+    final isActive = _selectedIndex == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: Material(
+        color: isActive
+            ? AppColors.navy.withOpacity(0.08)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            setState(() => _selectedIndex = index);
+            if (!Responsive.isDesktop(context)) Navigator.pop(context);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(item.icon,
+                    size: 18,
+                    color: isActive
+                        ? AppColors.navy
+                        : AppColors.textSecondary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(item.label,
+                      style: GoogleFonts.nunitoSans(
+                        fontWeight:
+                            isActive ? FontWeight.w700 : FontWeight.w400,
+                        color: isActive
+                            ? AppColors.navy
+                            : AppColors.textPrimary,
+                        fontSize: 13,
+                      )),
+                ),
+                if (item.isLive)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppColors.success,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Overview Content (unchanged)
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Overview
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _OverviewContent extends StatelessWidget {
+  const _OverviewContent();
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -271,22 +348,28 @@ class _OverviewContent extends StatelessWidget {
             },
           ),
           const SizedBox(height: 32),
-          // Quick-access live modules
           Text('Live Modules',
               style: GoogleFonts.cormorantGaramond(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AppColors.navy)),
           const SizedBox(height: 4),
-          Text('These modules are connected to the Spring Boot backend.',
+          Text('All modules below are connected to the Spring Boot backend.',
               style: GoogleFonts.nunitoSans(
                   color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 16),
-          Wrap(spacing: 12, runSpacing: 12, children: [
-            _liveChip(Icons.people_alt_outlined, 'Students'),
-            _liveChip(Icons.rule_folder_outlined, 'Attendance'),
-            _liveChip(Icons.table_chart_outlined, 'Timetable'),
-            _liveChip(Icons.notifications_active_outlined, 'Notifications'),
+          Wrap(spacing: 10, runSpacing: 10, children: [
+            _liveChip(Icons.people_alt_outlined,          'Students'),
+            _liveChip(Icons.person_add_alt_1_outlined,    'Admissions'),
+            _liveChip(Icons.receipt_long_outlined,        'Fees'),
+            _liveChip(Icons.money_off_outlined,           'Expenses'),
+            _liveChip(Icons.assessment_outlined,          'Reports'),
+            _liveChip(Icons.rule_folder_outlined,         'Attendance'),
+            _liveChip(Icons.table_chart_outlined,         'Timetable'),
+            _liveChip(Icons.emoji_events_outlined,        'Results'),
+            _liveChip(Icons.directions_bus_outlined,      'Transport'),
+            _liveChip(Icons.notifications_active_outlined,'Notifications'),
+            _liveChip(Icons.settings_outlined,            'Settings'),
           ]),
         ],
       ),
@@ -294,25 +377,24 @@ class _OverviewContent extends StatelessWidget {
   }
 
   Widget _liveChip(IconData icon, String label) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: AppColors.success.withOpacity(0.08),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.success.withOpacity(0.3)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 16, color: AppColors.success),
+          Icon(icon, size: 15, color: AppColors.success),
           const SizedBox(width: 6),
           Text(label,
               style: GoogleFonts.nunitoSans(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.success)),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           Container(
-              width: 6,
-              height: 6,
+              width: 5,
+              height: 5,
               decoration: const BoxDecoration(
                   color: AppColors.success, shape: BoxShape.circle)),
         ]),
@@ -367,45 +449,4 @@ class _OverviewContent extends StatelessWidget {
       ),
     );
   }
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Placeholder for modules not yet implemented
-// ──────────────────────────────────────────────────────────────────────────────
-class _PlaceholderContent extends StatelessWidget {
-  final String title;
-  const _PlaceholderContent({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.construction_rounded,
-              size: 64, color: AppColors.textLight.withOpacity(0.4)),
-          const SizedBox(height: 16),
-          Text(title,
-              style: GoogleFonts.cormorantGaramond(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy)),
-          const SizedBox(height: 8),
-          Text('This module is ready for development.',
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary, fontSize: 14)),
-          const SizedBox(height: 24),
-          Text('Spring Boot API is running at localhost:8080.',
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textLight, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-}
-
-class _MenuItem {
-  final IconData icon;
-  final String label;
-  const _MenuItem({required this.icon, required this.label});
 }
