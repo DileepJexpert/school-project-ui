@@ -74,6 +74,66 @@ class AppSizes {
   );
 }
 
+/// Single source of truth for class/section values stored in MongoDB.
+///
+/// Format rules (must be consistent across Admission, Fee Setup, Fee Collection):
+///   • Pre-primary (Nursery, LKG, UKG)  → stored as-is  e.g. "Nursery"
+///   • Class 1–12                        → "Class X - A" / "Class X - B"
+///
+/// Never hard-code this list in individual screens — always use SchoolConstants.
+class SchoolConstants {
+  SchoolConstants._();
+
+  /// Base class labels (no section suffix).
+  static const List<String> baseClasses = [
+    'Nursery', 'LKG', 'UKG',
+    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6',
+    'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12',
+  ];
+
+  /// Classes that do NOT have sections (pre-primary).
+  static const List<String> noSectionClasses = ['Nursery', 'LKG', 'UKG'];
+
+  /// Available sections for Class 1–12.
+  static const List<String> sections = ['A', 'B'];
+
+  /// Full flat list of all class+section combinations as stored in MongoDB.
+  /// Pre-primary classes appear once (no section).
+  /// Class 1–12 appear twice (one entry per section).
+  static List<String> get allClasses => [
+        'Nursery',
+        'LKG',
+        'UKG',
+        for (int i = 1; i <= 12; i++)
+          for (final s in sections) 'Class $i - $s',
+      ];
+
+  /// Build the stored className from a base class and section.
+  /// Pre-primary → returns baseClass unchanged.
+  /// Others       → returns "Class X - A" format.
+  static String buildClassName(String baseClass, String section) {
+    if (noSectionClasses.contains(baseClass)) return baseClass;
+    return '$baseClass - $section';
+  }
+
+  /// Parse a stored className back into (baseClass, section).
+  /// "Class 5 - B" → ('Class 5', 'B')
+  /// "Nursery"     → ('Nursery', 'A')   (section 'A' is default for pre-primary)
+  static (String, String) parseClassName(String className) {
+    final parts = className.split(' - ');
+    if (parts.length >= 2) {
+      final base = parts[0].trim();
+      final sec = parts[1].trim();
+      if (baseClasses.contains(base) && sections.contains(sec)) {
+        return (base, sec);
+      }
+    }
+    // Legacy or pre-primary value — return as-is with default section
+    final base = baseClasses.contains(className) ? className : baseClasses.first;
+    return (base, sections.first);
+  }
+}
+
 class AppStrings {
   AppStrings._();
 
