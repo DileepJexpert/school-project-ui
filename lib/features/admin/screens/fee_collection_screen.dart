@@ -71,7 +71,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
 
   double get _selectedTotal => _selected?.feeInstallments
           .where((f) => f.isSelectedForPayment)
-          .fold(0.0, (s, f) => s + f.amountDue) ??
+          .fold(0.0, (s, f) => s + (f.amountDue ?? 0.0)) ??
       0.0;
 
   double get _netAmount => (_selectedTotal - _discount).clamp(0.0, double.infinity);

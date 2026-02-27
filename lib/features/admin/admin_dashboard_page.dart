@@ -38,32 +38,34 @@ class _MenuGroup {
 }
 
 // Flat list used for switch / index lookup (order must match _groups expansion)
-const _allItems = [
+// NOTE: using `final` (not `const`) because list indexing (`[]`) is not
+// allowed inside const expressions in Dart.
+final _allItems = [
   // ── ACADEMICS ──
-  _MenuItem(icon: Icons.dashboard_outlined,      label: 'Overview',       isLive: true),  // 0
-  _MenuItem(icon: Icons.people_alt_outlined,     label: 'Students',       isLive: true),  // 1
-  _MenuItem(icon: Icons.person_add_alt_1_outlined, label: 'Admissions',   isLive: true),  // 2
+  const _MenuItem(icon: Icons.dashboard_outlined,        label: 'Overview',       isLive: true),  // 0
+  const _MenuItem(icon: Icons.people_alt_outlined,       label: 'Students',       isLive: true),  // 1
+  const _MenuItem(icon: Icons.person_add_alt_1_outlined, label: 'Admissions',     isLive: true),  // 2
   // ── FINANCE ──
-  _MenuItem(icon: Icons.receipt_long_outlined,   label: 'Fees',           isLive: true),  // 3
-  _MenuItem(icon: Icons.money_off_outlined,      label: 'Expenses',       isLive: true),  // 4
-  _MenuItem(icon: Icons.assessment_outlined,     label: 'Reports',        isLive: true),  // 5
+  const _MenuItem(icon: Icons.receipt_long_outlined,     label: 'Fees',           isLive: true),  // 3
+  const _MenuItem(icon: Icons.money_off_outlined,        label: 'Expenses',       isLive: true),  // 4
+  const _MenuItem(icon: Icons.assessment_outlined,       label: 'Reports',        isLive: true),  // 5
   // ── SCHOOL OPERATIONS ──
-  _MenuItem(icon: Icons.rule_folder_outlined,    label: 'Attendance',     isLive: true),  // 6
-  _MenuItem(icon: Icons.table_chart_outlined,    label: 'Timetable',      isLive: true),  // 7
-  _MenuItem(icon: Icons.emoji_events_outlined,   label: 'Results',        isLive: true),  // 8
-  _MenuItem(icon: Icons.directions_bus_outlined, label: 'Transport',      isLive: true),  // 9
+  const _MenuItem(icon: Icons.rule_folder_outlined,      label: 'Attendance',     isLive: true),  // 6
+  const _MenuItem(icon: Icons.table_chart_outlined,      label: 'Timetable',      isLive: true),  // 7
+  const _MenuItem(icon: Icons.emoji_events_outlined,     label: 'Results',        isLive: true),  // 8
+  const _MenuItem(icon: Icons.directions_bus_outlined,   label: 'Transport',      isLive: true),  // 9
   // ── COMMUNICATION ──
-  _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 10
+  const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 10
   // ── ADMINISTRATION ──
-  _MenuItem(icon: Icons.settings_outlined,       label: 'Settings',       isLive: true),  // 11
+  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 11
 ];
 
-const _groups = [
-  _MenuGroup(title: 'ACADEMICS',          items: [_allItems[0], _allItems[1], _allItems[2]]),
-  _MenuGroup(title: 'FINANCE',            items: [_allItems[3], _allItems[4], _allItems[5]]),
-  _MenuGroup(title: 'SCHOOL OPERATIONS',  items: [_allItems[6], _allItems[7], _allItems[8], _allItems[9]]),
-  _MenuGroup(title: 'COMMUNICATION',      items: [_allItems[10]]),
-  _MenuGroup(title: 'ADMINISTRATION',     items: [_allItems[11]]),
+final _groups = [
+  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2]]),
+  _MenuGroup(title: 'FINANCE',           items: [_allItems[3], _allItems[4], _allItems[5]]),
+  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[6], _allItems[7], _allItems[8], _allItems[9]]),
+  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[10]]),
+  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[11]]),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
