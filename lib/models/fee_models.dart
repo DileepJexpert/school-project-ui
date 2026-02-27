@@ -294,13 +294,32 @@ class FeeReportResponse {
 class FeeComponent {
   String name;
   double amount;
+  String frequency;
+  String description;
 
-  FeeComponent({required this.name, required this.amount});
+  FeeComponent({
+    required this.name,
+    required this.amount,
+    this.frequency = 'YEARLY',
+    this.description = '',
+  });
 
-  factory FeeComponent.fromJson(Map<String, dynamic> json) =>
-      FeeComponent(name: json['name'] ?? '', amount: (json['amount'] ?? 0).toDouble());
+  // Backend field: feeName (not name), feeComponents list inside FeeStructure
+  factory FeeComponent.fromJson(Map<String, dynamic> json) => FeeComponent(
+        name: json['feeName'] ?? json['name'] ?? '',
+        amount: (json['amount'] ?? 0) is num
+            ? (json['amount'] ?? 0).toDouble()
+            : double.tryParse(json['amount'].toString()) ?? 0.0,
+        frequency: json['frequency'] ?? 'YEARLY',
+        description: json['description'] ?? '',
+      );
 
-  Map<String, dynamic> toJson() => {'name': name, 'amount': amount};
+  Map<String, dynamic> toJson() => {
+        'feeName': name,
+        'amount': amount,
+        'frequency': frequency,
+        if (description.isNotEmpty) 'description': description,
+      };
 }
 
 class FeeStructure {
@@ -316,22 +335,23 @@ class FeeStructure {
     required this.components,
   });
 
+  // Backend field: feeComponents (not components)
   factory FeeStructure.fromJson(Map<String, dynamic> json) => FeeStructure(
         id: json['id'],
         className: json['className'] ?? '',
         academicYear: json['academicYear'] ?? '',
-        components: (json['components'] as List? ?? [])
-            .map((e) => FeeComponent.fromJson(e))
+        components: (json['feeComponents'] as List? ?? json['components'] as List? ?? [])
+            .map((e) => FeeComponent.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 
   Map<String, dynamic> toJson() => {
         'className': className,
         'academicYear': academicYear,
-        'components': components.map((c) => c.toJson()).toList(),
+        'feeComponents': components.map((c) => c.toJson()).toList(),
       };
 
-  double get totalFee => components.fold(0, (sum, c) => sum + c.amount);
+  double get totalFee => components.fold<double>(0.0, (sum, c) => sum + c.amount);
 }
 
 // ─── Expense Model ───────────────────────────────────────────────────────────
