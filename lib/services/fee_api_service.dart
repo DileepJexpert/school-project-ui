@@ -1,0 +1,96 @@
+import '../models/fee_models.dart';
+import 'dio_client.dart';
+
+class FeeApiService {
+  static const _profileBase = '/student-fee-profiles';
+  static const _feeBase = '/fees';
+  static const _structureBase = '/feestructures';
+  static const _expenseBase = '/expenses';
+
+  // ── Student Fee Profile ──────────────────────────────────────────────────
+  static Future<StudentFeeProfile> getStudentFeeProfile(String studentId) async {
+    final response = await DioClient.get('$_profileBase/$studentId');
+    return StudentFeeProfile.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  static Future<List<StudentFeeProfile>> searchStudents({
+    String? name,
+    String? className,
+    String? rollNumber,
+  }) async {
+    final params = <String, dynamic>{
+      if (name != null && name.isNotEmpty) 'name': name,
+      if (className != null && className.isNotEmpty) 'className': className,
+      if (rollNumber != null && rollNumber.isNotEmpty) 'rollNumber': rollNumber,
+    };
+    final response = await DioClient.get('$_feeBase/search', queryParams: params);
+    return (response.data as List)
+        .map((e) => StudentFeeProfile.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── Fee Collection ───────────────────────────────────────────────────────
+  static Future<PaymentRecord> collectFee(FeePaymentRequest request) async {
+    final response = await DioClient.post('$_feeBase/collect', data: request.toJson());
+    return PaymentRecord.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  // ── Fee Structure ────────────────────────────────────────────────────────
+  static Future<List<FeeStructure>> getFeeStructures({String? year}) async {
+    final response = await DioClient.get(
+      _structureBase,
+      queryParams: year != null ? {'year': year} : null,
+    );
+    return (response.data as List)
+        .map((e) => FeeStructure.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<void> saveFeeStructure(FeeStructure structure) async {
+    await DioClient.post(_structureBase, data: structure.toJson());
+  }
+
+  static Future<void> updateFeeStructure(String id, FeeStructure structure) async {
+    await DioClient.put('$_structureBase/$id', data: structure.toJson());
+  }
+
+  static Future<void> deleteFeeStructure(String id) async {
+    await DioClient.delete('$_structureBase/$id');
+  }
+
+  // ── Fee Reports ──────────────────────────────────────────────────────────
+  static Future<FeeReportResponse> getFeeReport({
+    String? startDate,
+    String? endDate,
+    String? className,
+    String? paymentMode,
+  }) async {
+    final params = <String, dynamic>{
+      if (startDate != null) 'startDate': startDate,
+      if (endDate != null) 'endDate': endDate,
+      if (className != null && className.isNotEmpty) 'className': className,
+      if (paymentMode != null && paymentMode.isNotEmpty) 'paymentMode': paymentMode,
+    };
+    final response = await DioClient.get(
+      '$_feeBase/reports/collection-summary',
+      queryParams: params,
+    );
+    return FeeReportResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  // ── Expenses ─────────────────────────────────────────────────────────────
+  static Future<List<Expense>> getExpenses() async {
+    final response = await DioClient.get(_expenseBase);
+    return (response.data as List)
+        .map((e) => Expense.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<void> addExpense(Expense expense) async {
+    await DioClient.post(_expenseBase, data: expense.toJson());
+  }
+
+  static Future<void> deleteExpense(String id) async {
+    await DioClient.delete('$_expenseBase/$id');
+  }
+}
