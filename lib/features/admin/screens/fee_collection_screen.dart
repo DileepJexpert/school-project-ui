@@ -38,22 +38,8 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
 
   final _payModes = ['CASH', 'CHEQUE', 'DIGITAL_PAYMENT', 'CHALLAN'];
 
-  // Full class list matching StudentFeeProfile.className values in the DB
-  static const _classes = [
-    'Nursery', 'LKG', 'UKG',
-    'Class 1 - A', 'Class 1 - B',
-    'Class 2 - A', 'Class 2 - B',
-    'Class 3 - A', 'Class 3 - B',
-    'Class 4 - A', 'Class 4 - B',
-    'Class 5 - A', 'Class 5 - B',
-    'Class 6 - A', 'Class 6 - B',
-    'Class 7 - A', 'Class 7 - B',
-    'Class 8 - A', 'Class 8 - B',
-    'Class 9 - A', 'Class 9 - B',
-    'Class 10 - A', 'Class 10 - B',
-    'Class 11 - A', 'Class 11 - B',
-    'Class 12 - A', 'Class 12 - B',
-  ];
+  // Class filter list sourced from SchoolConstants — same values stored in MongoDB
+  static List<String> get _classes => SchoolConstants.allClasses;
 
   @override
   void initState() {

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../models/admission_data.dart';
 import '../../../services/admission_api_service.dart';
+// SchoolConstants is defined in app_constants.dart
 
 class NewAdmissionScreen extends StatefulWidget {
   final String? studentId;
@@ -47,18 +48,18 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   DateTime? _dob;
   DateTime? _doa;
   String? _gender;
-  String? _class;
+  String? _baseClass;   // e.g. "Class 5" — base class without section
+  String _section = SchoolConstants.sections.first; // 'A' default
   String? _year;
   bool _sameAddr = false;
 
+  // The value stored in DB: "Class 5 - A" or "Nursery"
+  String? get _classForAdmission => _baseClass == null
+      ? null
+      : SchoolConstants.buildClassName(_baseClass!, _section);
+
   final _genders = ['Male', 'Female', 'Other'];
   final _years = ['2024-2025', '2025-2026', '2026-2027'];
-  final _classes = [
-    'Nursery', 'LKG', 'UKG',
-    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
-    'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
-    'Class 11 Science', 'Class 11 Commerce', 'Class 12 Science', 'Class 12 Commerce',
-  ];
 
   @override
   void initState() {
@@ -79,7 +80,9 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
         _religionCtrl.text = s.religion;
         _motherTongueCtrl.text = s.motherTongue;
         _aadharCtrl.text = s.aadharNumber;
-        _class = s.classForAdmission;
+        final (base, sec) = SchoolConstants.parseClassName(s.classForAdmission);
+        _baseClass = base;
+        _section = sec;
         _year = s.academicYear;
         _doa = s.dateOfAdmission;
         _admNoCtrl.text = s.admissionNumber;
@@ -125,7 +128,7 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _dob == null || _gender == null || _class == null || _year == null || _doa == null) {
+    if (!_formKey.currentState!.validate() || _dob == null || _gender == null || _baseClass == null || _year == null || _doa == null) {
       _showSnack('Please fill all required fields.', isError: true);
       return;
     }
@@ -140,7 +143,7 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       religion: _religionCtrl.text.trim(),
       motherTongue: _motherTongueCtrl.text.trim(),
       aadharNumber: _aadharCtrl.text.trim(),
-      classForAdmission: _class!,
+      classForAdmission: _classForAdmission!,
       academicYear: _year!,
       dateOfAdmission: _doa!,
       admissionNumber: _admNoCtrl.text.trim(),
@@ -262,13 +265,42 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
           state: _step > 1 ? StepState.complete : StepState.indexed,
           content: Column(children: [
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              decoration: _dec('Class for Admission *'),
-              value: _class,
-              items: _classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-              onChanged: (v) => setState(() => _class = v),
-              validator: (v) => v == null ? 'Required' : null,
-            ),
+            // Class + Section row
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(
+                flex: 3,
+                child: DropdownButtonFormField<String>(
+                  decoration: _dec('Class *'),
+                  value: _baseClass,
+                  items: SchoolConstants.baseClasses
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    _baseClass = v;
+                    // Reset to 'A' when switching to pre-primary (no section)
+                    if (SchoolConstants.noSectionClasses.contains(v)) {
+                      _section = SchoolConstants.sections.first;
+                    }
+                  }),
+                  validator: (v) => v == null ? 'Required' : null,
+                ),
+              ),
+              if (_baseClass != null &&
+                  !SchoolConstants.noSectionClasses.contains(_baseClass)) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    decoration: _dec('Section *'),
+                    value: _section,
+                    items: SchoolConstants.sections
+                        .map((s) => DropdownMenuItem(value: s, child: Text('Section $s')))
+                        .toList(),
+                    onChanged: (v) => setState(() => _section = v!),
+                  ),
+                ),
+              ],
+            ]),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               decoration: _dec('Academic Year *'),

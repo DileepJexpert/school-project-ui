@@ -45,16 +45,7 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
   final _fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
   final _years = ['2024-2025', '2025-2026', '2026-2027'];
 
-  static const _classes = [
-    'Nursery', 'LKG', 'UKG',
-    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6',
-    'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12',
-  ];
-  static const _sections = ['A', 'B'];
   static const _frequencies = ['YEARLY', 'MONTHLY', 'ONE_TIME'];
-
-  // Pre-primary classes have no meaningful section
-  static const _noSection = ['Nursery', 'LKG', 'UKG'];
 
   @override
   void initState() {
@@ -74,24 +65,13 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
     }
   }
 
-  // Parse "Class 5 - B" → ('Class 5', 'B')  or "Nursery" → ('Nursery', 'A')
-  (String, String) _parseClassName(String className) {
-    final parts = className.split(' - ');
-    if (parts.length >= 2) {
-      final cls = parts[0].trim();
-      final sec = parts[1].trim();
-      return (_classes.contains(cls) ? cls : _classes.first, sec);
-    }
-    return (_classes.contains(className) ? className : _classes.first, 'A');
-  }
-
   void _showAddOrEditDialog({FeeStructure? existing}) {
     final isEdit = existing != null;
 
-    // Parse existing class + section
+    // Parse existing class + section using shared SchoolConstants
     var (selectedClass, selectedSection) = existing != null
-        ? _parseClassName(existing.className)
-        : (_classes.first, 'A');
+        ? SchoolConstants.parseClassName(existing.className)
+        : (SchoolConstants.baseClasses.first, SchoolConstants.sections.first);
 
     // Build persistent component entries — created once, not on every rebuild
     final entries = existing != null
@@ -106,7 +86,7 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
-        final bool showSection = !_noSection.contains(selectedClass);
+        final bool showSection = !SchoolConstants.noSectionClasses.contains(selectedClass);
 
         return AlertDialog(
           title: Text(isEdit ? 'Edit Fee Structure' : 'Add Fee Structure',
@@ -126,13 +106,14 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       ),
-                      items: _classes
+                      items: SchoolConstants.baseClasses
                           .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                           .toList(),
                       onChanged: (v) => setDlg(() {
                         selectedClass = v!;
-                        // Reset section if switching to pre-primary
-                        if (_noSection.contains(selectedClass)) selectedSection = 'A';
+                        if (SchoolConstants.noSectionClasses.contains(selectedClass)) {
+                          selectedSection = SchoolConstants.sections.first;
+                        }
                       }),
                     ),
                   ),
@@ -147,7 +128,7 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                           border: OutlineInputBorder(),
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                         ),
-                        items: _sections
+                        items: SchoolConstants.sections
                             .map((s) => DropdownMenuItem(value: s, child: Text('Section $s')))
                             .toList(),
                         onChanged: (v) => setDlg(() => selectedSection = v!),
@@ -273,10 +254,8 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                   return;
                 }
 
-                // Build class name: "Class 5 - A" or just "Nursery"
-                final fullClassName = _noSection.contains(selectedClass)
-                    ? selectedClass
-                    : '$selectedClass - $selectedSection';
+                // Build stored class name via SchoolConstants helper
+                final fullClassName = SchoolConstants.buildClassName(selectedClass, selectedSection);
 
                 final structure = FeeStructure(
                   id: existing?.id,
