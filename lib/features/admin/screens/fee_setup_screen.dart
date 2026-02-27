@@ -6,6 +6,30 @@ import '../../../core/constants/app_constants.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
 
+// Holds stable TextEditingControllers for one fee component row.
+// Created once per component — survives StatefulBuilder rebuilds.
+class _ComponentEntry {
+  final TextEditingController nameCtrl;
+  final TextEditingController amtCtrl;
+  String frequency;
+
+  _ComponentEntry({String name = '', double amount = 0, String frequency = 'YEARLY'})
+      : nameCtrl = TextEditingController(text: name),
+        amtCtrl = TextEditingController(text: amount > 0 ? amount.toStringAsFixed(0) : ''),
+        frequency = frequency;
+
+  FeeComponent toComponent() => FeeComponent(
+        name: nameCtrl.text.trim(),
+        amount: double.tryParse(amtCtrl.text.trim()) ?? 0,
+        frequency: frequency,
+      );
+
+  void dispose() {
+    nameCtrl.dispose();
+    amtCtrl.dispose();
+  }
+}
+
 class FeeSetupScreen extends StatefulWidget {
   const FeeSetupScreen({super.key});
 
@@ -26,8 +50,11 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
     'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6',
     'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12',
   ];
-
+  static const _sections = ['A', 'B'];
   static const _frequencies = ['YEARLY', 'MONTHLY', 'ONE_TIME'];
+
+  // Pre-primary classes have no meaningful section
+  static const _noSection = ['Nursery', 'LKG', 'UKG'];
 
   @override
   void initState() {
@@ -47,100 +74,152 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
     }
   }
 
+  // Parse "Class 5 - B" → ('Class 5', 'B')  or "Nursery" → ('Nursery', 'A')
+  (String, String) _parseClassName(String className) {
+    final parts = className.split(' - ');
+    if (parts.length >= 2) {
+      final cls = parts[0].trim();
+      final sec = parts[1].trim();
+      return (_classes.contains(cls) ? cls : _classes.first, sec);
+    }
+    return (_classes.contains(className) ? className : _classes.first, 'A');
+  }
+
   void _showAddOrEditDialog({FeeStructure? existing}) {
     final isEdit = existing != null;
-    String selectedClass = existing?.className ?? _classes.first;
-    final components = existing != null
+
+    // Parse existing class + section
+    var (selectedClass, selectedSection) = existing != null
+        ? _parseClassName(existing.className)
+        : (_classes.first, 'A');
+
+    // Build persistent component entries — created once, not on every rebuild
+    final entries = existing != null
         ? existing.components
-            .map((c) => FeeComponent(name: c.name, amount: c.amount, frequency: c.frequency))
+            .map((c) => _ComponentEntry(name: c.name, amount: c.amount, frequency: c.frequency))
             .toList()
-        : <FeeComponent>[];
+        : <_ComponentEntry>[];
+
+    void disposeAll() { for (final e in entries) e.dispose(); }
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
-        void addComponent() {
-          setDlg(() => components.add(FeeComponent(name: '', amount: 0, frequency: 'YEARLY')));
-        }
+        final bool showSection = !_noSection.contains(selectedClass);
 
         return AlertDialog(
           title: Text(isEdit ? 'Edit Fee Structure' : 'Add Fee Structure',
               style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700)),
           content: SizedBox(
-            width: 520,
+            width: 540,
             child: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                // ── Class Dropdown ────────────────────────────────────────
-                DropdownButtonFormField<String>(
-                  value: _classes.contains(selectedClass) ? selectedClass : _classes.first,
-                  decoration: const InputDecoration(
-                    labelText: 'Class *',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                // ── Class + Section Row ───────────────────────────────────
+                Row(children: [
+                  Expanded(
+                    flex: 3,
+                    child: DropdownButtonFormField<String>(
+                      value: selectedClass,
+                      decoration: const InputDecoration(
+                        labelText: 'Class *',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      ),
+                      items: _classes
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .toList(),
+                      onChanged: (v) => setDlg(() {
+                        selectedClass = v!;
+                        // Reset section if switching to pre-primary
+                        if (_noSection.contains(selectedClass)) selectedSection = 'A';
+                      }),
+                    ),
                   ),
-                  items: _classes
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (v) => setDlg(() => selectedClass = v!),
-                ),
+                  if (showSection) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        value: selectedSection,
+                        decoration: const InputDecoration(
+                          labelText: 'Section *',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        ),
+                        items: _sections
+                            .map((s) => DropdownMenuItem(value: s, child: Text('Section $s')))
+                            .toList(),
+                        onChanged: (v) => setDlg(() => selectedSection = v!),
+                      ),
+                    ),
+                  ],
+                ]),
                 const SizedBox(height: 12),
-                // ── Academic Year (read-only, from appbar filter) ─────────
+                // ── Academic Year (read-only) ─────────────────────────────
                 InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Academic Year',
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   ),
-                  child: Text(_selectedYear,
-                      style: GoogleFonts.nunitoSans(fontSize: 15)),
+                  child: Text(_selectedYear, style: GoogleFonts.nunitoSans(fontSize: 15)),
                 ),
                 const SizedBox(height: 16),
-                // ── Fee Components ────────────────────────────────────────
+                // ── Fee Components header ─────────────────────────────────
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Text('Fee Components',
-                      style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
+                      style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w700, color: AppColors.navy)),
                   TextButton.icon(
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add'),
-                    onPressed: addComponent,
+                    label: const Text('Add Component'),
+                    onPressed: () => setDlg(() => entries.add(_ComponentEntry())),
                   ),
                 ]),
-                ...components.asMap().entries.map((entry) {
+                if (entries.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text('No components yet. Tap "Add Component".',
+                        style: GoogleFonts.nunitoSans(
+                            color: AppColors.textLight, fontSize: 13)),
+                  ),
+                // ── Component Rows (stable controllers) ───────────────────
+                ...entries.asMap().entries.map((entry) {
                   final i = entry.key;
                   final comp = entry.value;
-                  final nameCtrl = TextEditingController(text: comp.name);
-                  final amtCtrl = TextEditingController(text: comp.amount.toStringAsFixed(0));
-                  nameCtrl.addListener(() => comp.name = nameCtrl.text);
-                  amtCtrl.addListener(() => comp.amount = double.tryParse(amtCtrl.text) ?? 0);
                   return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(children: [
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Expanded(
                         flex: 3,
                         child: TextField(
-                          controller: nameCtrl,
+                          controller: comp.nameCtrl,
                           decoration: const InputDecoration(
-                              labelText: 'Fee Name', border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12)),
+                            labelText: 'Fee Name *',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         flex: 2,
                         child: TextField(
-                          controller: amtCtrl,
+                          controller: comp.amtCtrl,
                           decoration: const InputDecoration(
-                              labelText: 'Amount ₹', border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12)),
-                          keyboardType: TextInputType.number,
+                            labelText: 'Amount ₹ *',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         ),
                       ),
                       const SizedBox(width: 6),
-                      // Frequency dropdown per component
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<String>(
-                          value: _frequencies.contains(comp.frequency) ? comp.frequency : 'YEARLY',
+                          value: comp.frequency,
                           decoration: const InputDecoration(
                             labelText: 'Frequency',
                             border: OutlineInputBorder(),
@@ -152,12 +231,16 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                                     child: Text(f, style: const TextStyle(fontSize: 12)),
                                   ))
                               .toList(),
+                          // Only update frequency, doesn't recreate controllers
                           onChanged: (v) => setDlg(() => comp.frequency = v!),
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline, color: AppColors.error),
-                        onPressed: () => setDlg(() => components.removeAt(i)),
+                        onPressed: () {
+                          entries[i].dispose();
+                          setDlg(() => entries.removeAt(i));
+                        },
                       ),
                     ]),
                   );
@@ -166,35 +249,58 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () { disposeAll(); Navigator.pop(ctx); },
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.navy, foregroundColor: Colors.white),
               onPressed: () async {
-                if (components.isEmpty) {
+                // Validate
+                if (entries.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Add at least one fee component.')),
                   );
                   return;
                 }
+                final invalidEntry = entries.any(
+                    (e) => e.nameCtrl.text.trim().isEmpty || e.amtCtrl.text.trim().isEmpty);
+                if (invalidEntry) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('All components need a name and amount.')),
+                  );
+                  return;
+                }
+
+                // Build class name: "Class 5 - A" or just "Nursery"
+                final fullClassName = _noSection.contains(selectedClass)
+                    ? selectedClass
+                    : '$selectedClass - $selectedSection';
+
                 final structure = FeeStructure(
                   id: existing?.id,
-                  className: selectedClass,
+                  className: fullClassName,
                   academicYear: _selectedYear,
-                  components: components,
+                  components: entries.map((e) => e.toComponent()).toList(),
                 );
+
                 try {
                   if (isEdit && existing!.id != null) {
                     await FeeApiService.updateFeeStructure(existing.id!, structure);
                   } else {
                     await FeeApiService.saveFeeStructure(structure);
                   }
+                  disposeAll();
                   if (ctx.mounted) Navigator.pop(ctx);
                   _fetch();
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Save failed: $e'), backgroundColor: AppColors.error),
+                      SnackBar(
+                        content: Text('Save failed: $e'),
+                        backgroundColor: AppColors.error,
+                      ),
                     );
                   }
                 }
@@ -255,10 +361,12 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
               style: GoogleFonts.nunitoSans(color: Colors.white),
               iconEnabledColor: Colors.white,
               underline: const SizedBox(),
-              items: _years.map((y) => DropdownMenuItem(
-                    value: y,
-                    child: Text(y, style: GoogleFonts.nunitoSans(color: Colors.white)),
-                  )).toList(),
+              items: _years
+                  .map((y) => DropdownMenuItem(
+                        value: y,
+                        child: Text(y, style: GoogleFonts.nunitoSans(color: Colors.white)),
+                      ))
+                  .toList(),
               onChanged: (v) { setState(() => _selectedYear = v!); _fetch(); },
             ),
           ),
@@ -283,7 +391,7 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                         Text('No fee structures for $_selectedYear.',
                             style: GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
                         const SizedBox(height: 8),
-                        Text('Tap the + button to create one.',
+                        Text('Tap + to create one.',
                             style: GoogleFonts.nunitoSans(color: AppColors.textLight, fontSize: 13)),
                       ]),
                     )
@@ -305,23 +413,30 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                                   Text(_fmt.format(s.totalFee),
                                       style: GoogleFonts.cormorantGaramond(
-                                          fontSize: 18, fontWeight: FontWeight.w700,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
                                           color: AppColors.gold)),
                                   const SizedBox(width: 8),
                                   IconButton(
-                                    icon: const Icon(Icons.edit_outlined, color: AppColors.navy, size: 18),
+                                    icon: const Icon(Icons.edit_outlined,
+                                        color: AppColors.navy, size: 18),
                                     onPressed: () => _showAddOrEditDialog(existing: s),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 18),
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: AppColors.error, size: 18),
                                     onPressed: () => _delete(s),
                                   ),
                                 ]),
                                 children: s.components.map((c) => ListTile(
                                       title: Text(c.name, style: GoogleFonts.nunitoSans()),
+                                      subtitle: Text(c.frequency,
+                                          style: GoogleFonts.nunitoSans(
+                                              fontSize: 11, color: AppColors.textLight)),
                                       trailing: Text(_fmt.format(c.amount),
                                           style: GoogleFonts.nunitoSans(
-                                              fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textPrimary)),
                                       dense: true,
                                     )).toList(),
                               ),
