@@ -58,7 +58,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   Future<void> _search() async {
     final q = _searchCtrl.text.trim();
     if (q.isEmpty && _classFilter == null) {
-      setState(() { _results = []; _selected = null; _error = null; });
+      setState(() { _results = []; _error = null; }); // keep _selected intact
       return;
     }
     // Capture sequence BEFORE the async gap so stale responses are ignored.
