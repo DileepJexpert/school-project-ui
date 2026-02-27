@@ -21,6 +21,14 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
   final _fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
   final _years = ['2024-2025', '2025-2026', '2026-2027'];
 
+  static const _classes = [
+    'Nursery', 'LKG', 'UKG',
+    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6',
+    'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12',
+  ];
+
+  static const _frequencies = ['YEARLY', 'MONTHLY', 'ONE_TIME'];
+
   @override
   void initState() {
     super.initState();
@@ -41,36 +49,53 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
 
   void _showAddOrEditDialog({FeeStructure? existing}) {
     final isEdit = existing != null;
-    final classCtrl = TextEditingController(text: existing?.className ?? '');
-    final yearCtrl = TextEditingController(text: existing?.academicYear ?? _selectedYear);
+    String selectedClass = existing?.className ?? _classes.first;
     final components = existing != null
-        ? existing.components.map((c) => FeeComponent(name: c.name, amount: c.amount)).toList()
+        ? existing.components
+            .map((c) => FeeComponent(name: c.name, amount: c.amount, frequency: c.frequency))
+            .toList()
         : <FeeComponent>[];
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
         void addComponent() {
-          setDlg(() => components.add(FeeComponent(name: '', amount: 0)));
+          setDlg(() => components.add(FeeComponent(name: '', amount: 0, frequency: 'YEARLY')));
         }
 
         return AlertDialog(
           title: Text(isEdit ? 'Edit Fee Structure' : 'Add Fee Structure',
               style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700)),
           content: SizedBox(
-            width: 500,
+            width: 520,
             child: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextField(
-                  controller: classCtrl,
-                  decoration: const InputDecoration(labelText: 'Class Name *', border: OutlineInputBorder()),
+                // ── Class Dropdown ────────────────────────────────────────
+                DropdownButtonFormField<String>(
+                  value: _classes.contains(selectedClass) ? selectedClass : _classes.first,
+                  decoration: const InputDecoration(
+                    labelText: 'Class *',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  ),
+                  items: _classes
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setDlg(() => selectedClass = v!),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: yearCtrl,
-                  decoration: const InputDecoration(labelText: 'Academic Year *', border: OutlineInputBorder()),
+                // ── Academic Year (read-only, from appbar filter) ─────────
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Academic Year',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  ),
+                  child: Text(_selectedYear,
+                      style: GoogleFonts.nunitoSans(fontSize: 15)),
                 ),
                 const SizedBox(height: 16),
+                // ── Fee Components ────────────────────────────────────────
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Text('Fee Components',
                       style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
@@ -91,7 +116,7 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(children: [
                       Expanded(
-                        flex: 2,
+                        flex: 3,
                         child: TextField(
                           controller: nameCtrl,
                           decoration: const InputDecoration(
@@ -99,14 +124,35 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                               contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12)),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
+                        flex: 2,
                         child: TextField(
                           controller: amtCtrl,
                           decoration: const InputDecoration(
                               labelText: 'Amount ₹', border: OutlineInputBorder(),
                               contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12)),
                           keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Frequency dropdown per component
+                      Expanded(
+                        flex: 2,
+                        child: DropdownButtonFormField<String>(
+                          value: _frequencies.contains(comp.frequency) ? comp.frequency : 'YEARLY',
+                          decoration: const InputDecoration(
+                            labelText: 'Frequency',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                          ),
+                          items: _frequencies
+                              .map((f) => DropdownMenuItem(
+                                    value: f,
+                                    child: Text(f, style: const TextStyle(fontSize: 12)),
+                                  ))
+                              .toList(),
+                          onChanged: (v) => setDlg(() => comp.frequency = v!),
                         ),
                       ),
                       IconButton(
@@ -125,11 +171,16 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.navy, foregroundColor: Colors.white),
               onPressed: () async {
-                if (classCtrl.text.isEmpty || yearCtrl.text.isEmpty) return;
+                if (components.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Add at least one fee component.')),
+                  );
+                  return;
+                }
                 final structure = FeeStructure(
                   id: existing?.id,
-                  className: classCtrl.text.trim(),
-                  academicYear: yearCtrl.text.trim(),
+                  className: selectedClass,
+                  academicYear: _selectedYear,
                   components: components,
                 );
                 try {
@@ -138,12 +189,14 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                   } else {
                     await FeeApiService.saveFeeStructure(structure);
                   }
-                  Navigator.pop(ctx);
+                  if (ctx.mounted) Navigator.pop(ctx);
                   _fetch();
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Save failed: $e'), backgroundColor: AppColors.error),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Save failed: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
                 }
               },
               child: Text(isEdit ? 'Update' : 'Save'),

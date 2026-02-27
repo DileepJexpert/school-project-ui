@@ -36,22 +36,25 @@ class FeeApiService {
   }
 
   // ── Fee Structure ────────────────────────────────────────────────────────
-  static Future<List<FeeStructure>> getFeeStructures({String? year}) async {
+  // Backend GET /api/feestructures requires year as a mandatory query param
+  static Future<List<FeeStructure>> getFeeStructures({String year = '2025-2026'}) async {
     final response = await DioClient.get(
       _structureBase,
-      queryParams: year != null ? {'year': year} : null,
+      queryParams: {'year': year},
     );
     return (response.data as List)
         .map((e) => FeeStructure.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
+  // Backend POST /api/feestructures expects List<FeeStructure> (array)
   static Future<void> saveFeeStructure(FeeStructure structure) async {
-    await DioClient.post(_structureBase, data: structure.toJson());
+    await DioClient.post(_structureBase, data: [structure.toJson()]);
   }
 
+  // Backend has no individual PUT — re-save via POST list
   static Future<void> updateFeeStructure(String id, FeeStructure structure) async {
-    await DioClient.put('$_structureBase/$id', data: structure.toJson());
+    await DioClient.post(_structureBase, data: [structure.toJson()]);
   }
 
   static Future<void> deleteFeeStructure(String id) async {
