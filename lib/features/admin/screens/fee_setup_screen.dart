@@ -273,6 +273,16 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                   disposeAll();
                   if (ctx.mounted) Navigator.pop(ctx);
                   _fetch();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(isEdit
+                            ? 'Fee structure updated for ${structure.className}.'
+                            : 'Fee structure saved for ${structure.className}.'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  }
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -368,10 +378,27 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                         const Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.textLight),
                         const SizedBox(height: 16),
                         Text('No fee structures for $_selectedYear.',
-                            style: GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
+                            style: GoogleFonts.nunitoSans(
+                                color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
-                        Text('Tap + to create one.',
-                            style: GoogleFonts.nunitoSans(color: AppColors.textLight, fontSize: 13)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            'Set up a fee structure for each class before admitting students. '
+                            'Students admitted without a matching fee structure will have no fee profile generated.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.nunitoSans(
+                                color: AppColors.textLight, fontSize: 13),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add First Fee Structure'),
+                          onPressed: _showAddOrEditDialog,
+                        ),
                       ]),
                     )
                   : SingleChildScrollView(
