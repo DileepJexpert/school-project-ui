@@ -38,5 +38,13 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/home/
     - assets/images/gallery/
+    - assets/images/gallery/campus/
+    - assets/images/gallery/events/
+    - assets/images/gallery/sports/
+    - assets/images/gallery/labs/
+    - assets/images/gallery/classroom/
+    - assets/images/events/
+    - assets/images/about/
     - assets/data/
