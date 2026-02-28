@@ -134,6 +134,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
           const SizedBox(height: 8),
           _buildStatusAndSort(),
           const SizedBox(height: 12),
+          _buildStatsRow(),
+          const SizedBox(height: 12),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -188,6 +190,58 @@ class _StudentsScreenState extends State<StudentsScreen> {
         _filterClass = null;
         _filterStatus = 'ALL';
       });
+
+  /// Three stat cards: Total / Active / Inactive — always reflects the full loaded list.
+  Widget _buildStatsRow() {
+    if (_loading || _students.isEmpty) return const SizedBox.shrink();
+    final total = _students.length;
+    final active = _students.where((s) => s.status == 'ACTIVE').length;
+    final inactive = total - active;
+    return Row(
+      children: [
+        _statCard('Total', total, AppColors.navy, Icons.people_rounded),
+        const SizedBox(width: 10),
+        _statCard('Active', active, AppColors.success, Icons.check_circle_outline_rounded),
+        const SizedBox(width: 10),
+        _statCard('Inactive', inactive, AppColors.error, Icons.highlight_off_rounded),
+      ],
+    );
+  }
+
+  Widget _statCard(String label, int count, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.07),
+          border: Border.all(color: color.withOpacity(0.22)),
+          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$count',
+                    style: GoogleFonts.cormorantGaramond(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                        height: 1.1)),
+                Text(label,
+                    style: GoogleFonts.nunitoSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: color.withOpacity(0.75))),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildSearchBar() {
     return TextField(
