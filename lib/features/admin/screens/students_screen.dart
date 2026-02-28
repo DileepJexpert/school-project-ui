@@ -85,7 +85,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
     });
     try {
       final list = await StudentApiService.getAllStudents();
-      setState(() => _students = list);
+      // Exclude enquiries — those belong to the Enquiry Management screen
+      setState(() => _students = list.where((s) => s.status.toUpperCase() != 'ENQUIRY').toList());
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -104,7 +105,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     });
     try {
       final list = await StudentApiService.searchStudents(query.trim());
-      setState(() => _students = list);
+      setState(() => _students = list.where((s) => s.status.toUpperCase() != 'ENQUIRY').toList());
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {

@@ -9,7 +9,10 @@ import '../../../services/admission_api_service.dart';
 
 class NewAdmissionScreen extends StatefulWidget {
   final String? studentId;
-  const NewAdmissionScreen({super.key, this.studentId});
+  /// When true: editing an ENQUIRY record and converting it to a full admission.
+  /// Status will be set to ACTIVE on save.
+  final bool admitMode;
+  const NewAdmissionScreen({super.key, this.studentId, this.admitMode = false});
 
   @override
   State<NewAdmissionScreen> createState() => _NewAdmissionScreenState();
@@ -20,6 +23,7 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   int _step = 0;
   bool _loading = false;
   bool get _isEdit => widget.studentId != null;
+  bool get _isAdmitMode => widget.admitMode;
   final _fmt = DateFormat('dd MMM yyyy');
 
   // Controllers
@@ -152,7 +156,10 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       dateOfAdmission: _doa!,
       admissionNumber: _admNoCtrl.text.trim(),
       rollNumber: _rollNumber,
-      status: _isEdit ? _existingStatus : 'ACTIVE',
+      // admitMode: converting enquiry → force ACTIVE
+      // new record: always ACTIVE
+      // regular edit: preserve existing status
+      status: _isAdmitMode ? 'ACTIVE' : (_isEdit ? _existingStatus : 'ACTIVE'),
       parentDetails: ParentDetails(
         fatherName: _fatherNameCtrl.text.trim(),
         fatherOccupation: _fatherOccCtrl.text.trim(),
@@ -177,7 +184,9 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
     try {
       if (_isEdit) {
         await AdmissionApiService.updateStudent(widget.studentId!, student);
-        _showSnack('Student updated successfully!');
+        _showSnack(_isAdmitMode
+            ? 'Enquiry converted to admission successfully!'
+            : 'Student updated successfully!');
       } else {
         await AdmissionApiService.submitAdmission(student);
         _showSnack('Admission submitted successfully!');
@@ -462,7 +471,9 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
         backgroundColor: AppColors.navy,
         foregroundColor: Colors.white,
         title: Text(
-          _isEdit ? 'Edit Student Profile' : 'New Student Admission',
+          _isAdmitMode
+              ? 'Admit Student'
+              : (_isEdit ? 'Edit Student Profile' : 'New Student Admission'),
           style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700, fontSize: 20),
         ),
       ),
@@ -504,7 +515,11 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
                                 height: 16,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : Icon(_isEdit ? Icons.save : Icons.person_add_alt_1),
-                        label: Text(_loading ? 'Saving…' : (_isEdit ? 'Update' : 'Submit Admission')),
+                        label: Text(_loading
+                            ? 'Saving…'
+                            : (_isAdmitMode
+                                ? 'Confirm Admission'
+                                : (_isEdit ? 'Update' : 'Submit Admission'))),
                         onPressed: _loading ? null : _submit,
                       ),
                     const SizedBox(width: 12),
