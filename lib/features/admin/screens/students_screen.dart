@@ -5,6 +5,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../models/student_model.dart';
 import '../../../services/student_api_service.dart';
+import 'student_detail_screen.dart';
 
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key});
@@ -236,74 +237,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
-  void _showDetail(BuildContext ctx, StudentModel s) {
-    showDialog(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
-        title: Row(children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: AppColors.navy.withOpacity(0.1),
-            child: Text(
-              s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : '?',
-              style: GoogleFonts.cormorantGaramond(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-              child: Text(s.fullName,
-                  style: GoogleFonts.cormorantGaramond(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navy))),
-        ]),
-        content: SizedBox(
-          width: 380,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Divider(),
-              _detailRow('Admission No', s.admissionNumber ?? '—'),
-              _detailRow('Class', s.classForAdmission ?? '—'),
-              _detailRow('Roll Number', s.rollNumber ?? '—'),
-              _detailRow('Academic Year', s.academicYear ?? '—'),
-              _detailRow('Gender', s.gender ?? '—'),
-              _detailRow('Blood Group', s.bloodGroup ?? '—'),
-              _detailRow('Status', s.status),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(_),
-              child: Text('Close',
-                  style: GoogleFonts.nunitoSans(color: AppColors.navy))),
-        ],
+  Future<void> _showDetail(BuildContext ctx, StudentModel s) async {
+    if (s.id == null) return;
+    final updated = await Navigator.push<bool>(
+      ctx,
+      MaterialPageRoute(
+        builder: (_) => StudentDetailScreen(studentId: s.id!),
       ),
     );
+    if (updated == true) _loadStudents();
   }
-
-  Widget _detailRow(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(children: [
-          SizedBox(
-              width: 120,
-              child: Text(label,
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 13))),
-          Expanded(
-              child: Text(value,
-                  style: GoogleFonts.nunitoSans(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: AppColors.textPrimary))),
-        ]),
-      );
 }
 
 class _StudentCard extends StatelessWidget {
