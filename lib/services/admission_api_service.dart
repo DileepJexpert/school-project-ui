@@ -20,6 +20,12 @@ class AdmissionApiService {
     await DioClient.post('$_base/add', data: student.toJson());
   }
 
+  /// Saves a walk-in enquiry WITHOUT generating a fee profile.
+  /// Backend forces status = ENQUIRY and uses ENQ- prefix for the number.
+  static Future<void> submitEnquiry(Student student) async {
+    await DioClient.post('$_base/enquiry', data: student.toJson());
+  }
+
   static Future<void> updateStudent(String id, Student student) async {
     await DioClient.put('$_base/$id', data: student.toJson());
   }
