@@ -663,6 +663,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
     }
   }
 
+  void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: isError ? AppColors.error : AppColors.success,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
   void _showPromoteDialog(BuildContext ctx) {
     String? selectedClass;
     String targetYear = _guessNextYear;
