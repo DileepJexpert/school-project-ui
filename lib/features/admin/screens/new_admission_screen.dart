@@ -79,8 +79,10 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       final s = await AdmissionApiService.getStudentById(widget.studentId!);
       setState(() {
         _nameCtrl.text = s.fullName;
-        _dob = s.dateOfBirth;
-        _gender = s.gender;
+        _dob = s.dateOfBirth.year == 2000 && s.dateOfBirth.month == 1 && s.dateOfBirth.day == 1
+            ? null // placeholder DOB from enquiry — let admin pick a real one
+            : s.dateOfBirth;
+        _gender = _genders.contains(s.gender) ? s.gender : null; // guard non-standard values
         _bloodCtrl.text = s.bloodGroup;
         _nationalityCtrl.text = s.nationality;
         _religionCtrl.text = s.religion;
