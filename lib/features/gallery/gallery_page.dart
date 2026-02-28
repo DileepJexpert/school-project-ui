@@ -91,6 +91,18 @@ class _GalleryTile extends StatefulWidget {
 class _GalleryTileState extends State<_GalleryTile> {
   bool _hovering = false;
 
+  // Color placeholder shown when the image file is not yet added
+  Widget _placeholder() => Container(
+        color: Color(widget.item.color),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.image_outlined, color: Colors.white.withOpacity(0.4), size: 36),
+          const SizedBox(height: 8),
+          Text(widget.item.label,
+              style: GoogleFonts.nunitoSans(
+                  color: Colors.white.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w500)),
+        ]),
+      );
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -101,30 +113,26 @@ class _GalleryTileState extends State<_GalleryTile> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Placeholder color block (replace with CachedNetworkImage when backend ready)
-            Container(
-              color: Color(widget.item.color),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.image_outlined, color: Colors.white.withOpacity(0.4), size: 36),
-                  const SizedBox(height: 8),
-                  Text(widget.item.label, style: GoogleFonts.nunitoSans(
-                    color: Colors.white.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w500,
-                  )),
-                ],
-              ),
-            ),
-            // Hover overlay
+            // Show real image if the file has been added, else color placeholder
+            if (widget.item.imagePath != null)
+              Image.asset(
+                widget.item.imagePath!,
+                fit: BoxFit.cover,
+                // Falls back to placeholder if the file isn't copied yet
+                errorBuilder: (_, __, ___) => _placeholder(),
+              )
+            else
+              _placeholder(),
+            // Hover overlay with label
             AnimatedOpacity(
               opacity: _hovering ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 200),
               child: Container(
                 color: AppColors.navy.withOpacity(0.7),
                 alignment: Alignment.center,
-                child: Text(widget.item.label, style: GoogleFonts.nunitoSans(
-                  color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14,
-                )),
+                child: Text(widget.item.label,
+                    style: GoogleFonts.nunitoSans(
+                        color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
               ),
             ),
           ],

@@ -15,6 +15,10 @@ class SchoolData {
   // --- Principal ---
   static const String principalName = 'Dr. Margaret Whitfield';
   static const String principalTitle = 'Principal & Director';
+  /// Replace this path with your principal's photo.
+  static const String principalImagePath = 'assets/images/home/principal.jpg';
+  /// School building / campus banner used on the hero section.
+  static const String heroBannerImagePath = 'assets/images/home/hero_bg.jpg';
   static const String principalMessage =
       'At Springfield International Academy, we believe every child carries within them '
       'the potential to change the world. For over three decades, we have dedicated ourselves '
@@ -83,12 +87,12 @@ class SchoolData {
 
   // --- Events ---
   static final List<EventItem> events = [
-    EventItem(date: 'Mar 15, 2026', title: 'Annual Science Exhibition', description: 'Students from all grades showcase innovative science projects.', category: 'Academic'),
-    EventItem(date: 'Mar 22, 2026', title: 'Parent-Teacher Conference', description: 'Quarterly meeting to discuss student progress and development.', category: 'Meeting'),
-    EventItem(date: 'Apr 5, 2026', title: 'Inter-School Sports Meet', description: 'Annual athletics competition featuring track, field, and team sports.', category: 'Sports'),
-    EventItem(date: 'Apr 18, 2026', title: 'Cultural Festival — Harmony 2026', description: 'Celebration of art, music, dance, and drama by students.', category: 'Cultural'),
-    EventItem(date: 'May 1, 2026', title: 'Admissions Open Day 2026-27', description: 'Campus tour, faculty interaction, and admissions guidance.', category: 'Admissions'),
-    EventItem(date: 'May 20, 2026', title: 'Annual Day & Prize Distribution', description: 'Celebrating student achievements with awards and performances.', category: 'Ceremony'),
+    EventItem(date: 'Mar 15, 2026', title: 'Annual Science Exhibition',      description: 'Students from all grades showcase innovative science projects.',         category: 'Academic',   imagePath: 'assets/images/events/science_exhibition.jpg'),
+    EventItem(date: 'Mar 22, 2026', title: 'Parent-Teacher Conference',      description: 'Quarterly meeting to discuss student progress and development.',         category: 'Meeting',    imagePath: 'assets/images/events/parent_teacher.jpg'),
+    EventItem(date: 'Apr 5, 2026',  title: 'Inter-School Sports Meet',       description: 'Annual athletics competition featuring track, field, and team sports.', category: 'Sports',     imagePath: 'assets/images/events/sports_meet.jpg'),
+    EventItem(date: 'Apr 18, 2026', title: 'Cultural Festival — Harmony 2026', description: 'Celebration of art, music, dance, and drama by students.',           category: 'Cultural',   imagePath: 'assets/images/events/cultural_festival.jpg'),
+    EventItem(date: 'May 1, 2026',  title: 'Admissions Open Day 2026-27',    description: 'Campus tour, faculty interaction, and admissions guidance.',            category: 'Admissions', imagePath: 'assets/images/events/admissions_day.jpg'),
+    EventItem(date: 'May 20, 2026', title: 'Annual Day & Prize Distribution', description: 'Celebrating student achievements with awards and performances.',        category: 'Ceremony',   imagePath: 'assets/images/events/annual_day.jpg'),
   ];
 
   // --- Notices ---
@@ -189,21 +193,21 @@ class SchoolData {
   // --- Gallery ---
   static final List<String> galleryCategories = ['All', 'Campus', 'Events', 'Sports', 'Labs', 'Classroom'];
   static final List<GalleryItem> galleryImages = [
-    GalleryItem(category: 'Campus', label: 'Main Building Entrance', color: 0xFF2C5F8A),
-    GalleryItem(category: 'Campus', label: 'School Courtyard', color: 0xFF3A7CA5),
-    GalleryItem(category: 'Campus', label: 'Library Wing', color: 0xFF4A8DB5),
-    GalleryItem(category: 'Events', label: 'Annual Day 2025', color: 0xFF8A6D2C),
-    GalleryItem(category: 'Events', label: 'Science Exhibition', color: 0xFFA5883A),
-    GalleryItem(category: 'Events', label: 'Cultural Festival', color: 0xFFB5984A),
-    GalleryItem(category: 'Sports', label: 'Football Ground', color: 0xFF2C8A5F),
-    GalleryItem(category: 'Sports', label: 'Swimming Pool', color: 0xFF3AA57C),
-    GalleryItem(category: 'Sports', label: 'Basketball Court', color: 0xFF4AB58D),
-    GalleryItem(category: 'Labs', label: 'Physics Laboratory', color: 0xFF5F2C8A),
-    GalleryItem(category: 'Labs', label: 'Computer Lab', color: 0xFF7C3AA5),
-    GalleryItem(category: 'Labs', label: 'Chemistry Lab', color: 0xFF8D4AB5),
-    GalleryItem(category: 'Classroom', label: 'Smart Classroom', color: 0xFF8A2C5F),
-    GalleryItem(category: 'Classroom', label: 'Kindergarten Room', color: 0xFFA53A7C),
-    GalleryItem(category: 'Classroom', label: 'Art Studio', color: 0xFFB54A8D),
+    GalleryItem(category: 'Campus',    label: 'Main Building Entrance', color: 0xFF2C5F8A, imagePath: 'assets/images/gallery/campus/main_entrance.jpg'),
+    GalleryItem(category: 'Campus',    label: 'School Courtyard',       color: 0xFF3A7CA5, imagePath: 'assets/images/gallery/campus/courtyard.jpg'),
+    GalleryItem(category: 'Campus',    label: 'Library Wing',           color: 0xFF4A8DB5, imagePath: 'assets/images/gallery/campus/library.jpg'),
+    GalleryItem(category: 'Events',    label: 'Annual Day 2025',        color: 0xFF8A6D2C, imagePath: 'assets/images/gallery/events/annual_day_2025.jpg'),
+    GalleryItem(category: 'Events',    label: 'Science Exhibition',     color: 0xFFA5883A, imagePath: 'assets/images/gallery/events/science_exhibition.jpg'),
+    GalleryItem(category: 'Events',    label: 'Cultural Festival',      color: 0xFFB5984A, imagePath: 'assets/images/gallery/events/cultural_festival.jpg'),
+    GalleryItem(category: 'Sports',    label: 'Football Ground',        color: 0xFF2C8A5F, imagePath: 'assets/images/gallery/sports/football_ground.jpg'),
+    GalleryItem(category: 'Sports',    label: 'Swimming Pool',          color: 0xFF3AA57C, imagePath: 'assets/images/gallery/sports/swimming_pool.jpg'),
+    GalleryItem(category: 'Sports',    label: 'Basketball Court',       color: 0xFF4AB58D, imagePath: 'assets/images/gallery/sports/basketball_court.jpg'),
+    GalleryItem(category: 'Labs',      label: 'Physics Laboratory',     color: 0xFF5F2C8A, imagePath: 'assets/images/gallery/labs/physics_lab.jpg'),
+    GalleryItem(category: 'Labs',      label: 'Computer Lab',           color: 0xFF7C3AA5, imagePath: 'assets/images/gallery/labs/computer_lab.jpg'),
+    GalleryItem(category: 'Labs',      label: 'Chemistry Lab',          color: 0xFF8D4AB5, imagePath: 'assets/images/gallery/labs/chemistry_lab.jpg'),
+    GalleryItem(category: 'Classroom', label: 'Smart Classroom',        color: 0xFF8A2C5F, imagePath: 'assets/images/gallery/classroom/smart_classroom.jpg'),
+    GalleryItem(category: 'Classroom', label: 'Kindergarten Room',      color: 0xFFA53A7C, imagePath: 'assets/images/gallery/classroom/kindergarten_room.jpg'),
+    GalleryItem(category: 'Classroom', label: 'Art Studio',             color: 0xFFB54A8D, imagePath: 'assets/images/gallery/classroom/art_studio.jpg'),
   ];
 
   // --- Transport ---
@@ -266,7 +270,10 @@ class EventItem {
   final String title;
   final String description;
   final String category;
-  const EventItem({required this.date, required this.title, required this.description, required this.category});
+  /// Asset path e.g. 'assets/images/events/annual_day.jpg'
+  /// Drop your photo in that path and it will appear automatically.
+  final String? imagePath;
+  const EventItem({required this.date, required this.title, required this.description, required this.category, this.imagePath});
 }
 
 class NoticeItem {
@@ -322,8 +329,11 @@ class DownloadableForm {
 class GalleryItem {
   final String category;
   final String label;
-  final int color;
-  const GalleryItem({required this.category, required this.label, required this.color});
+  final int color; // fallback placeholder colour when image not yet added
+  /// Asset path e.g. 'assets/images/gallery/campus/main_entrance.jpg'
+  /// Drop your photo in that path and it will appear automatically.
+  final String? imagePath;
+  const GalleryItem({required this.category, required this.label, required this.color, this.imagePath});
 }
 
 class TransportZone {

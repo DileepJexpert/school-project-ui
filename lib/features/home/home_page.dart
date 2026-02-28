@@ -49,6 +49,21 @@ class _HeroSection extends StatelessWidget {
       decoration: const BoxDecoration(gradient: AppColors.heroGradient),
       child: Stack(
         children: [
+          // ── Real school photo as hero background ──────────────────────────
+          // Place your school building / campus photo at:
+          //   assets/images/home/hero_bg.jpg
+          // It will show behind a dark overlay to keep text readable.
+          Positioned.fill(
+            child: Image.asset(
+              SchoolData.heroBannerImagePath,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox(), // no photo yet → gradient shows
+            ),
+          ),
+          // Dark overlay so text stays readable over the photo
+          Positioned.fill(
+            child: Container(color: AppColors.navyDark.withOpacity(0.65)),
+          ),
           // Decorative circle
           if (!isMobile)
             Positioned(
@@ -234,10 +249,13 @@ class _PrincipalSection extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
       child: Column(
         children: [
+          // Principal photo — place image at: assets/images/home/principal.jpg
           CircleAvatar(
             radius: 54,
             backgroundColor: AppColors.goldPale,
-            child: const Icon(Icons.person, size: 48, color: AppColors.navy),
+            backgroundImage: AssetImage(SchoolData.principalImagePath),
+            onBackgroundImageError: (_, __) {},
+            child: null, // icon shown as fallback via onBackgroundImageError
           ),
           const SizedBox(height: 16),
           Text(

@@ -95,45 +95,58 @@ class _EventsSection extends StatelessWidget {
                     width: (constraints.maxWidth - (columns - 1) * 16) / columns,
                     child: AccentCard(
                       padding: EdgeInsets.zero,
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 70,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            color: AppColors.navy,
-                            child: Column(
-                              children: [
-                                Text(day, style: GoogleFonts.cormorantGaramond(
-                                  color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700, height: 1)),
-                                Text(month.toUpperCase(), style: GoogleFonts.nunitoSans(
-                                  color: AppColors.goldLight, fontSize: 11, letterSpacing: 1, fontWeight: FontWeight.w600)),
-                              ],
+                          // Event photo — shown when imagePath file is present
+                          if (e.imagePath != null)
+                            SizedBox(
+                              height: 150,
+                              width: double.infinity,
+                              child: Image.asset(
+                                e.imagePath!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: AppColors.navy.withOpacity(0.08),
+                                  child: const Icon(Icons.event, color: AppColors.textLight, size: 40),
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
+                          // Date + details row
+                          Row(children: [
+                            Container(
+                              width: 70,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              color: AppColors.navy,
+                              child: Column(children: [
+                                Text(day, style: GoogleFonts.cormorantGaramond(
+                                    color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700, height: 1)),
+                                Text(month.toUpperCase(), style: GoogleFonts.nunitoSans(
+                                    color: AppColors.goldLight, fontSize: 11, letterSpacing: 1, fontWeight: FontWeight.w600)),
+                              ]),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     color: AppColors.goldPale,
                                     child: Text(e.category, style: GoogleFonts.nunitoSans(
-                                      color: AppColors.navy, fontWeight: FontWeight.w600, fontSize: 10)),
+                                        color: AppColors.navy, fontWeight: FontWeight.w600, fontSize: 10)),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(e.title, style: GoogleFonts.nunitoSans(
-                                    color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 15)),
+                                      color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 15)),
                                   const SizedBox(height: 4),
                                   Text(e.description, style: GoogleFonts.nunitoSans(
-                                    color: AppColors.textSecondary, fontSize: 13, height: 1.4)),
-                                ],
+                                      color: AppColors.textSecondary, fontSize: 13, height: 1.4)),
+                                ]),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
+                            const SizedBox(width: 8),
+                          ]),
                         ],
                       ),
                     ),
