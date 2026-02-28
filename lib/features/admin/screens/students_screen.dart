@@ -12,7 +12,7 @@ import 'student_detail_screen.dart';
 
 enum _SortBy { nameAZ, nameZA, classAsc }
 
-enum _CardAction { edit, toggleStatus }
+enum _CardAction { edit, activate, deactivate, issueTC, markLeft }
 
 /// Returns the next stored class string for [currentClass], or null for Class 12 (graduation).
 String? _computeNextClass(String currentClass) {
@@ -410,16 +410,30 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
-  /// Status filter chips (All / Active / Inactive) + sort dropdown.
+  /// Scrollable status filter chips + sort dropdown.
   Widget _buildStatusAndSort() {
     return Row(
       children: [
-        _statusChip('ALL', 'All', AppColors.navy),
-        const SizedBox(width: 6),
-        _statusChip('ACTIVE', 'Active', AppColors.success),
-        const SizedBox(width: 6),
-        _statusChip('INACTIVE', 'Inactive', AppColors.error),
-        const Spacer(),
+        Expanded(
+          child: SizedBox(
+            height: 34,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _statusChip('ALL', 'All', AppColors.navy),
+                const SizedBox(width: 6),
+                _statusChip('ACTIVE', 'Active', AppColors.success),
+                const SizedBox(width: 6),
+                _statusChip('INACTIVE', 'Inactive', AppColors.error),
+                const SizedBox(width: 6),
+                _statusChip('TC_ISSUED', 'TC Issued', AppColors.warning),
+                const SizedBox(width: 6),
+                _statusChip('LEFT', 'Left', AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         _buildSortButton(),
       ],
     );
@@ -501,7 +515,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         student: students[i],
         onTap: () => _showDetail(ctx, students[i]),
         onEdit: () => _editStudent(ctx, students[i]),
-        onToggleStatus: () => _toggleStatus(students[i]),
+        onSetStatus: (status) => _setStatus(students[i], status),
       ),
     );
   }
@@ -605,18 +619,25 @@ class _StudentsScreenState extends State<StudentsScreen> {
     if (saved == true) _loadStudents();
   }
 
-  Future<void> _toggleStatus(StudentModel s) async {
+  Future<void> _setStatus(StudentModel s, String newStatus) async {
     if (s.id == null) return;
-    final newStatus = s.status == 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-    final label = newStatus == 'ACTIVE' ? 'activated' : 'deactivated';
+    const labels = {
+      'ACTIVE': 'reactivated',
+      'INACTIVE': 'deactivated',
+      'TC_ISSUED': 'marked TC Issued',
+      'LEFT': 'marked as Left',
+    };
+    const colors = {
+      'ACTIVE': AppColors.success,
+      'TC_ISSUED': AppColors.warning,
+    };
     try {
       await AdmissionApiService.toggleStatus(s.id!, newStatus);
       _loadStudents();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${s.fullName} $label'),
-          backgroundColor:
-              newStatus == 'ACTIVE' ? AppColors.success : AppColors.error,
+          content: Text('${s.fullName} ${labels[newStatus] ?? newStatus}'),
+          backgroundColor: colors[newStatus] ?? AppColors.error,
           behavior: SnackBarBehavior.floating,
         ));
       }
@@ -882,13 +903,13 @@ class _StudentCard extends StatelessWidget {
   final StudentModel student;
   final VoidCallback onTap;
   final VoidCallback onEdit;
-  final VoidCallback onToggleStatus;
+  final void Function(String status) onSetStatus;
 
   const _StudentCard({
     required this.student,
     required this.onTap,
     required this.onEdit,
-    required this.onToggleStatus,
+    required this.onSetStatus,
   });
 
   @override
@@ -952,8 +973,14 @@ class _StudentCard extends StatelessWidget {
         switch (action) {
           case _CardAction.edit:
             onEdit();
-          case _CardAction.toggleStatus:
-            onToggleStatus();
+          case _CardAction.activate:
+            onSetStatus('ACTIVE');
+          case _CardAction.deactivate:
+            onSetStatus('INACTIVE');
+          case _CardAction.issueTC:
+            onSetStatus('TC_ISSUED');
+          case _CardAction.markLeft:
+            onSetStatus('LEFT');
         }
       },
       itemBuilder: (_) => [
@@ -965,22 +992,46 @@ class _StudentCard extends StatelessWidget {
             Text('Edit'),
           ]),
         ),
-        PopupMenuItem(
-          value: _CardAction.toggleStatus,
-          child: Row(children: [
-            Icon(
-              isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
-              size: 18,
-              color: isActive ? AppColors.error : AppColors.success,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              isActive ? 'Deactivate' : 'Activate',
-              style: TextStyle(
-                  color: isActive ? AppColors.error : AppColors.success),
-            ),
-          ]),
-        ),
+        if (isActive) ...[
+          PopupMenuItem(
+            value: _CardAction.issueTC,
+            child: Row(children: [
+              Icon(Icons.description_outlined,
+                  size: 18, color: AppColors.warning),
+              const SizedBox(width: 10),
+              Text('Issue TC',
+                  style: const TextStyle(color: AppColors.warning)),
+            ]),
+          ),
+          PopupMenuItem(
+            value: _CardAction.markLeft,
+            child: Row(children: [
+              Icon(Icons.exit_to_app_rounded,
+                  size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 10),
+              const Text('Mark as Left'),
+            ]),
+          ),
+          PopupMenuItem(
+            value: _CardAction.deactivate,
+            child: Row(children: [
+              Icon(Icons.block_rounded, size: 18, color: AppColors.error),
+              const SizedBox(width: 10),
+              Text('Deactivate',
+                  style: const TextStyle(color: AppColors.error)),
+            ]),
+          ),
+        ] else
+          PopupMenuItem(
+            value: _CardAction.activate,
+            child: Row(children: [
+              Icon(Icons.check_circle_outline_rounded,
+                  size: 18, color: AppColors.success),
+              const SizedBox(width: 10),
+              Text('Re-enroll',
+                  style: const TextStyle(color: AppColors.success)),
+            ]),
+          ),
       ],
       icon: const Icon(Icons.more_vert_rounded,
           size: 20, color: AppColors.textSecondary),
@@ -999,18 +1050,31 @@ class _StudentCard extends StatelessWidget {
                 fontSize: 11, fontWeight: FontWeight.w600, color: color)),
       );
 
-  Widget _statusBadge(String status) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: status == 'ACTIVE'
-              ? AppColors.success.withOpacity(0.1)
-              : AppColors.error.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(status,
-            style: GoogleFonts.nunitoSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: status == 'ACTIVE' ? AppColors.success : AppColors.error)),
-      );
+  static Color _badgeColor(String status) => switch (status) {
+        'ACTIVE' => AppColors.success,
+        'TC_ISSUED' => AppColors.warning,
+        'LEFT' => AppColors.textSecondary,
+        _ => AppColors.error,
+      };
+
+  static String _badgeLabel(String status) => switch (status) {
+        'TC_ISSUED' => 'TC Issued',
+        'LEFT' => 'Left',
+        'ACTIVE' => 'Active',
+        _ => 'Inactive',
+      };
+
+  Widget _statusBadge(String status) {
+    final color = _badgeColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(_badgeLabel(status),
+          style: GoogleFonts.nunitoSans(
+              fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+    );
+  }
 }
