@@ -27,4 +27,29 @@ class AdmissionApiService {
   static Future<void> deleteStudent(String id) async {
     await DioClient.delete('$_base/$id');
   }
+
+  /// Fetches the full student record, flips [newStatus], then PUTs it back.
+  static Future<void> toggleStatus(String id, String newStatus) async {
+    final s = await getStudentById(id);
+    final updated = Student(
+      id: s.id,
+      fullName: s.fullName,
+      dateOfBirth: s.dateOfBirth,
+      gender: s.gender,
+      bloodGroup: s.bloodGroup,
+      nationality: s.nationality,
+      religion: s.religion,
+      motherTongue: s.motherTongue,
+      aadharNumber: s.aadharNumber,
+      classForAdmission: s.classForAdmission,
+      academicYear: s.academicYear,
+      dateOfAdmission: s.dateOfAdmission,
+      admissionNumber: s.admissionNumber,
+      status: newStatus,
+      parentDetails: s.parentDetails,
+      contactDetails: s.contactDetails,
+      previousSchoolDetails: s.previousSchoolDetails,
+    );
+    await updateStudent(id, updated);
+  }
 }

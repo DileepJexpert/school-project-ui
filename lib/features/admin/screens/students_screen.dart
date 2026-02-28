@@ -4,10 +4,14 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../models/student_model.dart';
+import '../../../services/admission_api_service.dart';
 import '../../../services/student_api_service.dart';
+import 'new_admission_screen.dart';
 import 'student_detail_screen.dart';
 
 enum _SortBy { nameAZ, nameZA, classAsc }
+
+enum _CardAction { edit, toggleStatus }
 
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key});
@@ -412,6 +416,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
       itemBuilder: (ctx, i) => _StudentCard(
         student: students[i],
         onTap: () => _showDetail(ctx, students[i]),
+        onEdit: () => _editStudent(ctx, students[i]),
+        onToggleStatus: () => _toggleStatus(students[i]),
       ),
     );
   }
@@ -505,6 +511,42 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
+  Future<void> _editStudent(BuildContext ctx, StudentModel s) async {
+    if (s.id == null) return;
+    final saved = await Navigator.push<bool>(
+      ctx,
+      MaterialPageRoute(
+          builder: (_) => NewAdmissionScreen(studentId: s.id!)),
+    );
+    if (saved == true) _loadStudents();
+  }
+
+  Future<void> _toggleStatus(StudentModel s) async {
+    if (s.id == null) return;
+    final newStatus = s.status == 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    final label = newStatus == 'ACTIVE' ? 'activated' : 'deactivated';
+    try {
+      await AdmissionApiService.toggleStatus(s.id!, newStatus);
+      _loadStudents();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${s.fullName} $label'),
+          backgroundColor:
+              newStatus == 'ACTIVE' ? AppColors.success : AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to update status: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
   Future<void> _showDetail(BuildContext ctx, StudentModel s) async {
     if (s.id == null) return;
     final updated = await Navigator.push<bool>(
@@ -520,8 +562,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
 class _StudentCard extends StatelessWidget {
   final StudentModel student;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onToggleStatus;
 
-  const _StudentCard({required this.student, required this.onTap});
+  const _StudentCard({
+    required this.student,
+    required this.onTap,
+    required this.onEdit,
+    required this.onToggleStatus,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -569,9 +618,55 @@ class _StudentCard extends StatelessWidget {
               ),
             ),
             _statusBadge(student.status),
+            const SizedBox(width: 4),
+            _buildMenu(),
           ]),
         ),
       ),
+    );
+  }
+
+  Widget _buildMenu() {
+    final isActive = student.status == 'ACTIVE';
+    return PopupMenuButton<_CardAction>(
+      onSelected: (action) {
+        switch (action) {
+          case _CardAction.edit:
+            onEdit();
+          case _CardAction.toggleStatus:
+            onToggleStatus();
+        }
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: _CardAction.edit,
+          child: Row(children: [
+            Icon(Icons.edit_outlined, size: 18),
+            SizedBox(width: 10),
+            Text('Edit'),
+          ]),
+        ),
+        PopupMenuItem(
+          value: _CardAction.toggleStatus,
+          child: Row(children: [
+            Icon(
+              isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+              size: 18,
+              color: isActive ? AppColors.error : AppColors.success,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              isActive ? 'Deactivate' : 'Activate',
+              style: TextStyle(
+                  color: isActive ? AppColors.error : AppColors.success),
+            ),
+          ]),
+        ),
+      ],
+      icon: const Icon(Icons.more_vert_rounded,
+          size: 20, color: AppColors.textSecondary),
+      padding: EdgeInsets.zero,
+      splashRadius: 18,
     );
   }
 
