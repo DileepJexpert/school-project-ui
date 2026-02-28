@@ -27,6 +27,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   List<StudentFeeProfile> _results = [];
   StudentFeeProfile? _selected;
   bool _searching = false;
+  bool _loadingProfile = false; // true while fetching full profile after tap
   bool _processing = false;
   String? _error;
   Timer? _debounce;
@@ -58,6 +59,22 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
       final profile = await FeeApiService.getStudentFeeProfile(widget.preSelectedStudentId!);
       setState(() => _selected = profile);
     } catch (_) {} // silently fall through — admin can search manually
+  }
+
+  /// Called when the admin taps a student from the search results.
+  /// Fetches the full fee profile (auto-generating it from fee_structures if it
+  /// doesn't exist yet) instead of using the zero-fee stub returned by search.
+  Future<void> _selectStudent(StudentFeeProfile stub) async {
+    setState(() { _results = []; _searchCtrl.clear(); _loadingProfile = true; });
+    try {
+      final full = await FeeApiService.getStudentFeeProfile(stub.id);
+      setState(() => _selected = full);
+    } catch (_) {
+      // Fallback to the search stub so the screen at least shows the student
+      setState(() => _selected = stub);
+    } finally {
+      setState(() => _loadingProfile = false);
+    }
   }
 
   void _onSearchChanged() {
@@ -270,7 +287,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                   style: GoogleFonts.nunitoSans(
                       color: s.dueFees > 0 ? AppColors.error : AppColors.success,
                       fontWeight: FontWeight.w700)),
-              onTap: () => setState(() { _selected = s; _results = []; _searchCtrl.clear(); }),
+              onTap: () => _selectStudent(s),
               tileColor: AppColors.cream,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -280,6 +297,9 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   Widget _buildPaymentPanel() {
+    if (_loadingProfile) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (_selected == null) {
       return Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
