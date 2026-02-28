@@ -328,6 +328,30 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
         Text('Select Installments',
             style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
         const SizedBox(height: 8),
+        if (s.feeInstallments.isEmpty) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+              border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.info_outline, color: AppColors.warning, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'No fee installments found for this student. '
+                  'Please set up a fee structure for ${s.className} in the Fee Structure Setup screen first, '
+                  'then re-admit or re-assign the student.',
+                  style: GoogleFonts.nunitoSans(color: AppColors.warning, fontSize: 13),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 8),
+        ],
         ...s.feeInstallments.map((f) {
           final isPaid = f.status.toUpperCase() == 'PAID';
           return CheckboxListTile(
