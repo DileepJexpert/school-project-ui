@@ -5,6 +5,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../models/student_model.dart';
 import '../../../services/admission_api_service.dart';
+import '../../../services/csv_export_service.dart';
 import '../../../services/student_api_service.dart';
 import 'new_admission_screen.dart';
 import 'student_detail_screen.dart';
@@ -178,6 +179,18 @@ class _StudentsScreenState extends State<StudentsScreen> {
             label: const Text('Clear'),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
           ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: _filtered.isEmpty
+              ? null
+              : () => CsvExportService.exportStudents(_filtered),
+          icon: const Icon(Icons.download_rounded, size: 16),
+          label: const Text('Export CSV'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.navy,
+            side: const BorderSide(color: AppColors.navy),
+          ),
+        ),
         const SizedBox(width: 8),
         ElevatedButton.icon(
           onPressed: _loadStudents,

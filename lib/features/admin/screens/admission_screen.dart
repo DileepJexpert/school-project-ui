@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../models/admission_data.dart';
 import '../../../services/admission_api_service.dart';
+import '../../../services/csv_export_service.dart';
 import 'new_admission_screen.dart';
 import 'student_detail_screen.dart';
 
@@ -251,6 +252,18 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                   style:
                       TextButton.styleFrom(foregroundColor: AppColors.error),
                 ),
+              const SizedBox(width: 4),
+              OutlinedButton.icon(
+                onPressed: _filtered.isEmpty
+                    ? null
+                    : () => CsvExportService.exportAdmissions(_filtered),
+                icon: const Icon(Icons.download_rounded, size: 16),
+                label: const Text('Export CSV'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.navy,
+                  side: const BorderSide(color: AppColors.navy),
+                ),
+              ),
               IconButton(
                 tooltip: 'Refresh',
                 onPressed: _fetch,
