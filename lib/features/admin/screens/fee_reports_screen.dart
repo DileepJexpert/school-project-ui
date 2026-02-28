@@ -24,7 +24,7 @@ class _FeeReportsScreenState extends State<FeeReportsScreen> {
   final _currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
   final _dateFmt = DateFormat('dd MMM yyyy');
 
-  final _classes = ['All Classes', 'Class 9 A', 'Class 10 A', 'Class 11 Science', 'Class 12 Science'];
+  List<String> get _classes => ['All Classes', ...SchoolConstants.allClasses];
   final _modes = ['All Modes', 'CASH', 'CHEQUE', 'DIGITAL_PAYMENT', 'CHALLAN'];
 
   @override

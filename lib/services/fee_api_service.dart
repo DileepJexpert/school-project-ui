@@ -35,6 +35,14 @@ class FeeApiService {
     return PaymentRecord.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Returns all students with outstanding dues (dueFees > 0), sorted highest first.
+  static Future<List<StudentFeeProfile>> getOutstandingDues() async {
+    final response = await DioClient.get('$_feeBase/dues');
+    return (response.data as List)
+        .map((e) => StudentFeeProfile.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // ── Fee Structure ────────────────────────────────────────────────────────
   // Backend GET /api/feestructures requires year as a mandatory query param
   static Future<List<FeeStructure>> getFeeStructures({String year = '2025-2026'}) async {

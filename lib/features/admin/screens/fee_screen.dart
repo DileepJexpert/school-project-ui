@@ -5,6 +5,7 @@ import '../../../core/constants/app_constants.dart';
 import 'fee_collection_screen.dart';
 import 'fee_setup_screen.dart';
 import 'fee_reports_screen.dart';
+import 'outstanding_dues_screen.dart';
 import 'transaction_history_screen.dart';
 
 class FeeScreen extends StatelessWidget {
@@ -33,6 +34,13 @@ class FeeScreen extends StatelessWidget {
         subtitle: 'View collection summaries, dues, and class-wise breakdowns with charts.',
         color: AppColors.warning,
         page: const FeeReportsScreen(),
+      ),
+      _FeeModule(
+        icon: Icons.pending_actions_outlined,
+        title: 'Outstanding Dues',
+        subtitle: 'View all students with pending fees, sorted by highest due amount.',
+        color: AppColors.error,
+        page: const OutstandingDuesScreen(),
       ),
       _FeeModule(
         icon: Icons.receipt_long_outlined,

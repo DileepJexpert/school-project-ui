@@ -8,7 +8,9 @@ import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
 
 class FeeCollectionScreen extends StatefulWidget {
-  const FeeCollectionScreen({super.key});
+  /// When provided, the screen loads and pre-selects this student's fee profile.
+  final String? preSelectedStudentId;
+  const FeeCollectionScreen({super.key, this.preSelectedStudentId});
 
   @override
   State<FeeCollectionScreen> createState() => _FeeCollectionScreenState();
@@ -48,6 +50,14 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     _discountCtrl.addListener(() {
       setState(() => _discount = double.tryParse(_discountCtrl.text) ?? 0.0);
     });
+    if (widget.preSelectedStudentId != null) _preSelectStudent();
+  }
+
+  Future<void> _preSelectStudent() async {
+    try {
+      final profile = await FeeApiService.getStudentFeeProfile(widget.preSelectedStudentId!);
+      setState(() => _selected = profile);
+    } catch (_) {} // silently fall through — admin can search manually
   }
 
   void _onSearchChanged() {
