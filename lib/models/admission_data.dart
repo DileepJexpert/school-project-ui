@@ -106,6 +106,7 @@ class Student {
   final String academicYear;
   final DateTime dateOfAdmission;
   final String admissionNumber;
+  final String? rollNumber;
   final String status;
   final ParentDetails parentDetails;
   final ContactDetails contactDetails;
@@ -125,6 +126,7 @@ class Student {
     required this.academicYear,
     required this.dateOfAdmission,
     required this.admissionNumber,
+    this.rollNumber,
     required this.status,
     required this.parentDetails,
     required this.contactDetails,
@@ -147,6 +149,7 @@ class Student {
       academicYear: json['academicYear'] ?? 'N/A',
       dateOfAdmission: safeParse(json['dateOfAdmission']),
       admissionNumber: json['admissionNumber'] ?? '',
+      rollNumber: json['rollNumber'],
       status: json['status'] ?? 'ACTIVE',
       parentDetails: ParentDetails.fromJson(json['parentDetails'] ?? {}),
       contactDetails: ContactDetails.fromJson(json['contactDetails'] ?? {}),
@@ -167,6 +170,7 @@ class Student {
         'academicYear': academicYear,
         'dateOfAdmission': dateOfAdmission.toIso8601String().substring(0, 10),
         'admissionNumber': admissionNumber,
+        if (rollNumber != null) 'rollNumber': rollNumber,
         'status': status,
         'parentDetails': parentDetails.toJson(),
         'contactDetails': contactDetails.toJson(),

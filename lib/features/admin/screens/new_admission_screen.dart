@@ -52,6 +52,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   String _section = SchoolConstants.sections.first; // 'A' default
   String? _year;
   bool _sameAddr = false;
+  String? _rollNumber;           // preserved from existing record on edit
+  String _existingStatus = 'ACTIVE'; // preserved from existing record on edit
 
   // The value stored in DB: "Class 5 - A" or "Nursery"
   String? get _classForAdmission => _baseClass == null
@@ -86,6 +88,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
         _year = s.academicYear;
         _doa = s.dateOfAdmission;
         _admNoCtrl.text = s.admissionNumber;
+        _rollNumber = s.rollNumber;
+        _existingStatus = s.status;
         _fatherNameCtrl.text = s.parentDetails.fatherName;
         _fatherOccCtrl.text = s.parentDetails.fatherOccupation;
         _fatherMobCtrl.text = s.parentDetails.fatherMobile;
@@ -147,7 +151,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       academicYear: _year!,
       dateOfAdmission: _doa!,
       admissionNumber: _admNoCtrl.text.trim(),
-      status: 'ACTIVE',
+      rollNumber: _rollNumber,
+      status: _isEdit ? _existingStatus : 'ACTIVE',
       parentDetails: ParentDetails(
         fatherName: _fatherNameCtrl.text.trim(),
         fatherOccupation: _fatherOccCtrl.text.trim(),

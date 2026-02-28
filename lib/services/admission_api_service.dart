@@ -52,6 +52,7 @@ class AdmissionApiService {
         academicYear: toClass != null ? newYear : s.academicYear,
         dateOfAdmission: s.dateOfAdmission,
         admissionNumber: s.admissionNumber,
+        rollNumber: s.rollNumber,
         status: toClass != null ? s.status : 'INACTIVE',
         parentDetails: s.parentDetails,
         contactDetails: s.contactDetails,
@@ -62,7 +63,7 @@ class AdmissionApiService {
     return toUpdate.length;
   }
 
-  /// Fetches the full student record, flips [newStatus], then PUTs it back.
+  /// Fetches the full student record, sets [newStatus], then PUTs it back.
   static Future<void> toggleStatus(String id, String newStatus) async {
     final s = await getStudentById(id);
     final updated = Student(
@@ -79,11 +80,49 @@ class AdmissionApiService {
       academicYear: s.academicYear,
       dateOfAdmission: s.dateOfAdmission,
       admissionNumber: s.admissionNumber,
+      rollNumber: s.rollNumber,
       status: newStatus,
       parentDetails: s.parentDetails,
       contactDetails: s.contactDetails,
       previousSchoolDetails: s.previousSchoolDetails,
     );
     await updateStudent(id, updated);
+  }
+
+  /// Bulk-assigns roll numbers. [assignments] maps student id → roll number string.
+  /// Fetches each student once and PUTs back with the new roll number.
+  /// Returns the count of successful updates.
+  static Future<int> assignRollNumbers(
+      Map<String, String> assignments) async {
+    int count = 0;
+    for (final entry in assignments.entries) {
+      final id = entry.key;
+      final roll = entry.value.trim();
+      if (roll.isEmpty) continue;
+      final s = await getStudentById(id);
+      final updated = Student(
+        id: s.id,
+        fullName: s.fullName,
+        dateOfBirth: s.dateOfBirth,
+        gender: s.gender,
+        bloodGroup: s.bloodGroup,
+        nationality: s.nationality,
+        religion: s.religion,
+        motherTongue: s.motherTongue,
+        aadharNumber: s.aadharNumber,
+        classForAdmission: s.classForAdmission,
+        academicYear: s.academicYear,
+        dateOfAdmission: s.dateOfAdmission,
+        admissionNumber: s.admissionNumber,
+        rollNumber: roll,
+        status: s.status,
+        parentDetails: s.parentDetails,
+        contactDetails: s.contactDetails,
+        previousSchoolDetails: s.previousSchoolDetails,
+      );
+      await updateStudent(id, updated);
+      count++;
+    }
+    return count;
   }
 }

@@ -252,6 +252,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
         ),
         const SizedBox(width: 8),
         OutlinedButton.icon(
+          onPressed:
+              _students.isEmpty ? null : () => _showRollNumberDialog(context),
+          icon: const Icon(Icons.format_list_numbered_rounded, size: 16),
+          label: const Text('Roll No.'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.info,
+            side: const BorderSide(color: AppColors.info),
+          ),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
           onPressed: _filtered.isEmpty
               ? null
               : () => CsvExportService.exportStudents(_filtered),
@@ -879,6 +890,211 @@ class _StudentsScreenState extends State<StudentsScreen> {
                             : 'Promote',
                         style: GoogleFonts.nunitoSans(
                             fontWeight: FontWeight.w700)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showRollNumberDialog(BuildContext ctx) {
+    // All closure-scoped state — survives StatefulBuilder rebuilds
+    String? selectedClass;
+    bool saving = false;
+    final Map<String, TextEditingController> controllers = {};
+
+    // Classes that have at least one ACTIVE student, sorted by curriculum order
+    final classesWithActive = _students
+        .where((s) => s.status == 'ACTIVE' && s.classForAdmission != null)
+        .map((s) => s.classForAdmission!)
+        .toSet()
+        .toList()
+      ..sort((a, b) {
+        final (baseA, secA) = SchoolConstants.parseClassName(a);
+        final (baseB, secB) = SchoolConstants.parseClassName(b);
+        final iA = SchoolConstants.baseClasses.indexOf(baseA);
+        final iB = SchoolConstants.baseClasses.indexOf(baseB);
+        return iA != iB ? iA.compareTo(iB) : secA.compareTo(secB);
+      });
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (dialogCtx, setSt) {
+          final classStudents = selectedClass == null
+              ? <StudentModel>[]
+              : (_students
+                    .where((s) =>
+                        s.status == 'ACTIVE' &&
+                        s.classForAdmission == selectedClass)
+                    .toList()
+                  ..sort((a, b) => a.fullName.compareTo(b.fullName)));
+
+          // Initialise controllers for newly visible students
+          for (final s in classStudents) {
+            if (s.id != null && !controllers.containsKey(s.id)) {
+              controllers[s.id!] =
+                  TextEditingController(text: s.rollNumber ?? '');
+            }
+          }
+          // Dispose + remove controllers for students no longer visible
+          final currentIds = classStudents.map((s) => s.id).toSet();
+          for (final key in controllers.keys
+              .where((k) => !currentIds.contains(k))
+              .toList()) {
+            controllers.remove(key)?.dispose();
+          }
+
+          return AlertDialog(
+            title: Text(
+              'Assign Roll Numbers',
+              style: GoogleFonts.cormorantGaramond(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy),
+            ),
+            content: SizedBox(
+              width: 500,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: 'Select Class',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMD)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 14),
+                    ),
+                    value: selectedClass,
+                    items: classesWithActive
+                        .map((c) =>
+                            DropdownMenuItem(value: c, child: Text(c)))
+                        .toList(),
+                    onChanged: (v) => setSt(() => selectedClass = v),
+                  ),
+                  if (selectedClass != null) ...[
+                    const SizedBox(height: 12),
+                    if (classStudents.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          'No active students in this class.',
+                          style: GoogleFonts.nunitoSans(
+                              color: AppColors.textSecondary),
+                        ),
+                      )
+                    else ...[
+                      Text(
+                        '${classStudents.length} active student(s)',
+                        style: GoogleFonts.nunitoSans(
+                            fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 360),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: classStudents.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            final s = classStudents[i];
+                            return Row(children: [
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  s.fullName,
+                                  style: GoogleFonts.nunitoSans(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  controller: controllers[s.id!],
+                                  decoration: InputDecoration(
+                                    labelText: 'Roll No.',
+                                    isDense: true,
+                                    border: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8)),
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 10),
+                                  ),
+                                ),
+                              ),
+                            ]);
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving
+                    ? null
+                    : () {
+                        for (final c in controllers.values) {
+                          c.dispose();
+                        }
+                        controllers.clear();
+                        Navigator.pop(dialogCtx);
+                      },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navy,
+                    foregroundColor: Colors.white),
+                onPressed:
+                    saving || selectedClass == null || classStudents.isEmpty
+                        ? null
+                        : () async {
+                            setSt(() => saving = true);
+                            try {
+                              final assignments = <String, String>{};
+                              for (final s in classStudents) {
+                                if (s.id != null) {
+                                  assignments[s.id!] =
+                                      controllers[s.id!]?.text ?? '';
+                                }
+                              }
+                              final count = await AdmissionApiService
+                                  .assignRollNumbers(assignments);
+                              for (final c in controllers.values) {
+                                c.dispose();
+                              }
+                              controllers.clear();
+                              if (dialogCtx.mounted) {
+                                Navigator.pop(dialogCtx);
+                              }
+                              _showSnack('$count roll number(s) saved.');
+                              _loadStudents();
+                            } catch (e) {
+                              setSt(() => saving = false);
+                              _showSnack('Error: $e', isError: true);
+                            }
+                          },
+                child: saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('Save Roll Numbers'),
               ),
             ],
           );
