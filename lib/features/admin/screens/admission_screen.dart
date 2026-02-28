@@ -279,8 +279,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                       try {
                         final student = Student(
                           fullName: nameCtrl.text.trim(),
-                          dateOfBirth: DateTime(2000, 1, 1), // placeholder, updated on admission
-                          gender: 'Not Specified',
+                          dateOfBirth: DateTime(2000, 1, 1), // placeholder, admin updates on admission
+                          gender: '',
                           bloodGroup: '',
                           nationality: 'Indian',
                           religion: '',
