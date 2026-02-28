@@ -44,11 +44,11 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
     });
     try {
       final students = await AdmissionApiService.getStudents();
+      // Set _all first, then call _filter separately to avoid nested setState
       setState(() {
-        // This screen only manages enquiries
         _all = students.where((s) => s.status.toUpperCase() == 'ENQUIRY').toList();
-        _filter();
       });
+      _filter();
     } catch (e) {
       setState(() => _error = 'Failed to load enquiries: $e');
     } finally {
