@@ -14,6 +14,40 @@ enum _SortBy { nameAZ, nameZA, classAsc }
 
 enum _CardAction { edit, toggleStatus }
 
+/// Returns the next stored class string for [currentClass], or null for Class 12 (graduation).
+String? _computeNextClass(String currentClass) {
+  if (SchoolConstants.noSectionClasses.contains(currentClass)) {
+    final idx = SchoolConstants.baseClasses.indexOf(currentClass);
+    if (idx < 0 || idx >= SchoolConstants.baseClasses.length - 1) return null;
+    final next = SchoolConstants.baseClasses[idx + 1];
+    if (SchoolConstants.noSectionClasses.contains(next)) return next;
+    return SchoolConstants.buildClassName(next, SchoolConstants.sections.first);
+  }
+  final (base, section) = SchoolConstants.parseClassName(currentClass);
+  final idx = SchoolConstants.baseClasses.indexOf(base);
+  if (idx < 0 || idx >= SchoolConstants.baseClasses.length - 1) return null;
+  final nextBase = SchoolConstants.baseClasses[idx + 1];
+  if (SchoolConstants.noSectionClasses.contains(nextBase)) return nextBase;
+  return SchoolConstants.buildClassName(nextBase, section);
+}
+
+/// Increments an academic year string: "2025-26" → "2026-27", "2024-2025" → "2025-2026".
+String _nextAcademicYear(String year) {
+  final short = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(year);
+  if (short != null) {
+    final y1 = int.parse(short.group(1)!);
+    final y2 = int.parse(short.group(2)!);
+    return '${y1 + 1}-${((y2 + 1) % 100).toString().padLeft(2, '0')}';
+  }
+  final long = RegExp(r'^(\d{4})-(\d{4})$').firstMatch(year);
+  if (long != null) {
+    final y1 = int.parse(long.group(1)!);
+    final y2 = int.parse(long.group(2)!);
+    return '${y1 + 1}-${y2 + 1}';
+  }
+  return year;
+}
+
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key});
 
@@ -124,6 +158,32 @@ class _StudentsScreenState extends State<StudentsScreen> {
   bool get _hasActiveFilters =>
       _filterClass != null || _filterStatus != 'ALL';
 
+  /// All unique full class strings (e.g. "Class 5 - A") present in loaded data.
+  List<String> get _availableFullClasses {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final s in _students) {
+      if (s.classForAdmission != null && seen.add(s.classForAdmission!)) {
+        result.add(s.classForAdmission!);
+      }
+    }
+    result.sort((a, b) => SchoolConstants.allClasses
+        .indexOf(a)
+        .compareTo(SchoolConstants.allClasses.indexOf(b)));
+    return result;
+  }
+
+  /// Best-guess next academic year derived from loaded students.
+  String get _guessNextYear {
+    for (final s in _students) {
+      if (s.academicYear != null && s.academicYear!.isNotEmpty) {
+        return _nextAcademicYear(s.academicYear!);
+      }
+    }
+    final y = DateTime.now().year;
+    return '$y-${(y + 1).toString().substring(2)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -179,6 +239,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
             label: const Text('Clear'),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
           ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed:
+              _students.isEmpty ? null : () => _showPromoteDialog(context),
+          icon: const Icon(Icons.school_rounded, size: 16),
+          label: const Text('Promote'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.gold,
+            side: const BorderSide(color: AppColors.gold),
+          ),
+        ),
         const SizedBox(width: 8),
         OutlinedButton.icon(
           onPressed: _filtered.isEmpty
@@ -558,6 +629,241 @@ class _StudentsScreenState extends State<StudentsScreen> {
         ));
       }
     }
+  }
+
+  void _showPromoteDialog(BuildContext ctx) {
+    String? selectedClass;
+    String targetYear = _guessNextYear;
+    bool promoting = false;
+    final yearCtrl = TextEditingController(text: targetYear);
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (_, dialogSetState) {
+          final nextCls =
+              selectedClass != null ? _computeNextClass(selectedClass!) : null;
+          final isGraduation = selectedClass != null && nextCls == null;
+          final affectedCount = selectedClass == null
+              ? 0
+              : _students
+                  .where((s) =>
+                      s.classForAdmission == selectedClass &&
+                      s.status == 'ACTIVE')
+                  .length;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
+            title: Row(children: [
+              const Icon(Icons.school_rounded, color: AppColors.gold, size: 22),
+              const SizedBox(width: 10),
+              Text('Promote Students',
+                  style: GoogleFonts.cormorantGaramond(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy)),
+            ]),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Move an entire class to the next grade.',
+                      style: GoogleFonts.nunitoSans(
+                          color: AppColors.textSecondary, fontSize: 13)),
+                  const SizedBox(height: 20),
+
+                  // From class dropdown
+                  Text('Source Class',
+                      style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: AppColors.textSecondary)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    value: selectedClass,
+                    hint: Text('Select class…',
+                        style: GoogleFonts.nunitoSans(
+                            color: AppColors.textLight)),
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMD)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                    ),
+                    items: _availableFullClasses
+                        .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c,
+                                style: GoogleFonts.nunitoSans())))
+                        .toList(),
+                    onChanged: promoting
+                        ? null
+                        : (v) => dialogSetState(() => selectedClass = v),
+                  ),
+
+                  // Arrow → next class
+                  if (selectedClass != null) ...[
+                    const SizedBox(height: 16),
+                    Row(children: [
+                      const Icon(Icons.arrow_downward_rounded,
+                          size: 18, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Text(
+                        isGraduation
+                            ? 'Graduate — status set to Inactive'
+                            : 'Promotes to: $nextCls',
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w600,
+                            color: isGraduation
+                                ? AppColors.error
+                                : AppColors.success,
+                            fontSize: 13),
+                      ),
+                    ]),
+                  ],
+
+                  // Academic year (only for non-graduation)
+                  if (selectedClass != null && !isGraduation) ...[
+                    const SizedBox(height: 16),
+                    Text('New Academic Year',
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            color: AppColors.textSecondary)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: yearCtrl,
+                      enabled: !promoting,
+                      onChanged: (v) => targetYear = v,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radiusMD)),
+                        hintText: 'e.g. 2026-27',
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                      style: GoogleFonts.nunitoSans(),
+                    ),
+                  ],
+
+                  // Info banner
+                  if (selectedClass != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: affectedCount == 0
+                            ? AppColors.error.withOpacity(0.07)
+                            : AppColors.gold.withOpacity(0.08),
+                        border: Border.all(
+                            color: affectedCount == 0
+                                ? AppColors.error.withOpacity(0.3)
+                                : AppColors.gold.withOpacity(0.4)),
+                        borderRadius:
+                            BorderRadius.circular(AppSizes.radiusMD),
+                      ),
+                      child: Row(children: [
+                        Icon(
+                          affectedCount == 0
+                              ? Icons.info_outline_rounded
+                              : Icons.people_rounded,
+                          size: 18,
+                          color: affectedCount == 0
+                              ? AppColors.error
+                              : AppColors.gold,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            affectedCount == 0
+                                ? 'No active students in $selectedClass.'
+                                : '$affectedCount active student(s) in $selectedClass will be '
+                                    '${isGraduation ? "graduated" : "promoted to $nextCls"}.',
+                            style: GoogleFonts.nunitoSans(
+                                fontSize: 13,
+                                color: affectedCount == 0
+                                    ? AppColors.error
+                                    : AppColors.navy),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed:
+                    promoting ? null : () => Navigator.pop(ctx),
+                child: Text('Cancel',
+                    style: GoogleFonts.nunitoSans(
+                        color: AppColors.textSecondary)),
+              ),
+              ElevatedButton(
+                onPressed: selectedClass == null ||
+                        affectedCount == 0 ||
+                        promoting
+                    ? null
+                    : () async {
+                        dialogSetState(() => promoting = true);
+                        try {
+                          final count =
+                              await AdmissionApiService.promoteClass(
+                                  selectedClass!, nextCls, targetYear);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _loadStudents();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(isGraduation
+                                    ? '$count student(s) graduated successfully.'
+                                    : '$count student(s) promoted to $nextCls.'),
+                                backgroundColor: AppColors.success,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          dialogSetState(() => promoting = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Promotion failed: $e'),
+                                backgroundColor: AppColors.error,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.gold,
+                    foregroundColor: Colors.white),
+                child: promoting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : Text(
+                        affectedCount > 0
+                            ? 'Promote $affectedCount'
+                            : 'Promote',
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w700)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _showDetail(BuildContext ctx, StudentModel s) async {
