@@ -90,8 +90,17 @@ class FeeApiService {
   }
 
   // ── Expenses ─────────────────────────────────────────────────────────────
-  static Future<List<Expense>> getExpenses() async {
-    final response = await DioClient.get(_expenseBase);
+  /// Returns all expenses.  Pass [from] and [to] (ISO date strings, e.g.
+  /// "2024-06-01") to filter by date range for monthly reports.
+  static Future<List<Expense>> getExpenses({String? from, String? to}) async {
+    final params = <String, dynamic>{
+      if (from != null) 'from': from,
+      if (to != null) 'to': to,
+    };
+    final response = await DioClient.get(
+      _expenseBase,
+      queryParams: params.isNotEmpty ? params : null,
+    );
     return (response.data as List)
         .map((e) => Expense.fromJson(e as Map<String, dynamic>))
         .toList();
