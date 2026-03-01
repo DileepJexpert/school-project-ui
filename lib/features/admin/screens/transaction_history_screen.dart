@@ -22,14 +22,17 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
   final _searchCtrl = TextEditingController();
   DateTimeRange? _range;
-  String _preset = '30D';   // active quick-date preset
+  String _preset = '30D';
   String _modeFilter = 'ALL';
 
   final _currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
   final _dateFmt  = DateFormat('dd MMM yyyy');
   final _shortFmt = DateFormat('dd MMM');
 
-  // (value sent to API → display label)
+  // ── IMPORTANT: source created ONCE and updated via updateData()
+  // Never recreate inside build() — PaginatedDataTable breaks if source changes.
+  late _TxnSource _source;
+
   static const _modes = {
     'ALL':             'All',
     'CASH':            'Cash',
@@ -37,8 +40,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     'DIGITAL_PAYMENT': 'Digital',
     'CHALLAN':         'Challan',
   };
-
-  // Quick date presets
   static const _presets = ['7D', '30D', '3M', 'Year', 'Custom'];
 
   // ── helpers ──────────────────────────────────────────────────────────────
@@ -67,74 +68,80 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _range = _rangeFor('30D');
+    _source = _TxnSource([], _currency, _dateFmt);
+    _range  = _rangeFor('30D');
     _fetch();
     _searchCtrl.addListener(_applySearch);
   }
 
   @override
   void dispose() {
+    // Remove listener BEFORE disposing the controller
+    _searchCtrl.removeListener(_applySearch);
     _searchCtrl.dispose();
+    _source.dispose();
     super.dispose();
   }
 
   // ── data ─────────────────────────────────────────────────────────────────
 
   Future<void> _fetch() async {
+    if (!mounted) return;
     setState(() { _loading = true; _error = ''; });
     try {
       final report = await FeeApiService.getFeeReport(
-        startDate: _range?.start.toIso8601String().substring(0, 10),
-        endDate:   _range?.end.toIso8601String().substring(0, 10),
+        startDate:   _range?.start.toIso8601String().substring(0, 10),
+        endDate:     _range?.end.toIso8601String().substring(0, 10),
         paymentMode: _modeFilter == 'ALL' ? null : _modeFilter,
       );
-      setState(() {
-        _all      = report.transactions;
-        _filtered = report.transactions;
-      });
+      if (!mounted) return;
+      _all = report.transactions;
+      // Apply current search and push to source in one step
       _applySearch();
     } catch (e) {
+      if (!mounted) return;
       setState(() => _error = 'Failed to load transactions: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
+  // Called by searchCtrl listener AND internally after _fetch loads data.
   void _applySearch() {
+    if (!mounted) return;
     final q = _searchCtrl.text.toLowerCase();
-    setState(() {
-      _filtered = q.isEmpty
-          ? List.from(_all)
-          : _all.where((t) =>
-              t.studentName.toLowerCase().contains(q) ||
-              t.receiptNumber.toLowerCase().contains(q) ||
-              t.className.toLowerCase().contains(q)).toList();
-    });
+    final results = q.isEmpty
+        ? List<TransactionRecord>.from(_all)
+        : _all.where((t) =>
+            t.studentName.toLowerCase().contains(q) ||
+            t.receiptNumber.toLowerCase().contains(q) ||
+            t.className.toLowerCase().contains(q)).toList();
+    setState(() => _filtered = results);
+    // Notify PaginatedDataTable via the stable source object — no rebuild needed
+    _source.updateData(results);
   }
 
   Future<void> _pickCustomRange() async {
+    // Use Dialog with insetPadding so it appears small in the top-right corner.
+    // This correctly constrains CalendarDatePicker's height.
     final picked = await showDialog<DateTimeRange>(
       context: context,
       barrierColor: Colors.black26,
-      builder: (ctx) => Align(
-        // Appear at top-right, just below the filter bar
+      builder: (ctx) => Dialog(
         alignment: Alignment.topRight,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 172, right: 16),
-          child: Material(
-            elevation: 10,
-            borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-            color: Colors.transparent,
-            child: _CompactRangePicker(
-              initial: _range,
-              onConfirm: (r) => Navigator.pop(ctx, r),
-              onCancel: () => Navigator.pop(ctx),
-            ),
-          ),
+        // Left padding = large → dialog pushed to the right
+        insetPadding: const EdgeInsets.only(
+            top: 148, right: 12, bottom: 16, left: 80),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: _CompactRangePicker(
+          initial: _range,
+          onConfirm: (r) => Navigator.pop(ctx, r),
+          onCancel:  () => Navigator.pop(ctx),
         ),
       ),
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() { _range = picked; _preset = 'Custom'; });
       _fetch();
     }
@@ -167,7 +174,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         actions: [
           IconButton(
               icon: const Icon(Icons.refresh_rounded),
-              onPressed: _fetch,
+              onPressed: _loading ? null : _fetch,
               tooltip: 'Refresh'),
         ],
       ),
@@ -186,7 +193,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       color: AppColors.white,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Row 1 — search + calendar
+
+        // Row 1 — search + calendar chip
         Row(children: [
           Expanded(
             child: TextField(
@@ -215,14 +223,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          // Calendar icon-chip
+          const SizedBox(width: 10),
+          // Small calendar chip — opens the compact range picker
           InkWell(
             onTap: _pickCustomRange,
             borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
               decoration: BoxDecoration(
                 border: Border.all(
                     color: _preset == 'Custom'
@@ -239,7 +246,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     color: _preset == 'Custom'
                         ? AppColors.navy
                         : AppColors.textSecondary),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Text(_rangeLabel,
                     style: GoogleFonts.nunitoSans(
                         fontSize: 12,
@@ -249,7 +256,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         fontWeight: _preset == 'Custom'
                             ? FontWeight.w600
                             : FontWeight.w400)),
-                const SizedBox(width: 4),
+                const SizedBox(width: 3),
                 Icon(Icons.keyboard_arrow_down_rounded,
                     size: 16,
                     color: _preset == 'Custom'
@@ -287,11 +294,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         decoration: BoxDecoration(
                           color: active ? AppColors.navy : Colors.transparent,
                           border: Border.all(
-                              color: active
-                                  ? AppColors.navy
-                                  : AppColors.border),
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radiusMD),
+                              color: active ? AppColors.navy : AppColors.border),
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
                         ),
                         child: p == 'Custom'
                             ? Row(mainAxisSize: MainAxisSize.min, children: [
@@ -327,7 +331,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
         const SizedBox(height: 10),
 
-        // Row 3 — mode chips + record count
+        // Row 3 — mode chips + record count badge
         Row(children: [
           Text('Mode:',
               style: GoogleFonts.nunitoSans(
@@ -354,11 +358,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                               ? AppColors.gold.withOpacity(0.15)
                               : Colors.transparent,
                           border: Border.all(
-                              color: active
-                                  ? AppColors.gold
-                                  : AppColors.border),
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radiusMD),
+                              color: active ? AppColors.gold : AppColors.border),
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
                         ),
                         child: Text(e.value,
                             style: GoogleFonts.nunitoSans(
@@ -378,8 +379,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           ),
           const SizedBox(width: 8),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AppColors.navy.withOpacity(0.08),
               borderRadius: BorderRadius.circular(AppSizes.radiusMD),
@@ -402,11 +402,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       color: AppColors.navy,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(children: [
-        _statCell('Total Collected', _currency.format(_totalCollected),
-            AppColors.goldLight),
+        _statCell('Total Collected',
+            _currency.format(_totalCollected), AppColors.goldLight),
         _vDivider(),
-        _statCell('Discount Given', _currency.format(_totalDiscount),
-            Colors.orange.shade200),
+        _statCell('Discount Given',
+            _currency.format(_totalDiscount), Colors.orange.shade200),
         _vDivider(),
         _statCell('Transactions', '${_filtered.length}', Colors.white),
         _vDivider(),
@@ -436,7 +436,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       );
 
   Widget _vDivider() => Container(
-      width: 1, height: 32, color: Colors.white24,
+      width: 1,
+      height: 32,
+      color: Colors.white24,
       margin: const EdgeInsets.symmetric(horizontal: 4));
 
   // ── body ─────────────────────────────────────────────────────────────────
@@ -448,8 +450,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     if (_error.isNotEmpty) {
       return Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.wifi_off_rounded,
-              color: AppColors.error, size: 48),
+          const Icon(Icons.wifi_off_rounded, color: AppColors.error, size: 48),
           const SizedBox(height: 12),
           Text('Could not load transactions',
               style: GoogleFonts.nunitoSans(
@@ -495,8 +496,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           OutlinedButton.icon(
             onPressed: () {
               _searchCtrl.clear();
-              _selectPreset('Year');
               setState(() => _modeFilter = 'ALL');
+              _selectPreset('Year');
             },
             icon: const Icon(Icons.filter_alt_off_outlined, size: 16),
             label: const Text('Clear Filters'),
@@ -508,6 +509,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       );
     }
 
+    // ── data table — uses the STABLE _source field, never recreated ──────────
     return LayoutBuilder(
       builder: (context, tc) => SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -525,20 +527,19 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               child: PaginatedDataTable(
                 rowsPerPage: 15,
                 showFirstLastButtons: true,
-                headingRowColor:
-                    WidgetStateProperty.all(AppColors.creamDark),
+                headingRowColor: WidgetStateProperty.all(AppColors.creamDark),
                 columns: const [
                   DataColumn(label: Text('Date')),
                   DataColumn(label: Text('Receipt')),
                   DataColumn(label: Text('Student')),
                   DataColumn(label: Text('Class')),
                   DataColumn(label: Text('Installments')),
-                  DataColumn(label: Text('Gross'),  numeric: true),
+                  DataColumn(label: Text('Gross'),    numeric: true),
                   DataColumn(label: Text('Discount'), numeric: true),
-                  DataColumn(label: Text('Net'),    numeric: true),
+                  DataColumn(label: Text('Net'),      numeric: true),
                   DataColumn(label: Text('Mode')),
                 ],
-                source: _TxnSource(_filtered, _currency, _dateFmt),
+                source: _source,   // stable — NEVER pass a new instance here
               ),
             ),
           ),
@@ -549,6 +550,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 }
 
 // ── compact date-range picker ─────────────────────────────────────────────────
+// Shows as a small dialog in the top-right corner.
+// Two-step: tap start date → calendar advances to pick end date.
 
 class _CompactRangePicker extends StatefulWidget {
   final DateTimeRange? initial;
@@ -569,7 +572,7 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
   DateTime? _start;
   DateTime? _end;
   bool _pickingEnd = false;
-  final _shortFmt = DateFormat('dd MMM yyyy');
+  final _fmt = DateFormat('dd MMM yyyy');
 
   @override
   void initState() {
@@ -581,16 +584,22 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 310,
+      // Width is determined by Dialog.insetPadding; just set a max.
+      constraints: const BoxConstraints(maxWidth: 320),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 6))
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── header ──────────────────────────────────────
+          // ── header ─────────────────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
@@ -599,19 +608,28 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
                   top: Radius.circular(AppSizes.radiusLG)),
             ),
             child: Row(children: [
-              Expanded(child: _dateTab('From', _start, !_pickingEnd,
-                  () => setState(() => _pickingEnd = false))),
-              Container(width: 1, height: 36, color: Colors.white24,
+              Expanded(
+                child: _dateTab('From', _start, !_pickingEnd,
+                    () => setState(() => _pickingEnd = false)),
+              ),
+              Container(
+                  width: 1,
+                  height: 36,
+                  color: Colors.white24,
                   margin: const EdgeInsets.symmetric(horizontal: 10)),
-              Expanded(child: _dateTab('To', _end, _pickingEnd,
-                  () => setState(() => _pickingEnd = true))),
+              Expanded(
+                child: _dateTab('To', _end, _pickingEnd,
+                    () => setState(() => _pickingEnd = true)),
+              ),
             ]),
           ),
-          // ── calendar ─────────────────────────────────────
+
+          // ── calendar ───────────────────────────────────────────────────────
+          // Key changes when switching start↔end so CalendarDatePicker resets
           CalendarDatePicker(
             key: ValueKey(_pickingEnd),
             initialDate: _pickingEnd
-                ? (_end ?? (_start ?? DateTime.now()))
+                ? (_end ?? _start ?? DateTime.now())
                 : (_start ?? DateTime.now()),
             firstDate: _pickingEnd && _start != null
                 ? _start!
@@ -620,23 +638,24 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
             onDateChanged: (date) {
               setState(() {
                 if (!_pickingEnd) {
-                  _start = date;
-                  _end   = null;
-                  _pickingEnd = true;   // auto advance to pick end
+                  _start     = date;
+                  _end       = null;
+                  _pickingEnd = true;   // auto-advance to pick end date
                 } else {
                   _end = date;
                 }
               });
             },
           ),
-          // ── buttons ──────────────────────────────────────
+
+          // ── footer buttons ─────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: Row(children: [
               Expanded(
                 child: Text(
                   _start != null && _end != null
-                      ? '${_shortFmt.format(_start!)} → ${_shortFmt.format(_end!)}'
+                      ? '${_fmt.format(_start!)} → ${_fmt.format(_end!)}'
                       : _start != null
                           ? 'Now pick end date'
                           : 'Pick start date',
@@ -645,9 +664,8 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
                 ),
               ),
               TextButton(
-                onPressed: widget.onCancel,
-                child: const Text('Cancel'),
-              ),
+                  onPressed: widget.onCancel,
+                  child: const Text('Cancel')),
               const SizedBox(width: 6),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -668,7 +686,8 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
     );
   }
 
-  Widget _dateTab(String label, DateTime? date, bool active, VoidCallback onTap) {
+  Widget _dateTab(
+      String label, DateTime? date, bool active, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -676,7 +695,8 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         decoration: BoxDecoration(
           border: Border.all(
-              color: active ? AppColors.gold : Colors.transparent, width: 1.5),
+              color: active ? AppColors.gold : Colors.transparent,
+              width: 1.5),
           borderRadius: BorderRadius.circular(6),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -687,7 +707,7 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
           Text(
-            date != null ? DateFormat('dd MMM yyyy').format(date) : 'Select…',
+            date != null ? _fmt.format(date) : 'Select…',
             style: GoogleFonts.nunitoSans(
                 fontSize: 12,
                 color: Colors.white,
@@ -700,25 +720,34 @@ class _CompactRangePickerState extends State<_CompactRangePicker> {
 }
 
 // ── data-table source ─────────────────────────────────────────────────────────
+// Mutable source: data is updated in-place via updateData() which calls
+// notifyListeners(). This keeps PaginatedDataTable's page state intact.
 
 class _TxnSource extends DataTableSource {
-  final List<TransactionRecord> data;
+  List<TransactionRecord> _data;
   final NumberFormat currency;
   final DateFormat dateFmt;
 
-  _TxnSource(this.data, this.currency, this.dateFmt);
+  _TxnSource(List<TransactionRecord> data, this.currency, this.dateFmt)
+      : _data = data;
+
+  /// Call this instead of recreating the source.
+  void updateData(List<TransactionRecord> data) {
+    _data = data;
+    notifyListeners();
+  }
 
   static const _modeIcons = {
-    'CASH':             Icons.money_rounded,
-    'CHEQUE':           Icons.account_balance_rounded,
-    'DIGITAL_PAYMENT':  Icons.phonelink_rounded,
-    'CHALLAN':          Icons.receipt_rounded,
+    'CASH':            Icons.money_rounded,
+    'CHEQUE':          Icons.account_balance_rounded,
+    'DIGITAL_PAYMENT': Icons.phonelink_rounded,
+    'CHALLAN':         Icons.receipt_rounded,
   };
 
   @override
   DataRow? getRow(int index) {
-    if (index >= data.length) return null;
-    final t = data[index];
+    if (index >= _data.length) return null;
+    final t     = _data[index];
     final net   = t.amountPaid;
     final gross = net + t.discount;
 
@@ -741,12 +770,14 @@ class _TxnSource extends DataTableSource {
         ),
         child: Text(t.className,
             style: GoogleFonts.nunitoSans(
-                fontSize: 11, color: AppColors.navy, fontWeight: FontWeight.w600)),
+                fontSize: 11,
+                color: AppColors.navy,
+                fontWeight: FontWeight.w600)),
       )),
       DataCell(Text(
         t.paidForMonths.isEmpty ? '—' : t.paidForMonths.join(', '),
-        style: GoogleFonts.nunitoSans(
-            fontSize: 11, color: AppColors.textSecondary),
+        style:
+            GoogleFonts.nunitoSans(fontSize: 11, color: AppColors.textSecondary),
       )),
       DataCell(Text(currency.format(gross),
           style: GoogleFonts.nunitoSans(fontSize: 12))),
@@ -763,15 +794,16 @@ class _TxnSource extends DataTableSource {
               color: AppColors.success))),
       DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(_modeIcons[t.paymentMode] ?? Icons.payment_rounded,
-            size: 13,
-            color: AppColors.textSecondary),
+            size: 13, color: AppColors.textSecondary),
         const SizedBox(width: 4),
         Text(
           t.paymentMode
               .replaceAll('_', ' ')
               .toLowerCase()
               .split(' ')
-              .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+              .map((w) => w.isEmpty
+                  ? ''
+                  : '${w[0].toUpperCase()}${w.substring(1)}')
               .join(' '),
           style: GoogleFonts.nunitoSans(fontSize: 11),
         ),
@@ -780,6 +812,6 @@ class _TxnSource extends DataTableSource {
   }
 
   @override bool get isRowCountApproximate => false;
-  @override int  get rowCount              => data.length;
+  @override int  get rowCount              => _data.length;
   @override int  get selectedRowCount      => 0;
 }
