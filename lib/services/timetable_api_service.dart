@@ -32,6 +32,8 @@ class TimetableApiService {
   static Future<void> deleteTimetableByClass(
       String className, String academicYear) async {
     await DioClient.delete(
-        '$_base/$className?academicYear=$academicYear');
+      '$_base/$className',
+      queryParams: {'academicYear': academicYear},
+    );
   }
 }

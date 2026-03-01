@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/router/app_router.dart';
+import '../../../services/dio_client.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -45,6 +47,181 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
     setState(() => _savingApi = false);
+  }
+
+  Future<void> _saveSchoolName() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('school_name', _schoolNameCtrl.text.trim());
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('School name saved!'),
+            backgroundColor: AppColors.success),
+      );
+    }
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+        title: Text('Confirm Logout',
+            style: GoogleFonts.cormorantGaramond(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navy)),
+        content: Text(
+            'Are you sure you want to logout from the admin panel?',
+            style: GoogleFonts.nunitoSans()),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, AppRouter.home);
+      }
+    }
+  }
+
+  void _openChangePasswordDialog() {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool saving = false;
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+          title: Text('Change Admin Password',
+              style: GoogleFonts.cormorantGaramond(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy)),
+          content: SizedBox(
+            width: 360,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: currentCtrl,
+                obscureText: obscureCurrent,
+                decoration: InputDecoration(
+                  labelText: 'Current Password',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                  suffixIcon: IconButton(
+                    icon: Icon(obscureCurrent
+                        ? Icons.visibility_off
+                        : Icons.visibility),
+                    onPressed: () =>
+                        setDlg(() => obscureCurrent = !obscureCurrent),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: newCtrl,
+                obscureText: obscureNew,
+                decoration: InputDecoration(
+                  labelText: 'New Password',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                  suffixIcon: IconButton(
+                    icon:
+                        Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setDlg(() => obscureNew = !obscureNew),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Confirm New Password',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                ),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: saving ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (newCtrl.text != confirmCtrl.text) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                            content: Text('Passwords do not match.'),
+                            backgroundColor: AppColors.error));
+                        return;
+                      }
+                      if (newCtrl.text.length < 6) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                            content: Text(
+                                'Password must be at least 6 characters.'),
+                            backgroundColor: AppColors.error));
+                        return;
+                      }
+                      setDlg(() => saving = true);
+                      try {
+                        await DioClient.put('/admin/password', data: {
+                          'currentPassword': currentCtrl.text,
+                          'newPassword': newCtrl.text,
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('Password changed successfully!'),
+                                  backgroundColor: AppColors.success));
+                        }
+                      } catch (e) {
+                        setDlg(() => saving = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                              content: Text('Failed: $e'),
+                              backgroundColor: AppColors.error));
+                        }
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Change Password'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -147,13 +324,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(children: [
-                TextField(
-                  controller: _schoolNameCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'School Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _schoolNameCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'School Name',
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radiusMD)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.navy,
+                        foregroundColor: Colors.white),
+                    onPressed: _saveSchoolName,
+                    child: const Text('Save'),
+                  ),
+                ]),
                 const SizedBox(height: 12),
                 _infoTile('Academic Year', '2025–2026', Icons.calendar_today_outlined),
                 _infoTile('Affiliation', 'CBSE', Icons.school_outlined),
@@ -214,11 +407,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: Text('Update your admin login credentials',
                     style: GoogleFonts.nunitoSans(fontSize: 13, color: AppColors.textSecondary)),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Connect to Spring Security — PUT /api/admin/password'),
-                      backgroundColor: AppColors.navy),
-                ),
+                onTap: _openChangePasswordDialog,
               ),
               const Divider(height: 1),
               ListTile(
@@ -269,11 +458,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               icon: const Icon(Icons.logout),
               label: Text('Logout', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600, fontSize: 16)),
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Add JWT auth with Spring Security to enable logout'),
-                    backgroundColor: AppColors.navy),
-              ),
+              onPressed: _logout,
             ),
           ),
           const SizedBox(height: 40),
