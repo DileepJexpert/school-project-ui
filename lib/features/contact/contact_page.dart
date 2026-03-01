@@ -6,6 +6,7 @@ import '../../core/router/app_router.dart';
 import '../../core/widgets/app_shell.dart';
 import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/responsive.dart';
+import '../../services/dio_client.dart';
 
 class ContactPage extends StatefulWidget {
   const ContactPage({super.key});
@@ -22,6 +23,7 @@ class _ContactPageState extends State<ContactPage> {
   final _messageController = TextEditingController();
   String _selectedGrade = '';
   bool _submitted = false;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -32,18 +34,33 @@ class _ContactPageState extends State<ContactPage> {
     super.dispose();
   }
 
-  void _handleSubmit() {
-    if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Replace with DioClient.post('/contact/enquiry', data: {...})
-      setState(() => _submitted = true);
+  Future<void> _handleSubmit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _submitting = true);
+    try {
+      await DioClient.post('/contact/enquiry', data: {
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'gradeInterested': _selectedGrade,
+        'message': _messageController.text.trim(),
+      });
       _nameController.clear();
       _emailController.clear();
       _phoneController.clear();
       _messageController.clear();
-      _selectedGrade = '';
+      if (mounted) setState(() { _submitted = true; _selectedGrade = ''; });
       Future.delayed(const Duration(seconds: 4), () {
         if (mounted) setState(() => _submitted = false);
       });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to submit: $e'),
+            backgroundColor: AppColors.error));
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -157,9 +174,15 @@ class _ContactPageState extends State<ContactPage> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: ElevatedButton.icon(
-                  onPressed: _handleSubmit,
-                  icon: const Icon(Icons.send, size: 16),
-                  label: const Text('Submit Inquiry'),
+                  onPressed: _submitting ? null : _handleSubmit,
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.send, size: 16),
+                  label: Text(_submitting ? 'Submitting…' : 'Submit Inquiry'),
                 ),
               ),
             ],

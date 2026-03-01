@@ -6,6 +6,7 @@ import '../../core/router/app_router.dart';
 import '../../core/widgets/app_shell.dart';
 import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/responsive.dart';
+import '../../services/dio_client.dart';
 
 class ResultsPage extends StatefulWidget {
   const ResultsPage({super.key});
@@ -19,8 +20,11 @@ class _ResultsPageState extends State<ResultsPage> {
   String? _selectedClass;
   final _rollController = TextEditingController();
   bool _searched = false;
+  bool _loading = false;
+  String? _error;
+  List<Map<String, dynamic>> _resultItems = [];
+  String _studentName = '';
 
-  // TODO: Replace with DioClient.get('/results/sessions') etc.
   final sessions = ['2025-26', '2024-25', '2023-24'];
   final classes = ['Grade 10', 'Grade 12'];
 
@@ -30,10 +34,29 @@ class _ResultsPageState extends State<ResultsPage> {
     super.dispose();
   }
 
-  void _handleSearch() {
-    if (_selectedSession != null && _selectedClass != null && _rollController.text.isNotEmpty) {
-      // TODO: Replace with API call: DioClient.get('/results', queryParams: {...})
-      setState(() => _searched = true);
+  Future<void> _handleSearch() async {
+    if (_selectedSession == null ||
+        _selectedClass == null ||
+        _rollController.text.isEmpty) return;
+    setState(() { _loading = true; _error = null; _resultItems = []; _searched = false; });
+    try {
+      final response = await DioClient.get('/results', queryParams: {
+        'rollNumber': _rollController.text.trim(),
+        'className': _selectedClass,
+        'academicYear': _selectedSession,
+      });
+      final list = (response.data as List).cast<Map<String, dynamic>>();
+      setState(() {
+        _resultItems = list;
+        _studentName = list.isNotEmpty
+            ? (list.first['studentName'] ?? 'Student').toString()
+            : '';
+        _searched = true;
+      });
+    } catch (e) {
+      setState(() => _error = 'Could not load results: $e');
+    } finally {
+      setState(() => _loading = false);
     }
   }
 
@@ -113,9 +136,27 @@ class _ResultsPageState extends State<ResultsPage> {
                 ),
 
                 // Results display
-                if (_searched) ...[
+                if (_loading) ...[
                   const SizedBox(height: 36),
-                  _buildSampleResult(context),
+                  const CircularProgressIndicator(),
+                ] else if (_error != null) ...[
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.07),
+                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.error_outline, color: AppColors.error),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(_error!,
+                          style: GoogleFonts.nunitoSans(color: AppColors.error))),
+                    ]),
+                  ),
+                ] else if (_searched) ...[
+                  const SizedBox(height: 36),
+                  _buildResultCard(context),
                 ],
               ],
             ),
@@ -125,84 +166,117 @@ class _ResultsPageState extends State<ResultsPage> {
     );
   }
 
-  Widget _buildSampleResult(BuildContext context) {
-    // Sample data — replace with API response
-    final subjects = [
-      {'name': 'English', 'marks': '88', 'grade': 'A'},
-      {'name': 'Mathematics', 'marks': '92', 'grade': 'A+'},
-      {'name': 'Science', 'marks': '85', 'grade': 'A'},
-      {'name': 'Social Studies', 'marks': '78', 'grade': 'B+'},
-      {'name': 'Hindi', 'marks': '82', 'grade': 'A'},
-    ];
+  Widget _buildResultCard(BuildContext context) {
+    if (_resultItems.isEmpty) {
+      return Text('No results found for this roll number.',
+          style: GoogleFonts.nunitoSans(color: AppColors.textSecondary));
+    }
+
+    double total = 0, maxTotal = 0;
+    for (final r in _resultItems) {
+      total += (r['marksObtained'] ?? 0) is num
+          ? (r['marksObtained'] as num).toDouble()
+          : 0;
+      maxTotal += (r['maxMarks'] ?? 100) is num
+          ? (r['maxMarks'] as num).toDouble()
+          : 100;
+    }
+    final pct = maxTotal > 0 ? (total / maxTotal * 100).toStringAsFixed(1) : '0';
+    final pass = maxTotal > 0 && (total / maxTotal) >= 0.33;
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 700),
-      child: Column(
-        children: [
-          // Student info
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            color: AppColors.navy,
-            child: Column(
-              children: [
-                Text('Result Card', style: GoogleFonts.cormorantGaramond(
-                  color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Text(
-                  'Student: Sample Student  |  Roll: ${_rollController.text}  |  Class: $_selectedClass',
-                  style: GoogleFonts.nunitoSans(color: AppColors.goldLight, fontSize: 13),
-                ),
-              ],
+      child: Column(children: [
+        // Header
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          color: AppColors.navy,
+          child: Column(children: [
+            Text('Result Card',
+                style: GoogleFonts.cormorantGaramond(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(
+              'Student: $_studentName  |  Roll: ${_rollController.text}  |  Class: $_selectedClass',
+              style:
+                  GoogleFonts.nunitoSans(color: AppColors.goldLight, fontSize: 13),
+              textAlign: TextAlign.center,
             ),
-          ),
+          ]),
+        ),
 
-          // Marks table
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(AppColors.creamDark),
-              headingTextStyle: GoogleFonts.nunitoSans(
-                color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 13),
-              dataTextStyle: GoogleFonts.nunitoSans(fontSize: 13),
-              border: TableBorder.all(color: AppColors.border, width: 0.5),
-              columnSpacing: 48,
-              columns: const [
-                DataColumn(label: Text('Subject')),
-                DataColumn(label: Text('Marks (100)'), numeric: true),
-                DataColumn(label: Text('Grade')),
-              ],
-              rows: subjects.map((s) => DataRow(cells: [
-                DataCell(Text(s['name']!)),
-                DataCell(Text(s['marks']!, style: const TextStyle(fontWeight: FontWeight.w600))),
-                DataCell(Text(s['grade']!, style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.w700))),
-              ])).toList(),
-            ),
+        // Marks table
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: WidgetStateProperty.all(AppColors.creamDark),
+            headingTextStyle: GoogleFonts.nunitoSans(
+                color: AppColors.navy,
+                fontWeight: FontWeight.w700,
+                fontSize: 13),
+            dataTextStyle: GoogleFonts.nunitoSans(fontSize: 13),
+            border: TableBorder.all(color: AppColors.border, width: 0.5),
+            columnSpacing: 40,
+            columns: const [
+              DataColumn(label: Text('Subject')),
+              DataColumn(label: Text('Exam')),
+              DataColumn(label: Text('Marks'), numeric: true),
+              DataColumn(label: Text('Max'), numeric: true),
+              DataColumn(label: Text('Grade')),
+            ],
+            rows: _resultItems
+                .map((r) => DataRow(cells: [
+                      DataCell(Text(r['subject']?.toString() ?? '—')),
+                      DataCell(Text(r['examType']?.toString() ?? '—')),
+                      DataCell(Text(
+                          '${r['marksObtained'] ?? '—'}',
+                          style:
+                              const TextStyle(fontWeight: FontWeight.w600))),
+                      DataCell(Text('${r['maxMarks'] ?? 100}')),
+                      DataCell(Text(r['grade']?.toString() ?? '—',
+                          style: const TextStyle(
+                              color: AppColors.gold,
+                              fontWeight: FontWeight.w700))),
+                    ]))
+                .toList(),
           ),
+        ),
 
-          // Summary
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: AppColors.goldPale,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Total: 425 / 500', style: GoogleFonts.nunitoSans(
-                  color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 15)),
-                Text('Percentage: 85%', style: GoogleFonts.nunitoSans(
-                  color: AppColors.gold, fontWeight: FontWeight.w700, fontSize: 15)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  color: AppColors.success,
-                  child: Text('PASS', style: GoogleFonts.nunitoSans(
-                    color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                ),
-              ],
-            ),
+        // Summary row
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          color: AppColors.goldPale,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total: ${total.toInt()} / ${maxTotal.toInt()}',
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.navy,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15)),
+              Text('Percentage: $pct%',
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.gold,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15)),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                color: pass ? AppColors.success : AppColors.error,
+                child: Text(pass ? 'PASS' : 'FAIL',
+                    style: GoogleFonts.nunitoSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }

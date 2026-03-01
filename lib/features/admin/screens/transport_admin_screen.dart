@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../services/dio_client.dart';
 
 class TransportAdminScreen extends StatefulWidget {
   const TransportAdminScreen({super.key});
@@ -61,6 +62,133 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
     super.dispose();
   }
 
+  void _openAddBusDialog() {
+    final busCtrl = TextEditingController();
+    final driverCtrl = TextEditingController();
+    final mobileCtrl = TextEditingController();
+    final routeCtrl = TextEditingController();
+    final capacityCtrl = TextEditingController();
+    bool saving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+          title: Text('Add New Bus',
+              style: GoogleFonts.cormorantGaramond(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy)),
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                _dlgField(busCtrl, 'Bus Number *'),
+                const SizedBox(height: 12),
+                _dlgField(driverCtrl, 'Driver Name *'),
+                const SizedBox(height: 12),
+                _dlgField(mobileCtrl, 'Driver Mobile *',
+                    keyboardType: TextInputType.phone),
+                const SizedBox(height: 12),
+                _dlgField(routeCtrl, 'Route / Zone *'),
+                const SizedBox(height: 12),
+                _dlgField(capacityCtrl, 'Seating Capacity *',
+                    keyboardType: TextInputType.number),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: saving ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (busCtrl.text.isEmpty ||
+                          driverCtrl.text.isEmpty ||
+                          mobileCtrl.text.isEmpty ||
+                          routeCtrl.text.isEmpty ||
+                          capacityCtrl.text.isEmpty) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                            content: Text('Fill all required fields.'),
+                            backgroundColor: AppColors.warning));
+                        return;
+                      }
+                      setDlg(() => saving = true);
+                      try {
+                        final cap = int.tryParse(capacityCtrl.text) ?? 40;
+                        await DioClient.post('/transport/buses', data: {
+                          'busNumber': busCtrl.text.trim(),
+                          'driver': driverCtrl.text.trim(),
+                          'driverMobile': mobileCtrl.text.trim(),
+                          'route': routeCtrl.text.trim(),
+                          'capacity': cap,
+                          'status': 'Active',
+                        });
+                        // Optimistically add to local list
+                        setState(() {
+                          _buses.add(_TransportAdminScreen(
+                            busNumber: busCtrl.text.trim(),
+                            driver: driverCtrl.text.trim(),
+                            driverMobile: mobileCtrl.text.trim(),
+                            route: routeCtrl.text.trim(),
+                            capacity: cap,
+                            assigned: 0,
+                            status: 'Active',
+                          ));
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Bus added successfully!'),
+                                  backgroundColor: AppColors.success));
+                        }
+                      } catch (e) {
+                        setDlg(() => saving = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                              content: Text('Failed to add bus: $e'),
+                              backgroundColor: AppColors.error));
+                        }
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Add Bus'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dlgField(TextEditingController ctrl, String label,
+      {TextInputType? keyboardType}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,9 +210,7 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.navy,
         foregroundColor: Colors.white,
-        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Connect to Spring Boot /api/transport to add bus'), backgroundColor: AppColors.navy),
-        ),
+        onPressed: _openAddBusDialog,
         icon: const Icon(Icons.add),
         label: Text('Add Bus', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
       ),

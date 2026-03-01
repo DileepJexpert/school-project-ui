@@ -64,8 +64,9 @@ class DioClient {
     return await _dio.put(path, data: data);
   }
 
-  static Future<Response> delete(String path) async {
-    return await _dio.delete(path);
+  static Future<Response> delete(String path,
+      {Map<String, dynamic>? queryParams}) async {
+    return await _dio.delete(path, queryParameters: queryParams);
   }
 
   static Future<Response> uploadFile(String path, String filePath, String fieldName) async {
