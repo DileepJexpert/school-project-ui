@@ -510,41 +510,47 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     }
 
     // ── data table — uses the STABLE _source field, never recreated ──────────
+    // SizedBox(width: w) gives PaginatedDataTable a finite tight constraint.
+    // ConstrainedBox(minWidth: w) would pass BoxConstraints(w<=Infinity) from
+    // the horizontal scroll view, causing "forces an infinite width" error.
     return LayoutBuilder(
-      builder: (context, tc) => SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Card(
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: tc.maxWidth > 880 ? tc.maxWidth - 32 : 880,
-              ),
-              child: PaginatedDataTable(
-                rowsPerPage: 15,
-                showFirstLastButtons: true,
-                headingRowColor: WidgetStateProperty.all(AppColors.creamDark),
-                columns: const [
-                  DataColumn(label: Text('Date')),
-                  DataColumn(label: Text('Receipt')),
-                  DataColumn(label: Text('Student')),
-                  DataColumn(label: Text('Class')),
-                  DataColumn(label: Text('Installments')),
-                  DataColumn(label: Text('Gross'),    numeric: true),
-                  DataColumn(label: Text('Discount'), numeric: true),
-                  DataColumn(label: Text('Net'),      numeric: true),
-                  DataColumn(label: Text('Mode')),
-                ],
-                source: _source,   // stable — NEVER pass a new instance here
+      builder: (context, tc) {
+        final w = tc.maxWidth.isFinite
+            ? (tc.maxWidth > 880 ? tc.maxWidth - 32 : 880.0)
+            : 880.0;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: w,
+                child: PaginatedDataTable(
+                  rowsPerPage: 15,
+                  showFirstLastButtons: true,
+                  headingRowColor: WidgetStateProperty.all(AppColors.creamDark),
+                  columns: const [
+                    DataColumn(label: Text('Date')),
+                    DataColumn(label: Text('Receipt')),
+                    DataColumn(label: Text('Student')),
+                    DataColumn(label: Text('Class')),
+                    DataColumn(label: Text('Installments')),
+                    DataColumn(label: Text('Gross'),    numeric: true),
+                    DataColumn(label: Text('Discount'), numeric: true),
+                    DataColumn(label: Text('Net'),      numeric: true),
+                    DataColumn(label: Text('Mode')),
+                  ],
+                  source: _source,   // stable — NEVER pass a new instance here
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
