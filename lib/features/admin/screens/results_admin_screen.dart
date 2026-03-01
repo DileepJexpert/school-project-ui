@@ -1236,12 +1236,12 @@ class _ReportCardTabState extends State<_ReportCardTab> {
     final card = _card;
     // Collect all exam types across all subjects for column headers
     final examTypes = card != null
-        ? card.subjects
+        ? (card.subjects
             .expand((s) => s.examResults.keys)
             .toSet()
             .toList()
           ..sort((a, b) =>
-              _kExamTypes.indexOf(a).compareTo(_kExamTypes.indexOf(b)))
+              _kExamTypes.indexOf(a).compareTo(_kExamTypes.indexOf(b))))
         : <String>[];
 
     return SingleChildScrollView(
