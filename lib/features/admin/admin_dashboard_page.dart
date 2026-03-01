@@ -122,8 +122,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
         title: Text(
           _allItems[_selectedIndex].label,
-          style: GoogleFonts.cormorantGaramond(
-              fontWeight: FontWeight.w700, fontSize: 22),
+          style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600, fontSize: 18),
         ),
         actions: [
           TextButton.icon(
@@ -131,7 +131,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Navigator.pushReplacementNamed(context, AppRouter.home),
             icon: const Icon(Icons.public, color: AppColors.goldLight, size: 18),
             label: Text('View Website',
-                style: GoogleFonts.nunitoSans(
+                style: GoogleFonts.poppins(
                     color: AppColors.goldLight, fontSize: 12)),
           ),
           const SizedBox(width: 8),
@@ -187,13 +187,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               const Icon(Icons.school_rounded, color: Colors.white, size: 36),
               const SizedBox(height: 8),
               Text('School Admin',
-                  style: GoogleFonts.cormorantGaramond(
+                  style: GoogleFonts.poppins(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700)),
               Text('Management Dashboard',
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.goldLight, fontSize: 12)),
+                  style: GoogleFonts.poppins(
+                      color: AppColors.goldLight,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400)),
             ],
           ),
         ),
@@ -235,14 +237,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildGroupHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
       child: Text(
         title,
-        style: GoogleFonts.nunitoSans(
+        style: GoogleFonts.poppins(
           fontSize: 10,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           color: AppColors.textLight,
-          letterSpacing: 1.2,
+          letterSpacing: 1.5,
         ),
       ),
     );
@@ -250,51 +252,51 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildMenuItem(_MenuItem item, int index) {
     final isActive = _selectedIndex == index;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: Material(
-        color: isActive
-            ? AppColors.navy.withOpacity(0.08)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () {
-            setState(() => _selectedIndex = index);
-            if (!Responsive.isDesktop(context)) Navigator.pop(context);
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                Icon(item.icon,
-                    size: 18,
-                    color: isActive
-                        ? AppColors.navy
-                        : AppColors.textSecondary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(item.label,
-                      style: GoogleFonts.nunitoSans(
-                        fontWeight:
-                            isActive ? FontWeight.w700 : FontWeight.w400,
-                        color: isActive
-                            ? AppColors.navy
-                            : AppColors.textPrimary,
-                        fontSize: 13,
-                      )),
-                ),
-                if (item.isLive)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: AppColors.success,
-                      shape: BoxShape.circle,
-                    ),
+    return Material(
+      color: isActive ? AppColors.goldPale : Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() => _selectedIndex = index);
+          if (!Responsive.isDesktop(context)) Navigator.pop(context);
+        },
+        child: Container(
+          decoration: isActive
+              ? const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: AppColors.gold, width: 3),
                   ),
-              ],
-            ),
+                )
+              : null,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+          child: Row(
+            children: [
+              Icon(item.icon,
+                  size: 18,
+                  color: isActive ? AppColors.navy : AppColors.textSecondary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(item.label,
+                    style: GoogleFonts.poppins(
+                      fontWeight:
+                          isActive ? FontWeight.w600 : FontWeight.w400,
+                      color: isActive
+                          ? AppColors.navy
+                          : AppColors.textSecondary,
+                      fontSize: 13,
+                    )),
+              ),
+              if (item.isLive)
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.gold
+                        : AppColors.success,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -317,14 +319,16 @@ class _OverviewContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Welcome Back, Admin!',
-              style: GoogleFonts.cormorantGaramond(
-                  fontSize: 28,
+              style: GoogleFonts.poppins(
+                  fontSize: 24,
                   fontWeight: FontWeight.w700,
                   color: AppColors.navy)),
           const SizedBox(height: 4),
           Text("Here's a quick overview of your school.",
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary, fontSize: 14)),
+              style: GoogleFonts.poppins(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400)),
           const SizedBox(height: 24),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -351,14 +355,16 @@ class _OverviewContent extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           Text('Live Modules',
-              style: GoogleFonts.cormorantGaramond(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+              style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.navy)),
           const SizedBox(height: 4),
           Text('All modules below are connected to the Spring Boot backend.',
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary, fontSize: 13)),
+              style: GoogleFonts.poppins(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400)),
           const SizedBox(height: 16),
           Wrap(spacing: 10, runSpacing: 10, children: [
             _liveChip(Icons.people_alt_outlined,          'Students'),
@@ -389,9 +395,9 @@ class _OverviewContent extends StatelessWidget {
           Icon(icon, size: 15, color: AppColors.success),
           const SizedBox(width: 6),
           Text(label,
-              style: GoogleFonts.nunitoSans(
+              style: GoogleFonts.poppins(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.success)),
           const SizedBox(width: 5),
           Container(
@@ -432,15 +438,16 @@ class _OverviewContent extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(value,
-                          style: GoogleFonts.cormorantGaramond(
-                              fontSize: 28,
+                          style: GoogleFonts.poppins(
+                              fontSize: 24,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary)),
+                              color: color)),
                       const SizedBox(height: 2),
                       Text(title,
-                          style: GoogleFonts.nunitoSans(
+                          style: GoogleFonts.poppins(
                               color: AppColors.textSecondary,
-                              fontSize: 13)),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
