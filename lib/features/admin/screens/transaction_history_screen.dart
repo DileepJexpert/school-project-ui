@@ -102,61 +102,69 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         Container(
           color: AppColors.white,
           padding: const EdgeInsets.all(16),
-          child: Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            // Search
-            SizedBox(
-              width: 220,
-              child: TextField(
-                controller: _searchCtrl,
-                decoration: InputDecoration(
-                  hintText: 'Search name, receipt…',
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  isDense: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: LayoutBuilder(builder: (context, fc) {
+            final isMobile = fc.maxWidth < 500;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                // Search — full-width on mobile, fixed 220px on wider screens
+                SizedBox(
+                  width: isMobile ? fc.maxWidth : 220,
+                  child: TextField(
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Search name, receipt…',
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            // Date range
-            OutlinedButton.icon(
-              icon: const Icon(Icons.calendar_today_outlined, size: 16),
-              label: Text(
-                _range != null
-                    ? '${_dateFmt.format(_range!.start)} – ${_dateFmt.format(_range!.end)}'
-                    : 'Date Range',
-                style: GoogleFonts.nunitoSans(fontSize: 12),
-              ),
-              onPressed: _pickRange,
-              style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
-            ),
-            // Mode
-            SizedBox(
-              width: 160,
-              child: DropdownButtonFormField<String>(
-                value: _modeFilter ?? 'All Modes',
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  isDense: true,
+                // Date range
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                  label: Text(
+                    _range != null
+                        ? '${_dateFmt.format(_range!.start)} – ${_dateFmt.format(_range!.end)}'
+                        : 'Date Range',
+                    style: GoogleFonts.nunitoSans(fontSize: 12),
+                  ),
+                  onPressed: _pickRange,
+                  style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
                 ),
-                items: _modes.map((m) => DropdownMenuItem(value: m, child: Text(m, style: GoogleFonts.nunitoSans(fontSize: 13)))).toList(),
-                onChanged: (v) { setState(() => _modeFilter = v); _fetch(); },
-              ),
-            ),
-            // Count badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.navy.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-              ),
-              child: Text('${_filtered.length} records',
-                  style: GoogleFonts.nunitoSans(
-                      fontWeight: FontWeight.w600, color: AppColors.navy, fontSize: 13)),
-            ),
-          ]),
+                // Mode filter
+                SizedBox(
+                  width: 160,
+                  child: DropdownButtonFormField<String>(
+                    value: _modeFilter ?? 'All Modes',
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      isDense: true,
+                    ),
+                    items: _modes.map((m) => DropdownMenuItem(value: m, child: Text(m, style: GoogleFonts.nunitoSans(fontSize: 13)))).toList(),
+                    onChanged: (v) { setState(() => _modeFilter = v); _fetch(); },
+                  ),
+                ),
+                // Count badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                  ),
+                  child: Text('${_filtered.length} records',
+                      style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w600, color: AppColors.navy, fontSize: 13)),
+                ),
+              ],
+            );
+          }),
         ),
         // Table
         Expanded(
@@ -168,22 +176,35 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       ? Center(
                           child: Text('No transactions found.',
                               style: GoogleFonts.nunitoSans(color: AppColors.textSecondary)))
-                      : SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: Card(
-                            elevation: 1,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
-                            clipBehavior: Clip.antiAlias,
-                            child: PaginatedDataTable(
-                              rowsPerPage: 15,
-                              columns: ['Date', 'Receipt', 'Student', 'Class', 'Installments', 'Gross', 'Discount', 'Net', 'Mode']
-                                  .map((h) => DataColumn(
-                                      label: Text(h,
-                                          style: GoogleFonts.nunitoSans(
-                                              fontWeight: FontWeight.w700, fontSize: 12))))
-                                  .toList(),
-                              source: _TxnSource(_filtered, _currency, _dateFmt),
+                      : LayoutBuilder(
+                          builder: (context, tc) => SingleChildScrollView(
+                            padding: const EdgeInsets.all(16),
+                            child: Card(
+                              elevation: 1,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+                              clipBehavior: Clip.antiAlias,
+                              // Horizontal scroll so 9 columns never overflow on small screens
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: ConstrainedBox(
+                                  // At least as wide as the available area (desktop/tablet),
+                                  // but min 860px so all columns are visible (phone scrolls).
+                                  constraints: BoxConstraints(
+                                    minWidth: tc.maxWidth > 860 ? tc.maxWidth - 32 : 860,
+                                  ),
+                                  child: PaginatedDataTable(
+                                    rowsPerPage: 15,
+                                    columns: ['Date', 'Receipt', 'Student', 'Class', 'Installments', 'Gross', 'Discount', 'Net', 'Mode']
+                                        .map((h) => DataColumn(
+                                            label: Text(h,
+                                                style: GoogleFonts.nunitoSans(
+                                                    fontWeight: FontWeight.w700, fontSize: 12))))
+                                        .toList(),
+                                    source: _TxnSource(_filtered, _currency, _dateFmt),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
