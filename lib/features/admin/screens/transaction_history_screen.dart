@@ -10,7 +10,8 @@ class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
 
   @override
-  State<TransactionHistoryScreen> createState() => _TransactionHistoryScreenState();
+  State<TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
 }
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
@@ -18,64 +19,57 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   List<TransactionRecord> _filtered = [];
   bool _loading = true;
   String _error = '';
+
   final _searchCtrl = TextEditingController();
   DateTimeRange? _range;
-  String? _modeFilter;
-  final _currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
-  final _dateFmt = DateFormat('dd MMM yyyy');
+  String _preset = '30D';   // active quick-date preset
+  String _modeFilter = 'ALL';
 
-  final _modes = ['All Modes', 'CASH', 'CHEQUE', 'DIGITAL_PAYMENT', 'CHALLAN'];
+  final _currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+  final _dateFmt  = DateFormat('dd MMM yyyy');
+  final _shortFmt = DateFormat('dd MMM');
+
+  // (value sent to API → display label)
+  static const _modes = {
+    'ALL':             'All',
+    'CASH':            'Cash',
+    'CHEQUE':          'Cheque',
+    'DIGITAL_PAYMENT': 'Digital',
+    'CHALLAN':         'Challan',
+  };
+
+  // Quick date presets
+  static const _presets = ['7D', '30D', '3M', 'Year', 'Custom'];
+
+  // ── helpers ──────────────────────────────────────────────────────────────
+
+  DateTimeRange _rangeFor(String preset) {
+    final now = DateTime.now();
+    switch (preset) {
+      case '7D':   return DateTimeRange(start: now.subtract(const Duration(days: 7)),  end: now);
+      case '30D':  return DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
+      case '3M':   return DateTimeRange(start: DateTime(now.year, now.month - 2, 1),   end: now);
+      case 'Year': return DateTimeRange(start: DateTime(now.year, 1, 1),               end: now);
+      default:     return _range ?? DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
+    }
+  }
+
+  String get _rangeLabel {
+    if (_range == null) return 'Select dates';
+    return '${_shortFmt.format(_range!.start)} – ${_shortFmt.format(_range!.end)}';
+  }
+
+  double get _totalCollected => _filtered.fold(0, (s, t) => s + t.amountPaid);
+  double get _totalDiscount  => _filtered.fold(0, (s, t) => s + t.discount);
+
+  // ── lifecycle ────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _range = DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
+    _range = _rangeFor('30D');
     _fetch();
-    _searchCtrl.addListener(_applyFilters);
-  }
-
-  Future<void> _fetch() async {
-    setState(() { _loading = true; _error = ''; });
-    try {
-      final report = await FeeApiService.getFeeReport(
-        startDate: _range?.start.toIso8601String().substring(0, 10),
-        endDate: _range?.end.toIso8601String().substring(0, 10),
-        paymentMode: (_modeFilter == null || _modeFilter == 'All Modes') ? null : _modeFilter,
-      );
-      setState(() { _all = report.transactions; _filtered = report.transactions; });
-    } catch (e) {
-      setState(() => _error = 'Failed to load transactions: $e');
-    } finally {
-      setState(() => _loading = false);
-    }
-  }
-
-  void _applyFilters() {
-    final q = _searchCtrl.text.toLowerCase();
-    setState(() {
-      _filtered = _all.where((t) =>
-          t.studentName.toLowerCase().contains(q) ||
-          t.receiptNumber.toLowerCase().contains(q) ||
-          t.className.toLowerCase().contains(q)).toList();
-    });
-  }
-
-  Future<void> _pickRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: _range,
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.navy)),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() => _range = picked);
-      _fetch();
-    }
+    _searchCtrl.addListener(_applySearch);
   }
 
   @override
@@ -84,6 +78,71 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     super.dispose();
   }
 
+  // ── data ─────────────────────────────────────────────────────────────────
+
+  Future<void> _fetch() async {
+    setState(() { _loading = true; _error = ''; });
+    try {
+      final report = await FeeApiService.getFeeReport(
+        startDate: _range?.start.toIso8601String().substring(0, 10),
+        endDate:   _range?.end.toIso8601String().substring(0, 10),
+        paymentMode: _modeFilter == 'ALL' ? null : _modeFilter,
+      );
+      setState(() {
+        _all      = report.transactions;
+        _filtered = report.transactions;
+      });
+      _applySearch();
+    } catch (e) {
+      setState(() => _error = 'Failed to load transactions: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _applySearch() {
+    final q = _searchCtrl.text.toLowerCase();
+    setState(() {
+      _filtered = q.isEmpty
+          ? List.from(_all)
+          : _all.where((t) =>
+              t.studentName.toLowerCase().contains(q) ||
+              t.receiptNumber.toLowerCase().contains(q) ||
+              t.className.toLowerCase().contains(q)).toList();
+    });
+  }
+
+  Future<void> _pickCustomRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate:  DateTime.now(),
+      initialDateRange: _range,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+            colorScheme: const ColorScheme.light(primary: AppColors.navy)),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() { _range = picked; _preset = 'Custom'; });
+      _fetch();
+    }
+  }
+
+  void _selectPreset(String p) {
+    if (p == 'Custom') { _pickCustomRange(); return; }
+    setState(() { _preset = p; _range = _rangeFor(p); });
+    _fetch();
+  }
+
+  void _selectMode(String mode) {
+    setState(() => _modeFilter = mode);
+    _fetch();
+  }
+
+  // ── build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,167 +150,475 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.navy,
         foregroundColor: Colors.white,
+        elevation: 0,
         title: Text('Transaction History',
-            style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700, fontSize: 20)),
+            style: GoogleFonts.cormorantGaramond(
+                fontWeight: FontWeight.w700, fontSize: 20)),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetch, tooltip: 'Refresh'),
+          IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: _fetch,
+              tooltip: 'Refresh'),
         ],
       ),
       body: Column(children: [
-        // Filter bar
-        Container(
-          color: AppColors.white,
-          padding: const EdgeInsets.all(16),
-          child: LayoutBuilder(builder: (context, fc) {
-            final isMobile = fc.maxWidth < 500;
-            return Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                // Search — full-width on mobile, fixed 220px on wider screens
-                SizedBox(
-                  width: isMobile ? fc.maxWidth : 220,
-                  child: TextField(
-                    controller: _searchCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Search name, receipt…',
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                ),
-                // Date range
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                  label: Text(
-                    _range != null
-                        ? '${_dateFmt.format(_range!.start)} – ${_dateFmt.format(_range!.end)}'
-                        : 'Date Range',
-                    style: GoogleFonts.nunitoSans(fontSize: 12),
-                  ),
-                  onPressed: _pickRange,
-                  style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.border),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
-                ),
-                // Mode filter
-                SizedBox(
-                  width: 160,
-                  child: DropdownButtonFormField<String>(
-                    value: _modeFilter ?? 'All Modes',
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      isDense: true,
-                    ),
-                    items: _modes.map((m) => DropdownMenuItem(value: m, child: Text(m, style: GoogleFonts.nunitoSans(fontSize: 13)))).toList(),
-                    onChanged: (v) { setState(() => _modeFilter = v); _fetch(); },
-                  ),
-                ),
-                // Count badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.navy.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                  ),
-                  child: Text('${_filtered.length} records',
-                      style: GoogleFonts.nunitoSans(
-                          fontWeight: FontWeight.w600, color: AppColors.navy, fontSize: 13)),
-                ),
-              ],
-            );
-          }),
-        ),
-        // Table
-        Expanded(
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error.isNotEmpty
-                  ? Center(child: Text(_error, style: GoogleFonts.nunitoSans(color: AppColors.error)))
-                  : _filtered.isEmpty
-                      ? Center(
-                          child: Text('No transactions found.',
-                              style: GoogleFonts.nunitoSans(color: AppColors.textSecondary)))
-                      : LayoutBuilder(
-                          builder: (context, tc) => SingleChildScrollView(
-                            padding: const EdgeInsets.all(16),
-                            child: Card(
-                              elevation: 1,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
-                              clipBehavior: Clip.antiAlias,
-                              // Horizontal scroll so 9 columns never overflow on small screens
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: ConstrainedBox(
-                                  // At least as wide as the available area (desktop/tablet),
-                                  // but min 860px so all columns are visible (phone scrolls).
-                                  constraints: BoxConstraints(
-                                    minWidth: tc.maxWidth > 860 ? tc.maxWidth - 32 : 860,
-                                  ),
-                                  child: PaginatedDataTable(
-                                    rowsPerPage: 15,
-                                    columns: ['Date', 'Receipt', 'Student', 'Class', 'Installments', 'Gross', 'Discount', 'Net', 'Mode']
-                                        .map((h) => DataColumn(
-                                            label: Text(h,
-                                                style: GoogleFonts.nunitoSans(
-                                                    fontWeight: FontWeight.w700, fontSize: 12))))
-                                        .toList(),
-                                    source: _TxnSource(_filtered, _currency, _dateFmt),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-        ),
+        _buildFilterPanel(),
+        if (!_loading && _error.isEmpty && _all.isNotEmpty) _buildSummaryStrip(),
+        Expanded(child: _buildBody()),
       ]),
     );
   }
+
+  // ── filter panel ─────────────────────────────────────────────────────────
+
+  Widget _buildFilterPanel() {
+    return Container(
+      color: AppColors.white,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Row 1 — search + calendar
+        Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Search name, receipt or class…',
+                hintStyle: GoogleFonts.nunitoSans(
+                    fontSize: 13, color: AppColors.textLight),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    size: 18, color: AppColors.textLight),
+                isDense: true,
+                filled: true,
+                fillColor: AppColors.cream,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                    borderSide: const BorderSide(color: AppColors.border)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                    borderSide: const BorderSide(color: AppColors.border)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                    borderSide:
+                        const BorderSide(color: AppColors.navy, width: 1.5)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Calendar icon-chip
+          InkWell(
+            onTap: _pickCustomRange,
+            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                border: Border.all(
+                    color: _preset == 'Custom'
+                        ? AppColors.navy
+                        : AppColors.border),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                color: _preset == 'Custom'
+                    ? AppColors.navy.withOpacity(0.06)
+                    : Colors.transparent,
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.date_range_rounded,
+                    size: 16,
+                    color: _preset == 'Custom'
+                        ? AppColors.navy
+                        : AppColors.textSecondary),
+                const SizedBox(width: 6),
+                Text(_rangeLabel,
+                    style: GoogleFonts.nunitoSans(
+                        fontSize: 12,
+                        color: _preset == 'Custom'
+                            ? AppColors.navy
+                            : AppColors.textSecondary,
+                        fontWeight: _preset == 'Custom'
+                            ? FontWeight.w600
+                            : FontWeight.w400)),
+                const SizedBox(width: 4),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: _preset == 'Custom'
+                        ? AppColors.navy
+                        : AppColors.textLight),
+              ]),
+            ),
+          ),
+        ]),
+
+        const SizedBox(height: 12),
+
+        // Row 2 — date preset chips
+        Row(children: [
+          Text('Period:',
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 12,
+                  color: AppColors.textLight,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _presets.map((p) {
+                  final active = _preset == p;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: GestureDetector(
+                      onTap: () => _selectPreset(p),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: active ? AppColors.navy : Colors.transparent,
+                          border: Border.all(
+                              color: active
+                                  ? AppColors.navy
+                                  : AppColors.border),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMD),
+                        ),
+                        child: p == 'Custom'
+                            ? Row(mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.calendar_month_outlined,
+                                    size: 13,
+                                    color: active
+                                        ? Colors.white
+                                        : AppColors.textSecondary),
+                                const SizedBox(width: 4),
+                                Text('Custom',
+                                    style: GoogleFonts.nunitoSans(
+                                        fontSize: 12,
+                                        color: active
+                                            ? Colors.white
+                                            : AppColors.textSecondary,
+                                        fontWeight: FontWeight.w500)),
+                              ])
+                            : Text(p,
+                                style: GoogleFonts.nunitoSans(
+                                    fontSize: 12,
+                                    color: active
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500)),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ]),
+
+        const SizedBox(height: 10),
+
+        // Row 3 — mode chips + record count
+        Row(children: [
+          Text('Mode:',
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 12,
+                  color: AppColors.textLight,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _modes.entries.map((e) {
+                  final active = _modeFilter == e.key;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: GestureDetector(
+                      onTap: () => _selectMode(e.key),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? AppColors.gold.withOpacity(0.15)
+                              : Colors.transparent,
+                          border: Border.all(
+                              color: active
+                                  ? AppColors.gold
+                                  : AppColors.border),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMD),
+                        ),
+                        child: Text(e.value,
+                            style: GoogleFonts.nunitoSans(
+                                fontSize: 12,
+                                color: active
+                                    ? AppColors.navy
+                                    : AppColors.textSecondary,
+                                fontWeight: active
+                                    ? FontWeight.w700
+                                    : FontWeight.w400)),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.navy.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+            ),
+            child: Text('${_filtered.length} records',
+                style: GoogleFonts.nunitoSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy)),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  // ── summary strip ─────────────────────────────────────────────────────────
+
+  Widget _buildSummaryStrip() {
+    return Container(
+      color: AppColors.navy,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(children: [
+        _statCell('Total Collected', _currency.format(_totalCollected),
+            AppColors.goldLight),
+        _vDivider(),
+        _statCell('Discount Given', _currency.format(_totalDiscount),
+            Colors.orange.shade200),
+        _vDivider(),
+        _statCell('Transactions', '${_filtered.length}', Colors.white),
+        _vDivider(),
+        _statCell(
+            'Avg / Txn',
+            _filtered.isEmpty
+                ? '—'
+                : _currency.format(_totalCollected / _filtered.length),
+            Colors.white70),
+      ]),
+    );
+  }
+
+  Widget _statCell(String label, String value, Color valueColor) =>
+      Expanded(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(value,
+              style: GoogleFonts.nunitoSans(
+                  color: valueColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: GoogleFonts.nunitoSans(
+                  color: Colors.white54, fontSize: 10)),
+        ]),
+      );
+
+  Widget _vDivider() => Container(
+      width: 1, height: 32, color: Colors.white24,
+      margin: const EdgeInsets.symmetric(horizontal: 4));
+
+  // ── body ─────────────────────────────────────────────────────────────────
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error.isNotEmpty) {
+      return Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.wifi_off_rounded,
+              color: AppColors.error, size: 48),
+          const SizedBox(height: 12),
+          Text('Could not load transactions',
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.error)),
+          const SizedBox(height: 6),
+          Text(_error,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary, fontSize: 12)),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+            onPressed: _fetch,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Retry'),
+          ),
+        ]),
+      );
+    }
+    if (_filtered.isEmpty) {
+      return Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.receipt_long_outlined,
+              size: 56, color: AppColors.textLight.withOpacity(0.4)),
+          const SizedBox(height: 14),
+          Text('No transactions found',
+              style: GoogleFonts.cormorantGaramond(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.navy)),
+          const SizedBox(height: 6),
+          Text(
+            _searchCtrl.text.isNotEmpty
+                ? 'No match for "${_searchCtrl.text}"'
+                : 'Try a wider date range or different mode filter',
+            style: GoogleFonts.nunitoSans(
+                color: AppColors.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () {
+              _searchCtrl.clear();
+              _selectPreset('Year');
+              setState(() => _modeFilter = 'ALL');
+            },
+            icon: const Icon(Icons.filter_alt_off_outlined, size: 16),
+            label: const Text('Clear Filters'),
+            style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.navy,
+                side: const BorderSide(color: AppColors.navy)),
+          ),
+        ]),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, tc) => SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: tc.maxWidth > 880 ? tc.maxWidth - 32 : 880,
+              ),
+              child: PaginatedDataTable(
+                rowsPerPage: 15,
+                showFirstLastButtons: true,
+                headingRowColor:
+                    WidgetStateProperty.all(AppColors.creamDark),
+                columns: const [
+                  DataColumn(label: Text('Date')),
+                  DataColumn(label: Text('Receipt')),
+                  DataColumn(label: Text('Student')),
+                  DataColumn(label: Text('Class')),
+                  DataColumn(label: Text('Installments')),
+                  DataColumn(label: Text('Gross'),  numeric: true),
+                  DataColumn(label: Text('Discount'), numeric: true),
+                  DataColumn(label: Text('Net'),    numeric: true),
+                  DataColumn(label: Text('Mode')),
+                ],
+                source: _TxnSource(_filtered, _currency, _dateFmt),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+
+// ── data-table source ─────────────────────────────────────────────────────────
 
 class _TxnSource extends DataTableSource {
   final List<TransactionRecord> data;
   final NumberFormat currency;
   final DateFormat dateFmt;
+
   _TxnSource(this.data, this.currency, this.dateFmt);
+
+  static const _modeIcons = {
+    'CASH':             Icons.money_rounded,
+    'CHEQUE':           Icons.account_balance_rounded,
+    'DIGITAL_PAYMENT':  Icons.phonelink_rounded,
+    'CHALLAN':          Icons.receipt_rounded,
+  };
 
   @override
   DataRow? getRow(int index) {
     if (index >= data.length) return null;
     final t = data[index];
-    final net = t.amountPaid;
+    final net   = t.amountPaid;
     final gross = net + t.discount;
+
     return DataRow(cells: [
       DataCell(Text(dateFmt.format(t.paymentDate),
           style: GoogleFonts.nunitoSans(fontSize: 12))),
       DataCell(Text(t.receiptNumber,
-          style: GoogleFonts.nunitoSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy))),
-      DataCell(Text(t.studentName, style: GoogleFonts.nunitoSans(fontSize: 12))),
-      DataCell(Text(t.className, style: GoogleFonts.nunitoSans(fontSize: 12))),
-      DataCell(Text(t.paidForMonths.join(', '),
-          style: GoogleFonts.nunitoSans(fontSize: 11, color: AppColors.textSecondary))),
-      DataCell(Text(currency.format(gross), style: GoogleFonts.nunitoSans(fontSize: 12))),
+          style: GoogleFonts.nunitoSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.navy))),
+      DataCell(Text(t.studentName,
+          style: GoogleFonts.nunitoSans(
+              fontSize: 12, fontWeight: FontWeight.w500))),
+      DataCell(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.navy.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(t.className,
+            style: GoogleFonts.nunitoSans(
+                fontSize: 11, color: AppColors.navy, fontWeight: FontWeight.w600)),
+      )),
+      DataCell(Text(
+        t.paidForMonths.isEmpty ? '—' : t.paidForMonths.join(', '),
+        style: GoogleFonts.nunitoSans(
+            fontSize: 11, color: AppColors.textSecondary),
+      )),
+      DataCell(Text(currency.format(gross),
+          style: GoogleFonts.nunitoSans(fontSize: 12))),
       DataCell(Text(
         t.discount > 0 ? currency.format(t.discount) : '—',
         style: GoogleFonts.nunitoSans(
-            fontSize: 12, color: t.discount > 0 ? AppColors.warning : AppColors.textLight),
+            fontSize: 12,
+            color: t.discount > 0 ? AppColors.warning : AppColors.textLight),
       )),
       DataCell(Text(currency.format(net),
           style: GoogleFonts.nunitoSans(
-              fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.success))),
-      DataCell(Text(t.paymentMode, style: GoogleFonts.nunitoSans(fontSize: 11))),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.success))),
+      DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(_modeIcons[t.paymentMode] ?? Icons.payment_rounded,
+            size: 13,
+            color: AppColors.textSecondary),
+        const SizedBox(width: 4),
+        Text(
+          t.paymentMode
+              .replaceAll('_', ' ')
+              .toLowerCase()
+              .split(' ')
+              .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+              .join(' '),
+          style: GoogleFonts.nunitoSans(fontSize: 11),
+        ),
+      ])),
     ]);
   }
 
-  @override
-  bool get isRowCountApproximate => false;
-  @override
-  int get rowCount => data.length;
-  @override
-  int get selectedRowCount => 0;
+  @override bool get isRowCountApproximate => false;
+  @override int  get rowCount              => data.length;
+  @override int  get selectedRowCount      => 0;
 }
