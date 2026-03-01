@@ -80,8 +80,12 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 0;
   bool _sideMenuVisible = true;
+
+  // Maps bottom-nav slot → global _allItems index: Overview, Students, Fees, Admissions
+  static const _bottomNavToGlobal = [0, 1, 3, 2];
 
   Widget _buildContent() {
     switch (_selectedIndex) {
@@ -103,60 +107,115 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile  = Responsive.isMobile(context);
     final isDesktop = Responsive.isDesktop(context);
+    // Desktop sidebar: 240px | Tablet sidebar: 200px
+    final sidebarWidth = isDesktop ? 240.0 : 200.0;
+
+    // Find which bottom-nav slot to highlight; fall back to "More" (slot 4)
+    int bottomIdx = _bottomNavToGlobal.indexOf(_selectedIndex);
+    if (bottomIdx == -1) bottomIdx = 4;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: AppColors.navy,
-        leading: isDesktop
+        leading: isMobile
+            // Mobile: hamburger opens the drawer
             ? IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              )
+            // Tablet / Desktop: hamburger toggles the persistent sidebar
+            : IconButton(
                 icon: const Icon(Icons.menu),
                 onPressed: () =>
                     setState(() => _sideMenuVisible = !_sideMenuVisible),
-              )
-            : IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () =>
-                    Navigator.pushReplacementNamed(context, AppRouter.home),
               ),
         title: Text(
           _allItems[_selectedIndex].label,
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600, fontSize: 18),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18),
         ),
         actions: [
-          TextButton.icon(
-            onPressed: () =>
-                Navigator.pushReplacementNamed(context, AppRouter.home),
-            icon: const Icon(Icons.public, color: AppColors.goldLight, size: 18),
-            label: Text('View Website',
-                style: GoogleFonts.poppins(
-                    color: AppColors.goldLight, fontSize: 12)),
-          ),
-          const SizedBox(width: 8),
+          // Full text on tablet/desktop; icon-only on mobile to save space
+          if (!isMobile)
+            TextButton.icon(
+              onPressed: () =>
+                  Navigator.pushReplacementNamed(context, AppRouter.home),
+              icon: const Icon(Icons.public, color: AppColors.goldLight, size: 18),
+              label: Text('View Website',
+                  style: GoogleFonts.poppins(
+                      color: AppColors.goldLight, fontSize: 12)),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.public, color: AppColors.goldLight),
+              tooltip: 'View Website',
+              onPressed: () =>
+                  Navigator.pushReplacementNamed(context, AppRouter.home),
+            ),
+          const SizedBox(width: 4),
         ],
       ),
-      drawer: isDesktop
-          ? null
-          : Drawer(
+      // Drawer only on mobile; tablet + desktop use persistent sidebar
+      drawer: isMobile
+          ? Drawer(
               backgroundColor: AppColors.white,
               child: _buildMenuList(),
-            ),
+            )
+          : null,
+      // Bottom nav only on mobile for quick section switching
+      bottomNavigationBar: isMobile ? _buildBottomNav(bottomIdx) : null,
       body: Row(
         children: [
-          if (isDesktop && _sideMenuVisible)
+          // Persistent sidebar for tablet and desktop
+          if (!isMobile && _sideMenuVisible)
             Material(
               elevation: 2,
-              child: Container(
-                width: 240,
-                color: AppColors.white,
-                child: _buildMenuList(),
+              child: SizedBox(
+                width: sidebarWidth,
+                child: ColoredBox(
+                  color: AppColors.white,
+                  child: _buildMenuList(),
+                ),
               ),
             ),
           Expanded(child: _buildContent()),
         ],
       ),
+    );
+  }
+
+  Widget _buildBottomNav(int currentIndex) {
+    return BottomNavigationBar(
+      currentIndex: currentIndex,
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: AppColors.white,
+      selectedItemColor: AppColors.navy,
+      unselectedItemColor: AppColors.textLight,
+      selectedLabelStyle:
+          GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w600),
+      unselectedLabelStyle: GoogleFonts.poppins(fontSize: 10),
+      elevation: 8,
+      items: const [
+        BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined), label: 'Overview'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.people_alt_outlined), label: 'Students'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long_outlined), label: 'Fees'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.person_add_alt_1_outlined), label: 'Admissions'),
+        BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'More'),
+      ],
+      onTap: (idx) {
+        if (idx == 4) {
+          _scaffoldKey.currentState?.openDrawer();
+        } else {
+          setState(() => _selectedIndex = _bottomNavToGlobal[idx]);
+        }
+      },
     );
   }
 
@@ -179,7 +238,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       children: [
         // ── Sidebar header ─────────────────────────────────────────────────
         Container(
-          padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
+          // Drawer (mobile) needs extra top padding to clear the status bar;
+          // persistent sidebar (tablet/desktop) starts below the AppBar so 24px suffices.
+          padding: EdgeInsets.fromLTRB(
+              20, Responsive.isMobile(context) ? 48 : 24, 20, 20),
           color: AppColors.navy,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,7 +285,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       size: 20, color: AppColors.error),
                   const SizedBox(width: 14),
                   Text('Logout',
-                      style: GoogleFonts.nunitoSans(
+                      style: GoogleFonts.poppins(
                           color: AppColors.error, fontSize: 14)),
                 ],
               ),
@@ -257,7 +319,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       child: InkWell(
         onTap: () {
           setState(() => _selectedIndex = index);
-          if (!Responsive.isDesktop(context)) Navigator.pop(context);
+          // Close the drawer when a section is selected — only on mobile
+          // (tablet/desktop use a persistent sidebar, not a drawer)
+          if (Responsive.isMobile(context)) Navigator.pop(context);
         },
         child: Container(
           decoration: isActive
@@ -314,7 +378,7 @@ class _OverviewContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(Responsive.contentPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
