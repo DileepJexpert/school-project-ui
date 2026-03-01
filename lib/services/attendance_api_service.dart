@@ -59,6 +59,19 @@ class AttendanceApiService {
         response.data as Map<String, dynamic>);
   }
 
+  /// Returns all attendance records for a class within a date range.
+  /// Used for monthly reports.
+  static Future<List<AttendanceModel>> getClassAttendanceRange(
+      String className, String academicYear, String from, String to) async {
+    final response = await DioClient.get(
+      '$_base/class/$className/range',
+      queryParams: {'from': from, 'to': to, 'academicYear': academicYear},
+    );
+    return (response.data as List)
+        .map((e) => AttendanceModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   static Future<void> deleteAttendance(String id) async {
     await DioClient.delete('$_base/$id');
   }
