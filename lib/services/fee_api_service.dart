@@ -83,7 +83,7 @@ class FeeApiService {
       if (paymentMode != null && paymentMode.isNotEmpty) 'paymentMode': paymentMode,
     };
     final response = await DioClient.get(
-      '$_feeBase/reports/collection-summary',
+      '/reports/fees/report-summary',
       queryParams: params,
     );
     return FeeReportResponse.fromJson(response.data as Map<String, dynamic>);

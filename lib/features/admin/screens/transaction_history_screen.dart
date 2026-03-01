@@ -113,15 +113,25 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   }
 
   Future<void> _pickCustomRange() async {
-    final picked = await showDateRangePicker(
+    final picked = await showDialog<DateTimeRange>(
       context: context,
-      firstDate: DateTime(2020),
-      lastDate:  DateTime.now(),
-      initialDateRange: _range,
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.navy)),
-        child: child!,
+      barrierColor: Colors.black26,
+      builder: (ctx) => Align(
+        // Appear at top-right, just below the filter bar
+        alignment: Alignment.topRight,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 172, right: 16),
+          child: Material(
+            elevation: 10,
+            borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+            color: Colors.transparent,
+            child: _CompactRangePicker(
+              initial: _range,
+              onConfirm: (r) => Navigator.pop(ctx, r),
+              onCancel: () => Navigator.pop(ctx),
+            ),
+          ),
+        ),
       ),
     );
     if (picked != null) {
@@ -533,6 +543,157 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── compact date-range picker ─────────────────────────────────────────────────
+
+class _CompactRangePicker extends StatefulWidget {
+  final DateTimeRange? initial;
+  final ValueChanged<DateTimeRange> onConfirm;
+  final VoidCallback onCancel;
+
+  const _CompactRangePicker({
+    this.initial,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  @override
+  State<_CompactRangePicker> createState() => _CompactRangePickerState();
+}
+
+class _CompactRangePickerState extends State<_CompactRangePicker> {
+  DateTime? _start;
+  DateTime? _end;
+  bool _pickingEnd = false;
+  final _shortFmt = DateFormat('dd MMM yyyy');
+
+  @override
+  void initState() {
+    super.initState();
+    _start = widget.initial?.start;
+    _end   = widget.initial?.end;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 310,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── header ──────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.navy,
+              borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppSizes.radiusLG)),
+            ),
+            child: Row(children: [
+              Expanded(child: _dateTab('From', _start, !_pickingEnd,
+                  () => setState(() => _pickingEnd = false))),
+              Container(width: 1, height: 36, color: Colors.white24,
+                  margin: const EdgeInsets.symmetric(horizontal: 10)),
+              Expanded(child: _dateTab('To', _end, _pickingEnd,
+                  () => setState(() => _pickingEnd = true))),
+            ]),
+          ),
+          // ── calendar ─────────────────────────────────────
+          CalendarDatePicker(
+            key: ValueKey(_pickingEnd),
+            initialDate: _pickingEnd
+                ? (_end ?? (_start ?? DateTime.now()))
+                : (_start ?? DateTime.now()),
+            firstDate: _pickingEnd && _start != null
+                ? _start!
+                : DateTime(2020),
+            lastDate: DateTime.now(),
+            onDateChanged: (date) {
+              setState(() {
+                if (!_pickingEnd) {
+                  _start = date;
+                  _end   = null;
+                  _pickingEnd = true;   // auto advance to pick end
+                } else {
+                  _end = date;
+                }
+              });
+            },
+          ),
+          // ── buttons ──────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Row(children: [
+              Expanded(
+                child: Text(
+                  _start != null && _end != null
+                      ? '${_shortFmt.format(_start!)} → ${_shortFmt.format(_end!)}'
+                      : _start != null
+                          ? 'Now pick end date'
+                          : 'Pick start date',
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 11, color: AppColors.textSecondary),
+                ),
+              ),
+              TextButton(
+                onPressed: widget.onCancel,
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 6),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8)),
+                onPressed: _start != null && _end != null
+                    ? () => widget.onConfirm(
+                        DateTimeRange(start: _start!, end: _end!))
+                    : null,
+                child: const Text('Apply'),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dateTab(String label, DateTime? date, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border.all(
+              color: active ? AppColors.gold : Colors.transparent, width: 1.5),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 10,
+                  color: active ? AppColors.gold : Colors.white54,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(
+            date != null ? DateFormat('dd MMM yyyy').format(date) : 'Select…',
+            style: GoogleFonts.nunitoSans(
+                fontSize: 12,
+                color: Colors.white,
+                fontWeight: FontWeight.w600),
+          ),
+        ]),
       ),
     );
   }
