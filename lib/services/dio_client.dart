@@ -3,8 +3,12 @@ import 'package:dio/dio.dart';
 class DioClient {
   static late Dio _dio;
 
-  static const String _baseUrl = 'http://localhost:8080/api';
-  // Update to your production Spring Boot server URL when deploying
+  // Set at build time via: flutter build web --dart-define=API_BASE_URL=https://your-app.koyeb.app/api
+  // Falls back to localhost for local development.
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8080/api',
+  );
 
   DioClient._();
 
