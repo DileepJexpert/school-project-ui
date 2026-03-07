@@ -1,0 +1,8 @@
+[build]
+  command = "flutter build web --release --dart-define=API_BASE_URL=https://lazy-gena-schoolapp-1214a249.koyeb.app/api"
+  publish = "build/web"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
