@@ -1,3 +1,7 @@
+import 'dart:html' as html;
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _emailNotifications = true;
   bool _smsAlerts = false;
   bool _savingApi = false;
+  bool _backingUp = false;
 
   @override
   void initState() {
@@ -58,6 +63,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
             content: Text('School name saved!'),
             backgroundColor: AppColors.success),
       );
+    }
+  }
+
+  Future<void> _downloadBackup() async {
+    setState(() => _backingUp = true);
+    try {
+      final response = await DioClient.instance.get(
+        '/admin/backup',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = Uint8List.fromList(response.data as List<int>);
+      final blob = html.Blob([bytes], 'application/zip');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final now = DateTime.now();
+      final filename =
+          'school_backup_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}'
+          '_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}.zip';
+      html.AnchorElement(href: url)
+        ..setAttribute('download', filename)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Backup downloaded successfully!'),
+              backgroundColor: AppColors.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Backup failed: $e'),
+              backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      setState(() => _backingUp = false);
     }
   }
 
@@ -424,6 +467,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ]),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Data Backup
+          _sectionTitle('Data Backup'),
+          Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  'Download a full backup of all school data as a ZIP file containing JSON exports.',
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.textSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Includes: students, fees, expenses, attendance, results, timetable, transport.',
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.navy,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: _backingUp ? null : _downloadBackup,
+                    icon: _backingUp
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.download_outlined),
+                    label: Text(
+                      _backingUp ? 'Preparing backup...' : 'Backup Now',
+                      style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                    border: Border.all(color: AppColors.info.withOpacity(0.2)),
+                  ),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.info_outline, color: AppColors.info, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'The ZIP file will be saved to your browser\'s default download folder. '
+                        'To always save backups to a specific folder, configure it in your browser\'s download settings.',
+                        style: GoogleFonts.nunitoSans(
+                            color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                    ),
+                  ]),
+                ),
+              ]),
+            ),
           ),
 
           const SizedBox(height: 20),
