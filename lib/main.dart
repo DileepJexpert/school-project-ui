@@ -8,6 +8,8 @@ import 'services/dio_client.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
+  // Initialize Dio — the tenant interceptor reads X-Tenant-ID from SharedPreferences
+  // on every request, so no extra setup is needed here.
   DioClient.initialize();
   runApp(const SchoolApp());
 }

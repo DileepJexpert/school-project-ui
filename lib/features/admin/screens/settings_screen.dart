@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/router/app_router.dart';
 import '../../../services/dio_client.dart';
+import '../../../services/tenant_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,11 +21,14 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _apiUrlCtrl = TextEditingController();
   final _schoolNameCtrl = TextEditingController(text: AppStrings.schoolName);
+  final _tenantIdCtrl = TextEditingController();
   bool _darkMode = false;
   bool _emailNotifications = true;
   bool _smsAlerts = false;
   bool _savingApi = false;
   bool _backingUp = false;
+  bool _savingTenant = false;
+  String _tenantValidationMsg = '';
 
   @override
   void initState() {
@@ -34,11 +38,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    final tenantId = await TenantService.getTenantId();
     setState(() {
       _apiUrlCtrl.text = prefs.getString('api_base_url') ?? 'http://localhost:8080/api';
       _emailNotifications = prefs.getBool('email_notifications') ?? true;
       _smsAlerts = prefs.getBool('sms_alerts') ?? false;
+      _tenantIdCtrl.text = tenantId == 'default' ? '' : tenantId;
     });
+  }
+
+  Future<void> _saveTenantId() async {
+    final tenantId = _tenantIdCtrl.text.trim().toLowerCase();
+    if (tenantId.isEmpty) {
+      setState(() => _tenantValidationMsg = 'School code cannot be empty.');
+      return;
+    }
+    setState(() { _savingTenant = true; _tenantValidationMsg = ''; });
+    try {
+      await TenantService.setTenant(tenantId);
+      setState(() => _tenantValidationMsg = 'School code saved! All API requests will now use: $tenantId');
+    } catch (e) {
+      setState(() => _tenantValidationMsg = 'Failed to save: $e');
+    } finally {
+      setState(() => _savingTenant = false);
+    }
   }
 
   Future<void> _saveApiUrl() async {
@@ -271,6 +294,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _apiUrlCtrl.dispose();
     _schoolNameCtrl.dispose();
+    _tenantIdCtrl.dispose();
     super.dispose();
   }
 
@@ -350,6 +374,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             style: GoogleFonts.nunitoSans(
                                 color: AppColors.textSecondary, fontSize: 12)),
                       ]),
+                    ),
+                  ]),
+                ),
+              ]),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Multi-Tenant School Identity
+          _sectionTitle('School Identity (Multi-Tenant)'),
+          Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('School Code (Tenant ID)',
+                    style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
+                const SizedBox(height: 4),
+                Text(
+                  'Your unique school identifier. This determines which school\'s data is loaded. '
+                  'Contact your platform admin if you don\'t know your school code.',
+                  style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _tenantIdCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. springfield, dps_rohini',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        prefixIcon: const Icon(Icons.domain, color: AppColors.textLight),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+                    onPressed: _savingTenant ? null : _saveTenantId,
+                    child: _savingTenant
+                        ? const SizedBox(
+                            width: 18, height: 18,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Save'),
+                  ),
+                ]),
+                if (_tenantValidationMsg.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(_tenantValidationMsg,
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12,
+                          color: _tenantValidationMsg.startsWith('School code saved')
+                              ? AppColors.success
+                              : AppColors.error)),
+                ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                    border: Border.all(color: AppColors.gold.withOpacity(0.3)),
+                  ),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.business_outlined, color: AppColors.gold, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Each school gets its own isolated database. '
+                        'Setting this code tells the app which school\'s data to show. '
+                        'The code is sent as X-Tenant-ID header with every API request.',
+                        style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12),
+                      ),
                     ),
                   ]),
                 ),
