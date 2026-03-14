@@ -201,7 +201,7 @@ class _DesktopNavbar extends StatelessWidget {
 
               // Staff Login
               if (!isCompact)
-                _StaffLoginButton(onTap: () => _navigate(context, AppRouter.adminDashboard)),
+                _StaffLoginButton(onTap: () => _navigate(context, AppRouter.login)),
 
               // Mobile hamburger
               if (isCompact)
@@ -383,7 +383,7 @@ class _MobileDrawer extends StatelessWidget {
               title: Text('Staff Login', style: GoogleFonts.nunitoSans(color: AppColors.goldLight, fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, AppRouter.adminDashboard);
+                Navigator.pushReplacementNamed(context, AppRouter.login);
               },
             ),
             const SizedBox(height: 16),

@@ -11,6 +11,9 @@ class DioClient {
     defaultValue: 'http://localhost:8080/api',
   );
 
+  /// Expose the base URL so AuthService can derive the platform URL from it.
+  static String get baseUrl => _baseUrl;
+
   DioClient._();
 
   static void initialize() {
@@ -26,31 +29,77 @@ class DioClient {
       ),
     );
 
-    // Multi-tenant interceptor — injects X-Tenant-ID header from SharedPreferences
+    // Auth + tenant interceptor — injects X-Tenant-ID and Bearer token
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final prefs = await SharedPreferences.getInstance();
+
+          // Tenant header (always set)
           final tenantId = prefs.getString('tenant_id') ?? 'default';
           options.headers['X-Tenant-ID'] = tenantId;
+
+          // Bearer token (when logged in)
+          final token = prefs.getString('auth_token');
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+
           return handler.next(options);
         },
         onResponse: (response, handler) {
           return handler.next(response);
         },
-        onError: (error, handler) {
+        onError: (error, handler) async {
+          // Auto-refresh on 401 Unauthorized
+          if (error.response?.statusCode == 401) {
+            final refreshed = await _tryRefreshToken();
+            if (refreshed) {
+              // Retry the original request with the new token
+              final prefs = await SharedPreferences.getInstance();
+              final newToken = prefs.getString('auth_token');
+              error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+              try {
+                final response = await _dio.fetch(error.requestOptions);
+                return handler.resolve(response);
+              } catch (e) {
+                // Refresh worked but retry failed — propagate original error
+              }
+            }
+          }
           _handleError(error);
           return handler.next(error);
         },
       ),
     );
 
-    // Logging interceptor (remove in production)
+    // Logging interceptor (disable in production builds)
     _dio.interceptors.add(LogInterceptor(
       requestBody: true,
       responseBody: true,
       logPrint: (obj) => print('[DIO] $obj'),
     ));
+  }
+
+  static Future<bool> _tryRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('auth_refresh_token');
+    if (refreshToken == null) return false;
+    try {
+      final response = await Dio().post(
+        '$_baseUrl/auth/refresh',
+        data: {'refreshToken': refreshToken},
+        options: Options(headers: {'Content-Type': 'application/json'}),
+      );
+      final token = response.data['token'] as String?;
+      final newRefresh = response.data['refreshToken'] as String?;
+      if (token != null) {
+        await prefs.setString('auth_token', token);
+        if (newRefresh != null) await prefs.setString('auth_refresh_token', newRefresh);
+        return true;
+      }
+    } catch (_) {}
+    return false;
   }
 
   static Dio get instance => _dio;

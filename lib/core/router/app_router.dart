@@ -10,6 +10,8 @@ import '../../features/transport/transport_page.dart';
 import '../../features/contact/contact_page.dart';
 import '../../features/results/results_page.dart';
 import '../../features/admin/admin_dashboard_page.dart';
+import '../../features/auth/login_page.dart';
+import '../../services/auth_service.dart';
 
 class AppRouter {
   AppRouter._();
@@ -25,6 +27,7 @@ class AppRouter {
   static const String contact = '/contact';
   static const String results = '/results';
   static const String adminDashboard = '/admin-dashboard';
+  static const String login = '/login';
 
   static final List<NavItem> publicNavItems = [
     NavItem(label: 'Home', route: home, icon: Icons.home_outlined),
@@ -58,7 +61,14 @@ class AppRouter {
         return _buildRoute(const ContactPage(), settings);
       case results:
         return _buildRoute(const ResultsPage(), settings);
+      case login:
+        return _buildRoute(const LoginPage(), settings);
       case adminDashboard:
+        // Guard: redirect to login if not authenticated or no admin access
+        if (!AuthService.instance.isLoggedIn ||
+            !(AuthService.instance.currentUser?.hasAdminAccess ?? false)) {
+          return _buildRoute(const LoginPage(), settings);
+        }
         return _buildRoute(const AdminDashboardPage(), settings);
       default:
         return _buildRoute(const HomePage(), settings);
