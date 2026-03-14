@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DioClient {
   static late Dio _dio;
@@ -25,13 +26,13 @@ class DioClient {
       ),
     );
 
-    // Request interceptor
+    // Multi-tenant interceptor — injects X-Tenant-ID header from SharedPreferences
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          // TODO: Add auth token from SharedPreferences when admin is logged in
-          // final token = await SharedPreferences.getInstance().getString('auth_token');
-          // if (token != null) options.headers['Authorization'] = 'Bearer $token';
+        onRequest: (options, handler) async {
+          final prefs = await SharedPreferences.getInstance();
+          final tenantId = prefs.getString('tenant_id') ?? 'default';
+          options.headers['X-Tenant-ID'] = tenantId;
           return handler.next(options);
         },
         onResponse: (response, handler) {
