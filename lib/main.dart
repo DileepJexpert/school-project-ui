@@ -3,14 +3,16 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'services/auth_service.dart';
 import 'services/dio_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
-  // Initialize Dio — the tenant interceptor reads X-Tenant-ID from SharedPreferences
-  // on every request, so no extra setup is needed here.
+  // Initialize Dio first (AuthService uses it)
   DioClient.initialize();
+  // Restore persisted login state (token + user from SharedPreferences)
+  await AuthService.instance.initialize();
   runApp(const SchoolApp());
 }
 

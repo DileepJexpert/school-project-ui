@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/responsive.dart';
+import '../../models/auth_models.dart';
+import '../../services/auth_service.dart';
 
 // ── Existing live screens ──────────────────────────────────────────────────
 import 'screens/attendance_screen.dart';
@@ -219,27 +221,48 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  Future<void> _logout() async {
+    await AuthService.instance.logout();
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed(AppRouter.login);
+    }
+  }
+
   Widget _buildMenuList() {
+    final auth = AuthService.instance;
     // Build a flat index so that tapping a group item knows its global index.
     int globalIndex = 0;
     final groupWidgets = <Widget>[];
 
     for (final group in _groups) {
-      groupWidgets.add(_buildGroupHeader(group.title));
+      // Collect visible items in this group
+      final visibleItems = <_MenuItem>[];
+      final visibleIndices = <int>[];
       for (final item in group.items) {
-        final idx = globalIndex;
-        groupWidgets.add(_buildMenuItem(item, idx));
+        if (auth.canAccessMenu(item.label)) {
+          visibleItems.add(item);
+          visibleIndices.add(globalIndex);
+        }
         globalIndex++;
       }
+      // Only render the group header if it has visible items
+      if (visibleItems.isNotEmpty) {
+        groupWidgets.add(_buildGroupHeader(group.title));
+        for (int i = 0; i < visibleItems.length; i++) {
+          groupWidgets.add(_buildMenuItem(visibleItems[i], visibleIndices[i]));
+        }
+      }
     }
+
+    final user = auth.currentUser;
+    final userName = user?.fullName ?? 'Admin';
+    final userRole = user != null ? UserRole.displayName(user.role) : 'Dashboard';
 
     return ListView(
       padding: EdgeInsets.zero,
       children: [
         // ── Sidebar header ─────────────────────────────────────────────────
         Container(
-          // Drawer (mobile) needs extra top padding to clear the status bar;
-          // persistent sidebar (tablet/desktop) starts below the AppBar so 24px suffices.
           padding: EdgeInsets.fromLTRB(
               20, Responsive.isMobile(context) ? 48 : 24, 20, 20),
           color: AppColors.navy,
@@ -248,12 +271,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             children: [
               const Icon(Icons.school_rounded, color: Colors.white, size: 36),
               const SizedBox(height: 8),
-              Text('School Admin',
+              Text(userName,
                   style: GoogleFonts.poppins(
                       color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700)),
-              Text('Management Dashboard',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              Text(userRole,
                   style: GoogleFonts.poppins(
                       color: AppColors.goldLight,
                       fontSize: 11,
@@ -262,7 +287,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ),
         const SizedBox(height: 8),
-        // ── Grouped items ──────────────────────────────────────────────────
+        // ── Grouped items (role-filtered) ──────────────────────────────────
         ...groupWidgets,
         const Divider(indent: 16, endIndent: 16, height: 24),
         // ── Logout ─────────────────────────────────────────────────────────
@@ -270,13 +295,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Logout — implement with Spring Security'),
-                    backgroundColor: AppColors.navy),
-              );
-            },
+            onTap: _logout,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -382,7 +401,8 @@ class _OverviewContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Welcome Back, Admin!',
+          Text(
+              'Welcome Back, ${AuthService.instance.currentUser?.fullName?.split(' ').first ?? 'Admin'}!',
               style: GoogleFonts.poppins(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
