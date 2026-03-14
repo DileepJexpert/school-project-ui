@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
 import '../../models/auth_models.dart';
 import '../../services/auth_service.dart';
+import '../../services/dio_client.dart';
 
 /// Login page — supports all roles.
 ///
@@ -65,8 +67,7 @@ class _LoginPageState extends State<LoginPage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('tenant_id', code);
 
-      final response = await AuthService.instance
-          ._validateSchoolCode(code);
+      final response = await _validateSchoolCode(code);
 
       if (response['valid'] == true) {
         setState(() {
@@ -118,6 +119,12 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<Map<String, dynamic>> _validateSchoolCode(String code) async {
+    final serverRoot = DioClient.baseUrl.replaceAll('/api', '');
+    final response = await Dio().get('$serverRoot/platform/schools/$code/validate');
+    return response.data as Map<String, dynamic>;
+  }
+
   String _friendlyError(String raw) {
     if (raw.contains('401') || raw.contains('Invalid credentials')) {
       return 'Incorrect email or password.';
@@ -134,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.navy,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -182,13 +189,13 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildHeader() => Column(children: [
-        const Icon(Icons.school, size: 48, color: AppColors.primary),
+        const Icon(Icons.school, size: 48, color: AppColors.navy),
         const SizedBox(height: 12),
         Text('School Management',
             style: GoogleFonts.poppins(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary)),
+                color: AppColors.navy)),
         const SizedBox(height: 4),
         Text('Sign in to your account',
             style: GoogleFonts.poppins(
@@ -199,7 +206,7 @@ class _LoginPageState extends State<LoginPage> {
         children: [
           Switch(
             value: _isPlatformAdmin,
-            activeColor: AppColors.primary,
+            activeColor: AppColors.navy,
             onChanged: (v) => setState(() {
               _isPlatformAdmin = v;
               _schoolValidated = false;
@@ -230,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: _loading ? null : _validateSchool,
                       child: Text('Verify',
                           style: GoogleFonts.poppins(
-                              color: AppColors.primary,
+                              color: AppColors.navy,
                               fontWeight: FontWeight.w600)),
                     ),
             ),
@@ -315,7 +322,7 @@ class _LoginPageState extends State<LoginPage> {
         height: 48,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.navy,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10)),
@@ -342,14 +349,3 @@ class _LoginPageState extends State<LoginPage> {
       );
 }
 
-// Extension on AuthService to keep login_page self-contained
-extension _AuthServiceLoginExt on AuthService {
-  Future<Map<String, dynamic>> _validateSchoolCode(String code) async {
-    final dio = DioClient.instance;
-    // Platform validate endpoint is not tenant-scoped
-    final response = await dio.get(
-      '${DioClient.baseUrl.replaceAll('/api', '')}/platform/schools/$code/validate',
-    );
-    return response.data as Map<String, dynamic>;
-  }
-}
