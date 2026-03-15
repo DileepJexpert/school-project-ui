@@ -69,6 +69,12 @@ class FeeApiService {
     await DioClient.delete('$_structureBase/$id');
   }
 
+  // ── School Summary (Reports Screen) ──────────────────────────────────────
+  static Future<SchoolSummary> getSchoolSummary() async {
+    final response = await DioClient.get('/reports/school-summary');
+    return SchoolSummary.fromJson(response.data as Map<String, dynamic>);
+  }
+
   // ── Fee Reports ──────────────────────────────────────────────────────────
   static Future<FeeReportResponse> getFeeReport({
     String? startDate,

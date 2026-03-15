@@ -1,5 +1,67 @@
 // All fee-related models — no code generation, manual fromJson/toJson
 
+// ─── School Summary (Reports Screen) ─────────────────────────────────────────
+
+class MonthlyFeeSummary {
+  final int month;
+  final int year;
+  final String label;
+  final double amount;
+
+  MonthlyFeeSummary({
+    required this.month,
+    required this.year,
+    required this.label,
+    required this.amount,
+  });
+
+  factory MonthlyFeeSummary.fromJson(Map<String, dynamic> json) =>
+      MonthlyFeeSummary(
+        month: json['month'] ?? 1,
+        year: json['year'] ?? DateTime.now().year,
+        label: json['label'] ?? '',
+        amount: (json['amount'] ?? 0).toDouble(),
+      );
+}
+
+class SchoolSummary {
+  final int totalStudents;
+  final Map<String, int> enrollmentByClass;
+  final double totalFeesCollected;
+  final double totalFeesDue;
+  final double totalDiscountGiven;
+  final int totalTransactions;
+  final List<MonthlyFeeSummary> monthlyCollections;
+  final List<PaymentModeSummary> paymentModeSummary;
+
+  SchoolSummary({
+    required this.totalStudents,
+    required this.enrollmentByClass,
+    required this.totalFeesCollected,
+    required this.totalFeesDue,
+    required this.totalDiscountGiven,
+    required this.totalTransactions,
+    required this.monthlyCollections,
+    required this.paymentModeSummary,
+  });
+
+  factory SchoolSummary.fromJson(Map<String, dynamic> json) => SchoolSummary(
+        totalStudents: json['totalStudents'] ?? 0,
+        enrollmentByClass: (json['enrollmentByClass'] as Map<String, dynamic>? ?? {})
+            .map((k, v) => MapEntry(k, (v as num).toInt())),
+        totalFeesCollected: (json['totalFeesCollected'] ?? 0).toDouble(),
+        totalFeesDue: (json['totalFeesDue'] ?? 0).toDouble(),
+        totalDiscountGiven: (json['totalDiscountGiven'] ?? 0).toDouble(),
+        totalTransactions: json['totalTransactions'] ?? 0,
+        monthlyCollections: (json['monthlyCollections'] as List? ?? [])
+            .map((e) => MonthlyFeeSummary.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        paymentModeSummary: (json['paymentModeSummary'] as List? ?? [])
+            .map((e) => PaymentModeSummary.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 // ─── Fee Installment ────────────────────────────────────────────────────────
 class FeeInstallment {
   final String installmentName;
