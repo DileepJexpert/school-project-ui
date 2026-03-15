@@ -36,8 +36,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   late final TabController _tabController;
 
   // ── Mark tab state ────────────────────────────────────────────────────
-  final _classCtrl    = TextEditingController();
+  String? _markClass;
   final _yearCtrl     = TextEditingController(text: '2024-25');
+  late final TextEditingController _dateCtrl;
   final _markedByCtrl = TextEditingController(text: 'Admin');
   DateTime _selectedDate = DateTime.now();
   List<StudentModel> _students = [];
@@ -62,13 +63,14 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _dateCtrl = TextEditingController(text: _fmtDate(_selectedDate));
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _classCtrl.dispose();
     _yearCtrl.dispose();
+    _dateCtrl.dispose();
     _markedByCtrl.dispose();
     _rYearCtrl.dispose();
     super.dispose();
@@ -90,13 +92,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         child: child!,
       ),
     );
-    if (picked != null) setState(() => _selectedDate = picked);
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _dateCtrl.text = _fmtDate(picked);
+      });
+    }
   }
 
   Future<void> _loadAttendance() async {
-    final className = _classCtrl.text.trim();
-    if (className.isEmpty) {
-      _showSnack('Please enter a class name.', isError: true);
+    final className = _markClass;
+    if (className == null || className.isEmpty) {
+      _showSnack('Please select a class.', isError: true);
       return;
     }
     setState(() {
@@ -109,13 +116,13 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       final allStudents = await StudentApiService.getAllStudents();
       _students = allStudents
           .where((s) =>
-              s.classForAdmission?.toLowerCase() == className.toLowerCase())
+              s.classForAdmission?.toLowerCase() == className!.toLowerCase())
           .toList();
 
       final dateStr = _fmtDate(_selectedDate);
       try {
         final existing =
-            await AttendanceApiService.getClassAttendance(className, dateStr);
+            await AttendanceApiService.getClassAttendance(className!, dateStr);
         for (final rec in existing) {
           _statuses[rec.studentId] = rec.status;
         }
@@ -149,7 +156,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           .toList();
 
       await AttendanceApiService.markBulkAttendance(
-        className:    _classCtrl.text.trim(),
+        className:    _markClass ?? '',
         academicYear: _yearCtrl.text.trim(),
         date:         _fmtDate(_selectedDate),
         markedBy:     _markedByCtrl.text.trim(),
@@ -329,11 +336,21 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               SizedBox(
-                width: 160,
-                child: TextField(
-                    controller: _classCtrl,
-                    decoration:
-                        _inputDecor('Class Name', Icons.school_outlined)),
+                width: 200,
+                child: DropdownButtonFormField<String>(
+                  value: _markClass,
+                  decoration:
+                      _inputDecor('Select Class', Icons.school_outlined),
+                  isExpanded: true,
+                  items: SchoolConstants.allClasses
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c,
+                                style: GoogleFonts.nunitoSans(fontSize: 13)),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _markClass = v),
+                ),
               ),
               SizedBox(
                 width: 130,
@@ -349,25 +366,14 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                     decoration:
                         _inputDecor('Marked By', Icons.person_outline)),
               ),
-              InkWell(
-                onTap: _pickDate,
-                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                    color: Colors.white,
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.date_range_outlined,
-                        size: 18, color: AppColors.navy),
-                    const SizedBox(width: 8),
-                    Text(_fmtDate(_selectedDate),
-                        style: GoogleFonts.nunitoSans(
-                            fontSize: 14, color: AppColors.textPrimary)),
-                  ]),
+              SizedBox(
+                width: 160,
+                child: TextField(
+                  readOnly: true,
+                  onTap: _pickDate,
+                  controller: _dateCtrl,
+                  decoration: _inputDecor(
+                      'Date', Icons.date_range_outlined),
                 ),
               ),
               ElevatedButton.icon(
@@ -395,7 +401,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     if (_error != null) return _buildError(_error!, _loadAttendance);
     if (!_loaded)
       return _buildIdle('Enter a class and date, then tap Load');
-    if (_students.isEmpty) return _buildEmpty('"${_classCtrl.text}"');
+    if (_students.isEmpty) return _buildEmpty('"${_markClass ?? ''}"');
     return _buildAttendanceList();
   }
 
