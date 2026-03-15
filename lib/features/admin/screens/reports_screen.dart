@@ -4,315 +4,622 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../models/fee_models.dart';
+import '../../../services/fee_api_service.dart';
 
-class ReportsScreen extends StatelessWidget {
+class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
-  static const _monthlyCollections = [
-    _MonthData('Apr', 420000),
-    _MonthData('May', 380000),
-    _MonthData('Jun', 250000),
-    _MonthData('Jul', 510000),
-    _MonthData('Aug', 480000),
-    _MonthData('Sep', 445000),
-    _MonthData('Oct', 530000),
-    _MonthData('Nov', 490000),
-    _MonthData('Dec', 210000),
-    _MonthData('Jan', 560000),
-    _MonthData('Feb', 390000),
-    _MonthData('Mar', 470000),
-  ];
+  @override
+  State<ReportsScreen> createState() => _ReportsScreenState();
+}
 
-  static const _enrollmentData = [
-    _ClassData('Class 9', 180),
-    _ClassData('Class 10', 200),
-    _ClassData('Class 11', 120),
-    _ClassData('Class 12', 140),
-  ];
+class _ReportsScreenState extends State<ReportsScreen> {
+  SchoolSummary? _summary;
+  bool _loading = true;
+  String? _error;
+
+  final _currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final summary = await FeeApiService.getSchoolSummary();
+      setState(() => _summary = summary);
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
-    final totalCollection = _monthlyCollections.fold<double>(0, (s, m) => s + m.amount);
-    final maxMonth = _monthlyCollections.reduce((a, b) => a.amount > b.amount ? a : b);
+    return Scaffold(
+      backgroundColor: AppColors.cream,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? _buildError()
+              : _buildContent(),
+    );
+  }
+
+  Widget _buildError() => Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.cloud_off, size: 60, color: AppColors.textLight),
+          const SizedBox(height: 16),
+          Text('Failed to load report',
+              style: GoogleFonts.cormorantGaramond(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.navy)),
+          const SizedBox(height: 8),
+          Text(_error!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: Colors.white),
+          ),
+        ]),
+      );
+
+  Widget _buildContent() {
+    final s = _summary!;
+    final monthly = s.monthlyCollections;
+    final maxAmount = monthly.isEmpty
+        ? 1.0
+        : monthly.map((m) => m.amount).reduce((a, b) => a > b ? a : b);
+    final peakMonth = monthly.isEmpty
+        ? '—'
+        : monthly.reduce((a, b) => a.amount > b.amount ? a : b).label;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('School Reports',
-            style: GoogleFonts.cormorantGaramond(
-                fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.navy)),
-        const SizedBox(height: 4),
-        Text('Annual overview — connect to Spring Boot APIs for live data.',
-            style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 14)),
-        const SizedBox(height: 24),
+        // ── Header ──
+        Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('School Reports',
+                  style: GoogleFonts.cormorantGaramond(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy)),
+              Text('Live data from all school modules',
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.textSecondary, fontSize: 13)),
+            ]),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.navy),
+            onPressed: _load,
+            tooltip: 'Refresh',
+          ),
+        ]),
+        const SizedBox(height: 20),
 
-        // Summary tiles
+        // ── Summary stat tiles ──
         LayoutBuilder(builder: (ctx, constraints) {
           final cols = constraints.maxWidth > 700 ? 4 : 2;
           final w = (constraints.maxWidth - (cols - 1) * 12) / cols;
-          final tiles = [
-            _Tile('Annual Collection', currency.format(totalCollection), Icons.account_balance_wallet, AppColors.success),
-            _Tile('Total Students', '2,400', Icons.people_alt, AppColors.navy),
-            _Tile('Staff Members', '180', Icons.badge, AppColors.info),
-            _Tile('Peak Month', maxMonth.label, Icons.trending_up, AppColors.gold),
-          ];
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: tiles.map((t) => SizedBox(width: w, child: _buildTile(t))).toList(),
-          );
+          return Wrap(spacing: 12, runSpacing: 12, children: [
+            SizedBox(
+              width: w,
+              child: _statTile(
+                label: 'Total Students',
+                value: '${s.totalStudents}',
+                icon: Icons.people_alt_rounded,
+                color: AppColors.navy,
+                sub: 'enrolled',
+              ),
+            ),
+            SizedBox(
+              width: w,
+              child: _statTile(
+                label: 'Total Collected',
+                value: _currency.format(s.totalFeesCollected),
+                icon: Icons.account_balance_wallet_rounded,
+                color: AppColors.success,
+                sub: '${s.totalTransactions} transactions',
+              ),
+            ),
+            SizedBox(
+              width: w,
+              child: _statTile(
+                label: 'Outstanding Due',
+                value: _currency.format(s.totalFeesDue),
+                icon: Icons.warning_amber_rounded,
+                color: AppColors.error,
+                sub: 'pending collection',
+              ),
+            ),
+            SizedBox(
+              width: w,
+              child: _statTile(
+                label: 'Peak Month',
+                value: peakMonth,
+                icon: Icons.trending_up_rounded,
+                color: AppColors.gold,
+                sub: monthly.isEmpty
+                    ? 'no data'
+                    : _currency.format(monthly
+                        .reduce((a, b) => a.amount > b.amount ? a : b)
+                        .amount),
+              ),
+            ),
+          ]);
         }),
 
         const SizedBox(height: 24),
 
-        // Monthly fee collection bar chart
+        // ── Monthly fee collection bar chart ──
         Card(
           elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Monthly Fee Collection (2024–25)',
+              Text('Monthly Fee Collection',
                   style: GoogleFonts.cormorantGaramond(
-                      fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.navy)),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy)),
               const SizedBox(height: 4),
-              Text('Sample data — wire to GET /api/fees/reports',
-                  style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12)),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 260,
-                child: BarChart(
-                  BarChartData(
-                    maxY: 650000,
-                    gridData: FlGridData(
-                      show: true,
-                      horizontalInterval: 100000,
-                      getDrawingHorizontalLine: (v) => const FlLine(color: AppColors.border, strokeWidth: 1),
-                      drawVerticalLine: false,
-                    ),
-                    borderData: FlBorderData(show: false),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 56,
-                          interval: 100000,
-                          getTitlesWidget: (v, _) => Text(
-                            '₹${(v / 1000).toStringAsFixed(0)}K',
-                            style: GoogleFonts.nunitoSans(color: AppColors.textLight, fontSize: 10),
-                          ),
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (v, _) {
-                            final idx = v.toInt();
-                            if (idx < 0 || idx >= _monthlyCollections.length) return const SizedBox();
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(_monthlyCollections[idx].label,
-                                  style: GoogleFonts.nunitoSans(
-                                      color: AppColors.textSecondary, fontSize: 10)),
-                            );
-                          },
-                        ),
-                      ),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    ),
-                    barGroups: _monthlyCollections.asMap().entries.map((e) {
-                      return BarChartGroupData(
-                        x: e.key,
-                        barRods: [
-                          BarChartRodData(
-                            toY: e.value.amount.toDouble(),
-                            gradient: const LinearGradient(
-                              colors: [AppColors.navyLight, AppColors.navy],
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                            ),
-                            width: 16,
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
+              Text(
+                monthly.isEmpty
+                    ? 'No payment records found'
+                    : '${monthly.length} months of data',
+                style: GoogleFonts.nunitoSans(
+                    color: AppColors.textSecondary, fontSize: 12),
               ),
+              const SizedBox(height: 20),
+              monthly.isEmpty
+                  ? _buildNoData('No payment transactions recorded yet')
+                  : SizedBox(
+                      height: 260,
+                      child: BarChart(
+                        BarChartData(
+                          maxY: maxAmount * 1.2,
+                          gridData: FlGridData(
+                            show: true,
+                            horizontalInterval: maxAmount / 5,
+                            getDrawingHorizontalLine: (v) => const FlLine(
+                                color: AppColors.border, strokeWidth: 1),
+                            drawVerticalLine: false,
+                          ),
+                          borderData: FlBorderData(show: false),
+                          titlesData: FlTitlesData(
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 60,
+                                interval: maxAmount / 5,
+                                getTitlesWidget: (v, _) => Text(
+                                  v >= 100000
+                                      ? '₹${(v / 1000).toStringAsFixed(0)}K'
+                                      : '₹${v.toStringAsFixed(0)}',
+                                  style: GoogleFonts.nunitoSans(
+                                      color: AppColors.textLight,
+                                      fontSize: 10),
+                                ),
+                              ),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (v, _) {
+                                  final idx = v.toInt();
+                                  if (idx < 0 || idx >= monthly.length) {
+                                    return const SizedBox();
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      monthly[idx].label,
+                                      style: GoogleFonts.nunitoSans(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 10),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            rightTitles: const AxisTitles(
+                                sideTitles:
+                                    SideTitles(showTitles: false)),
+                            topTitles: const AxisTitles(
+                                sideTitles:
+                                    SideTitles(showTitles: false)),
+                          ),
+                          barGroups: monthly.asMap().entries.map((e) {
+                            final isMax =
+                                e.value.amount == maxAmount;
+                            return BarChartGroupData(
+                              x: e.key,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: e.value.amount,
+                                  gradient: LinearGradient(
+                                    colors: isMax
+                                        ? [
+                                            AppColors.gold
+                                                .withOpacity(0.8),
+                                            AppColors.gold
+                                          ]
+                                        : [
+                                            AppColors.navyLight,
+                                            AppColors.navy
+                                          ],
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                  ),
+                                  width: 18,
+                                  borderRadius:
+                                      const BorderRadius.vertical(
+                                          top: Radius.circular(4)),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
             ]),
           ),
         ),
 
         const SizedBox(height: 16),
 
-        // Enrollment chart
+        // ── Enrollment + Fee Breakdown row ──
         LayoutBuilder(builder: (ctx, constraints) {
           final wide = constraints.maxWidth > 600;
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _buildEnrollmentChart()),
-              if (wide) ...[
-                const SizedBox(width: 16),
-                Expanded(child: _buildQuickReports(context)),
-              ],
-            ],
-          );
+          return wide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildEnrollmentChart(s)),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildFeeBreakdownCard(s)),
+                  ],
+                )
+              : Column(children: [
+                  _buildEnrollmentChart(s),
+                  const SizedBox(height: 16),
+                  _buildFeeBreakdownCard(s),
+                ]);
         }),
+
+        const SizedBox(height: 16),
+
+        // ── Payment mode breakdown ──
+        _buildPaymentModeCard(s),
 
         const SizedBox(height: 80),
       ]),
     );
   }
 
-  Widget _buildTile(_Tile t) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: t.color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-            ),
-            child: Icon(t.icon, color: t.color, size: 22),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(t.value,
-                  style: GoogleFonts.cormorantGaramond(
-                      fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-              Text(t.label,
-                  style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 11)),
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
+  // ── Stat tile ─────────────────────────────────────────────────────────────
 
-  Widget _buildEnrollmentChart() {
-    final colors = [AppColors.navy, AppColors.gold, AppColors.info, AppColors.success];
-    final total = _enrollmentData.fold<int>(0, (s, d) => s + d.count);
+  Widget _statTile({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required String sub,
+  }) =>
+      Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(value,
+                        style: GoogleFonts.cormorantGaramond(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary)),
+                    Text(label,
+                        style: GoogleFonts.nunitoSans(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
+                    Text(sub,
+                        style: GoogleFonts.nunitoSans(
+                            color: AppColors.textLight, fontSize: 10)),
+                  ]),
+            ),
+          ]),
+        ),
+      );
+
+  // ── Enrollment pie chart ──────────────────────────────────────────────────
+
+  Widget _buildEnrollmentChart(SchoolSummary s) {
+    final enrollment = s.enrollmentByClass;
+    final colors = [
+      AppColors.navy,
+      AppColors.gold,
+      AppColors.info,
+      AppColors.success,
+      AppColors.warning,
+      AppColors.error,
+      AppColors.navyLight,
+    ];
+    final entries = enrollment.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final total =
+        entries.fold<int>(0, (sum, e) => sum + e.value);
+
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Enrollment by Class',
               style: GoogleFonts.cormorantGaramond(
-                  fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.navy)),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy)),
+          const SizedBox(height: 4),
+          Text('$total students total',
+              style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 180,
-            child: PieChart(
-              PieChartData(
-                sections: _enrollmentData.asMap().entries.map((e) {
-                  final pct = e.value.count / total * 100;
-                  return PieChartSectionData(
-                    value: e.value.count.toDouble(),
-                    color: colors[e.key % colors.length],
-                    title: '${pct.toStringAsFixed(0)}%',
-                    titleStyle: GoogleFonts.nunitoSans(
-                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
-                    radius: 70,
-                  );
-                }).toList(),
-                sectionsSpace: 2,
-                centerSpaceRadius: 24,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          ..._enrollmentData.asMap().entries.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(children: [
-                  Container(
-                    width: 12, height: 12,
-                    decoration: BoxDecoration(
-                        color: colors[e.key % colors.length], shape: BoxShape.circle),
+          enrollment.isEmpty
+              ? _buildNoData('No student records found')
+              : Column(children: [
+                  SizedBox(
+                    height: 180,
+                    child: PieChart(
+                      PieChartData(
+                        sections: entries.asMap().entries.map((e) {
+                          final pct =
+                              total > 0 ? e.value.value / total * 100 : 0.0;
+                          return PieChartSectionData(
+                            value: e.value.value.toDouble(),
+                            color: colors[e.key % colors.length],
+                            title:
+                                '${pct.toStringAsFixed(0)}%',
+                            titleStyle: GoogleFonts.nunitoSans(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11),
+                            radius: 70,
+                          );
+                        }).toList(),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 24,
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(e.value.label,
-                        style: GoogleFonts.nunitoSans(fontSize: 13, color: AppColors.textSecondary)),
-                  ),
-                  Text('${e.value.count}',
-                      style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  ...entries.asMap().entries.map((e) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                                color: colors[e.key % colors.length],
+                                shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(e.value.key,
+                                style: GoogleFonts.nunitoSans(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary)),
+                          ),
+                          Text('${e.value.value}',
+                              style: GoogleFonts.nunitoSans(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: AppColors.textPrimary)),
+                        ]),
+                      )),
                 ]),
-              )),
         ]),
       ),
     );
   }
 
-  Widget _buildQuickReports(BuildContext context) {
-    final reports = [
-      _QuickReport('Fee Collection Summary', Icons.receipt_long, '/api/fees/reports/collection-summary'),
-      _QuickReport('Student Attendance Report', Icons.rule_folder, '/api/attendance/report'),
-      _QuickReport('Expense Summary', Icons.paid, '/api/expenses/report'),
-      _QuickReport('Class-wise Results', Icons.assessment, '/api/results/class-report'),
-    ];
+  // ── Fee collected vs due breakdown ───────────────────────────────────────
+
+  Widget _buildFeeBreakdownCard(SchoolSummary s) {
+    final total = s.totalFeesCollected + s.totalFeesDue;
+    final collectedPct = total > 0 ? s.totalFeesCollected / total : 0.0;
+    final duePct = total > 0 ? s.totalFeesDue / total : 0.0;
+
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Quick Reports',
+          Text('Fee Collection Status',
               style: GoogleFonts.cormorantGaramond(
-                  fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.navy)),
-          const SizedBox(height: 12),
-          ...reports.map((r) => ListTile(
-                dense: true,
-                leading: Icon(r.icon, color: AppColors.navy, size: 20),
-                title: Text(r.label, style: GoogleFonts.nunitoSans(fontSize: 14)),
-                subtitle: Text(r.endpoint,
-                    style: GoogleFonts.nunitoSans(color: AppColors.textLight, fontSize: 11)),
-                trailing: const Icon(Icons.download_outlined, size: 18, color: AppColors.textLight),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text('GET ${r.endpoint}'),
-                      backgroundColor: AppColors.navy),
-                ),
-              )),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy)),
+          const SizedBox(height: 4),
+          Text('Collected vs pending',
+              style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary, fontSize: 12)),
+          const SizedBox(height: 20),
+          _progressRow(
+              label: 'Collected',
+              value: s.totalFeesCollected,
+              pct: collectedPct,
+              color: AppColors.success),
+          const SizedBox(height: 14),
+          _progressRow(
+              label: 'Outstanding',
+              value: s.totalFeesDue,
+              pct: duePct,
+              color: AppColors.error),
+          const SizedBox(height: 14),
+          _progressRow(
+              label: 'Discount Given',
+              value: s.totalDiscountGiven,
+              pct: total > 0 ? s.totalDiscountGiven / total : 0,
+              color: AppColors.warning),
+          const Divider(height: 28),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Total Transactions',
+                style: GoogleFonts.nunitoSans(
+                    color: AppColors.textSecondary, fontSize: 13)),
+            Text('${s.totalTransactions}',
+                style: GoogleFonts.cormorantGaramond(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy)),
+          ]),
         ]),
       ),
     );
   }
-}
 
-class _MonthData {
-  final String label;
-  final int amount;
-  const _MonthData(this.label, this.amount);
-}
+  Widget _progressRow({
+    required String label,
+    required double value,
+    required double pct,
+    required Color color,
+  }) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Text(label,
+                style: GoogleFonts.nunitoSans(
+                    fontSize: 13, color: AppColors.textSecondary)),
+          ),
+          Text(_currency.format(value),
+              style: GoogleFonts.nunitoSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: AppColors.textPrimary)),
+          const SizedBox(width: 8),
+          Text('(${(pct * 100).toStringAsFixed(1)}%)',
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 11, color: color)),
+        ]),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: pct.clamp(0.0, 1.0),
+            minHeight: 7,
+            backgroundColor: color.withOpacity(0.12),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ]);
 
-class _ClassData {
-  final String label;
-  final int count;
-  const _ClassData(this.label, this.count);
-}
+  // ── Payment mode card ─────────────────────────────────────────────────────
 
-class _Tile {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  const _Tile(this.label, this.value, this.icon, this.color);
-}
+  Widget _buildPaymentModeCard(SchoolSummary s) {
+    final modes = s.paymentModeSummary;
+    if (modes.isEmpty) return const SizedBox.shrink();
 
-class _QuickReport {
-  final String label;
-  final IconData icon;
-  final String endpoint;
-  const _QuickReport(this.label, this.icon, this.endpoint);
+    final modeTotal =
+        modes.fold<double>(0, (sum, m) => sum + m.totalAmount);
+    final modeColors = {
+      'CASH': AppColors.success,
+      'CHEQUE': AppColors.info,
+      'DIGITAL_PAYMENT': AppColors.navy,
+      'CHALLAN': AppColors.warning,
+    };
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Payment Mode Breakdown',
+              style: GoogleFonts.cormorantGaramond(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy)),
+          const SizedBox(height: 4),
+          Text('How fees were collected',
+              style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary, fontSize: 12)),
+          const SizedBox(height: 16),
+          ...modes.map((m) {
+            final pct =
+                modeTotal > 0 ? m.totalAmount / modeTotal : 0.0;
+            final color =
+                modeColors[m.paymentMode] ?? AppColors.textSecondary;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: _progressRow(
+                  label: _modeLabel(m.paymentMode),
+                  value: m.totalAmount,
+                  pct: pct,
+                  color: color),
+            );
+          }),
+        ]),
+      ),
+    );
+  }
+
+  String _modeLabel(String mode) => switch (mode.toUpperCase()) {
+        'CASH' => 'Cash',
+        'CHEQUE' => 'Cheque',
+        'DIGITAL_PAYMENT' => 'Digital Payment',
+        'CHALLAN' => 'Challan',
+        _ => mode,
+      };
+
+  Widget _buildNoData(String msg) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Column(children: [
+            Icon(Icons.inbox_outlined,
+                size: 48, color: AppColors.textLight.withOpacity(0.4)),
+            const SizedBox(height: 10),
+            Text(msg,
+                style: GoogleFonts.nunitoSans(
+                    color: AppColors.textSecondary, fontSize: 13)),
+          ]),
+        ),
+      );
 }
