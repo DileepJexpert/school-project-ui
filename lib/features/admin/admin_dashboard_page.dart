@@ -6,6 +6,9 @@ import '../../core/router/app_router.dart';
 import '../../core/widgets/responsive.dart';
 import '../../models/auth_models.dart';
 import '../../services/auth_service.dart';
+import '../../services/fee_api_service.dart';
+import '../../services/staff_api_service.dart';
+import '../../models/fee_models.dart';
 
 // -- Existing live screens
 import 'screens/attendance_screen.dart';
@@ -396,11 +399,77 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
 // --------- Overview ---------
 
-class _OverviewContent extends StatelessWidget {
+class _OverviewContent extends StatefulWidget {
   const _OverviewContent();
 
   @override
+  State<_OverviewContent> createState() => _OverviewContentState();
+}
+
+class _OverviewContentState extends State<_OverviewContent> {
+  bool _loading = true;
+  SchoolSummary? _schoolSummary;
+  Map<String, dynamic>? _staffDashboard;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final results = await Future.wait([
+        FeeApiService.getSchoolSummary(),
+        StaffApiService.getStaffDashboard(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _schoolSummary = results[0] as SchoolSummary;
+          _staffDashboard = results[1] as Map<String, dynamic>;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load dashboard: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  String _formatNumber(int n) {
+    if (n >= 10000000) return '${(n / 10000000).toStringAsFixed(1)}Cr';
+    if (n >= 100000) return '${(n / 100000).toStringAsFixed(1)}L';
+    if (n >= 1000) {
+      final s = n.toString();
+      final buf = StringBuffer();
+      for (int i = 0; i < s.length; i++) {
+        if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+        buf.write(s[i]);
+      }
+      return buf.toString();
+    }
+    return n.toString();
+  }
+
+  String _formatRevenue(double amount) {
+    if (amount >= 10000000) return 'Rs ${(amount / 10000000).toStringAsFixed(1)}Cr';
+    if (amount >= 100000) return 'Rs ${(amount / 100000).toStringAsFixed(1)}L';
+    if (amount >= 1000) return 'Rs ${(amount / 1000).toStringAsFixed(1)}K';
+    return 'Rs ${amount.toStringAsFixed(0)}';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final totalStudents = _schoolSummary?.totalStudents ?? 0;
+    final totalStaff = (_staffDashboard?['totalStaff'] as num?)?.toInt() ?? 0;
+    final pendingLeaves =
+        (_staffDashboard?['pendingLeaveRequests'] as num?)?.toInt() ?? 0;
+    final revenue = _schoolSummary?.totalFeesCollected ?? 0.0;
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(Responsive.contentPadding(context)),
       child: Column(
@@ -419,29 +488,39 @@ class _OverviewContent extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w400)),
           const SizedBox(height: 24),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = Responsive.gridColumns(context);
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  _statCard(context, 'Total Students', '2,400',
-                      Icons.people_alt_rounded, AppColors.navy,
-                      constraints.maxWidth, columns),
-                  _statCard(context, 'Total Staff', '180',
-                      Icons.badge_rounded, const Color(0xFF0D9488),
-                      constraints.maxWidth, columns),
-                  _statCard(context, 'Upcoming Events', '3',
-                      Icons.event_available_rounded, AppColors.gold,
-                      constraints.maxWidth, columns),
-                  _statCard(context, 'Revenue (Month)', 'Rs 12.5L',
-                      Icons.monetization_on_rounded, const Color(0xFFDB2777),
-                      constraints.maxWidth, columns),
-                ],
-              );
-            },
-          ),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = Responsive.gridColumns(context);
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    _statCard(context, 'Total Students',
+                        _formatNumber(totalStudents),
+                        Icons.people_alt_rounded, AppColors.navy,
+                        constraints.maxWidth, columns),
+                    _statCard(context, 'Total Staff',
+                        _formatNumber(totalStaff),
+                        Icons.badge_rounded, const Color(0xFF0D9488),
+                        constraints.maxWidth, columns),
+                    _statCard(context, 'Pending Leaves',
+                        '$pendingLeaves',
+                        Icons.event_busy_rounded, AppColors.gold,
+                        constraints.maxWidth, columns),
+                    _statCard(context, 'Revenue (Total)',
+                        _formatRevenue(revenue),
+                        Icons.monetization_on_rounded, const Color(0xFFDB2777),
+                        constraints.maxWidth, columns),
+                  ],
+                );
+              },
+            ),
           const SizedBox(height: 32),
           Text('Live Modules',
               style: GoogleFonts.poppins(
