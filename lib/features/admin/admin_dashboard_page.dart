@@ -7,13 +7,11 @@ import '../../core/widgets/responsive.dart';
 import '../../models/auth_models.dart';
 import '../../services/auth_service.dart';
 
-// ── Existing live screens ──────────────────────────────────────────────────
+// -- Existing live screens
 import 'screens/attendance_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/students_screen.dart';
 import 'screens/timetable_screen.dart';
-
-// ── New screens (this PR) ──────────────────────────────────────────────────
 import 'screens/admission_screen.dart';
 import 'screens/expense_screen.dart';
 import 'screens/fee_screen.dart';
@@ -22,9 +20,13 @@ import 'screens/results_admin_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/transport_admin_screen.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Menu data
-// ─────────────────────────────────────────────────────────────────────────────
+// -- New screens (Phase 1 & 2)
+import 'screens/hr_screen.dart';
+import 'screens/discipline_screen.dart';
+import 'screens/certificates_screen.dart';
+import '../../features/chat/chat_list_screen.dart';
+
+// --------- Menu data ---------
 
 class _MenuItem {
   final IconData icon;
@@ -40,39 +42,41 @@ class _MenuGroup {
 }
 
 // Flat list used for switch / index lookup (order must match _groups expansion)
-// NOTE: using `final` (not `const`) because list indexing (`[]`) is not
-// allowed inside const expressions in Dart.
 final _allItems = [
-  // ── ACADEMICS ──
+  // -- ACADEMICS --
   const _MenuItem(icon: Icons.dashboard_outlined,        label: 'Overview',       isLive: true),  // 0
   const _MenuItem(icon: Icons.people_alt_outlined,       label: 'Students',       isLive: true),  // 1
   const _MenuItem(icon: Icons.person_add_alt_1_outlined, label: 'Admissions',     isLive: true),  // 2
-  // ── FINANCE ──
+  // -- FINANCE --
   const _MenuItem(icon: Icons.receipt_long_outlined,     label: 'Fees',           isLive: true),  // 3
   const _MenuItem(icon: Icons.money_off_outlined,        label: 'Expenses',       isLive: true),  // 4
   const _MenuItem(icon: Icons.assessment_outlined,       label: 'Reports',        isLive: true),  // 5
-  // ── SCHOOL OPERATIONS ──
+  // -- SCHOOL OPERATIONS --
   const _MenuItem(icon: Icons.rule_folder_outlined,      label: 'Attendance',     isLive: true),  // 6
   const _MenuItem(icon: Icons.table_chart_outlined,      label: 'Timetable',      isLive: true),  // 7
   const _MenuItem(icon: Icons.emoji_events_outlined,     label: 'Results',        isLive: true),  // 8
   const _MenuItem(icon: Icons.directions_bus_outlined,   label: 'Transport',      isLive: true),  // 9
-  // ── COMMUNICATION ──
-  const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 10
-  // ── ADMINISTRATION ──
-  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 11
+  const _MenuItem(icon: Icons.gavel_outlined,            label: 'Discipline',     isLive: true),  // 10
+  // -- COMMUNICATION --
+  const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 11
+  const _MenuItem(icon: Icons.chat_outlined,             label: 'Chat',           isLive: true),  // 12
+  // -- HR & PAYROLL --
+  const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 13
+  // -- ADMINISTRATION --
+  const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 14
+  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 15
 ];
 
 final _groups = [
   _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2]]),
   _MenuGroup(title: 'FINANCE',           items: [_allItems[3], _allItems[4], _allItems[5]]),
-  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[6], _allItems[7], _allItems[8], _allItems[9]]),
-  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[10]]),
-  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[11]]),
+  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[6], _allItems[7], _allItems[8], _allItems[9], _allItems[10]]),
+  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[11], _allItems[12]]),
+  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[13]]),
+  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[14], _allItems[15]]),
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────────────────
+// --------- Page ---------
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -86,7 +90,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int _selectedIndex = 0;
   bool _sideMenuVisible = true;
 
-  // Maps bottom-nav slot → global _allItems index: Overview, Students, Fees, Admissions
+  // Maps bottom-nav slot -> global _allItems index: Overview, Students, Fees, Admissions
   static const _bottomNavToGlobal = [0, 1, 3, 2];
 
   Widget _buildContent() {
@@ -101,8 +105,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 7:  return const TimetableScreen();
       case 8:  return const ResultsAdminScreen();
       case 9:  return const TransportAdminScreen();
-      case 10: return const NotificationsScreen();
-      case 11: return const SettingsScreen();
+      case 10: return const DisciplineScreen();
+      case 11: return const NotificationsScreen();
+      case 12: return const ChatListScreen();
+      case 13: return const HrScreen();
+      case 14: return const CertificatesScreen();
+      case 15: return const SettingsScreen();
       default: return const SizedBox.shrink();
     }
   }
@@ -261,7 +269,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        // ── Sidebar header ─────────────────────────────────────────────────
+        // -- Sidebar header
         Container(
           padding: EdgeInsets.fromLTRB(
               20, Responsive.isMobile(context) ? 48 : 24, 20, 20),
@@ -287,10 +295,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ),
         const SizedBox(height: 8),
-        // ── Grouped items (role-filtered) ──────────────────────────────────
+        // -- Grouped items (role-filtered)
         ...groupWidgets,
         const Divider(indent: 16, endIndent: 16, height: 24),
-        // ── Logout ─────────────────────────────────────────────────────────
+        // -- Logout
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: InkWell(
@@ -338,8 +346,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       child: InkWell(
         onTap: () {
           setState(() => _selectedIndex = index);
-          // Close the drawer when a section is selected — only on mobile
-          // (tablet/desktop use a persistent sidebar, not a drawer)
+          // Close the drawer when a section is selected -- only on mobile
           if (Responsive.isMobile(context)) Navigator.pop(context);
         },
         child: Container(
@@ -387,9 +394,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Overview
-// ─────────────────────────────────────────────────────────────────────────────
+// --------- Overview ---------
 
 class _OverviewContent extends StatelessWidget {
   const _OverviewContent();
@@ -430,7 +435,7 @@ class _OverviewContent extends StatelessWidget {
                   _statCard(context, 'Upcoming Events', '3',
                       Icons.event_available_rounded, AppColors.gold,
                       constraints.maxWidth, columns),
-                  _statCard(context, 'Revenue (Month)', '₹12.5L',
+                  _statCard(context, 'Revenue (Month)', 'Rs 12.5L',
                       Icons.monetization_on_rounded, const Color(0xFFDB2777),
                       constraints.maxWidth, columns),
                 ],
@@ -462,6 +467,10 @@ class _OverviewContent extends StatelessWidget {
             _liveChip(Icons.directions_bus_outlined,      'Transport'),
             _liveChip(Icons.notifications_active_outlined,'Notifications'),
             _liveChip(Icons.settings_outlined,            'Settings'),
+            _liveChip(Icons.gavel_outlined,               'Discipline'),
+            _liveChip(Icons.chat_outlined,                'Chat'),
+            _liveChip(Icons.badge_outlined,               'HR & Staff'),
+            _liveChip(Icons.description_outlined,         'Certificates'),
           ]),
         ],
       ),

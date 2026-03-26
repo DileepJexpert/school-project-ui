@@ -7,12 +7,6 @@ import '../models/auth_models.dart';
 import 'dio_client.dart';
 
 /// Manages authentication state: login, logout, token storage, role checks.
-///
-/// Usage:
-///   await AuthService.instance.initialize(); // call once at app startup
-///   await AuthService.instance.login(email, password, isPlatform: false);
-///   AuthService.instance.currentUser?.role
-///   AuthService.instance.isLoggedIn
 class AuthService {
   static final AuthService instance = AuthService._();
   AuthService._();
@@ -29,7 +23,7 @@ class AuthService {
   String? get token => _token;
   bool get isLoggedIn => _currentUser != null && _token != null;
 
-  // ── Initialization ──────────────────────────────────────────────────────
+  // -- Initialization
 
   /// Load persisted auth state from SharedPreferences.
   /// Call this once in main() before runApp().
@@ -47,7 +41,7 @@ class AuthService {
     }
   }
 
-  // ── Login ───────────────────────────────────────────────────────────────
+  // -- Login
 
   /// Login for school-level users (SCHOOL_ADMIN, TEACHER, etc.).
   /// The current tenant_id in SharedPreferences must be set before calling this.
@@ -57,7 +51,7 @@ class AuthService {
 
   /// Login for SUPER_ADMIN users (uses /platform/auth/login, platform_db).
   Future<AuthUser> loginPlatform(String email, String password) async {
-    // Platform login uses a different base URL prefix — strip /api from baseUrl
+    // Platform login uses a different base URL prefix -- strip /api from baseUrl
     final dio = DioClient.instance;
     final response = await dio.post(
       // Remove /api prefix: platform path is relative to server root
@@ -98,7 +92,7 @@ class AuthService {
     return _currentUser!;
   }
 
-  // ── Refresh ─────────────────────────────────────────────────────────────
+  // -- Refresh
 
   Future<bool> refreshToken() async {
     if (_refreshToken == null) return false;
@@ -121,13 +115,13 @@ class AuthService {
     }
   }
 
-  // ── Logout ──────────────────────────────────────────────────────────────
+  // -- Logout
 
   Future<void> logout() async {
     try {
       await DioClient.post('/auth/logout');
     } catch (_) {
-      // Ignore — logout is always local
+      // Ignore -- logout is always local
     }
     _token = null;
     _refreshToken = null;
@@ -143,7 +137,7 @@ class AuthService {
     await prefs.remove(_userKey);
   }
 
-  // ── Permission helpers ──────────────────────────────────────────────────
+  // -- Permission helpers
 
   bool hasPermission(String permission) {
     if (_currentUser == null) return false;
@@ -162,10 +156,12 @@ class AuthService {
     return switch (role) {
       UserRole.superAdmin || UserRole.schoolAdmin => true,
       UserRole.teacher => const {
-          'Overview', 'Students', 'Attendance', 'Timetable', 'Results', 'Notifications'
+          'Overview', 'Students', 'Attendance', 'Timetable', 'Results',
+          'Notifications', 'Discipline', 'Chat'
         }.contains(menuLabel),
       UserRole.accountant => const {
-          'Overview', 'Students', 'Fees', 'Expenses', 'Reports'
+          'Overview', 'Students', 'Fees', 'Expenses', 'Reports',
+          'HR & Staff', 'Certificates'
         }.contains(menuLabel),
       UserRole.transportManager => const {
           'Overview', 'Students', 'Transport'
@@ -177,7 +173,7 @@ class AuthService {
     };
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────
+  // -- Helpers
 
   String _platformBaseUrl() {
     // Strip /api suffix from base URL to get the server root
