@@ -29,7 +29,13 @@ class _SalaryScreenState extends State<SalaryScreen> {
       final data = await StaffApiService.getSalaries(
           month: _selectedMonth, year: _selectedYear);
       if (mounted) setState(() => _salaries = data);
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load salaries: $e')),
+        );
+      }
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -114,10 +120,9 @@ class _SalaryScreenState extends State<SalaryScreen> {
                           'No salary records for ${_monthName(_selectedMonth)} $_selectedYear.',
                           style: GoogleFonts.poppins(
                               color: AppColors.textSecondary)))
-                  : ListView.separated(
+                  : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: _salaries.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final sal =
                             _salaries[index] as Map<String, dynamic>;
@@ -131,31 +136,141 @@ class _SalaryScreenState extends State<SalaryScreen> {
 
   Widget _buildSalaryTile(Map<String, dynamic> sal) {
     final staffName = sal['staffName'] as String? ?? '';
+    final department = sal['department'] as String? ?? '';
+    final designation = sal['designation'] as String? ?? '';
+    final basicPay = (sal['basicPay'] as num?)?.toDouble() ?? 0;
+    final hra = (sal['hra'] as num?)?.toDouble() ?? 0;
+    final da = (sal['da'] as num?)?.toDouble() ?? 0;
+    final ta = (sal['ta'] as num?)?.toDouble() ?? 0;
+    final otherAllowances =
+        (sal['otherAllowances'] as num?)?.toDouble() ?? 0;
+    final grossSalary = (sal['grossSalary'] as num?)?.toDouble() ?? 0;
+    final pf = (sal['pf'] as num?)?.toDouble() ?? 0;
+    final tax = (sal['tax'] as num?)?.toDouble() ?? 0;
+    final otherDeductions =
+        (sal['otherDeductions'] as num?)?.toDouble() ?? 0;
+    final totalDeductions =
+        (sal['totalDeductions'] as num?)?.toDouble() ?? 0;
     final netSalary = (sal['netSalary'] as num?)?.toDouble() ?? 0;
     final status = sal['status'] as String? ?? 'GENERATED';
     final id = sal['id'] as String? ?? '';
 
-    return ListTile(
-      title: Text(staffName,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-      subtitle: Text('Net: Rs ${netSalary.toStringAsFixed(0)}',
-          style:
-              GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary)),
-      trailing: status == 'PAID'
-          ? Chip(
-              label: Text('PAID', style: GoogleFonts.poppins(fontSize: 11)),
-              backgroundColor: Colors.green.withOpacity(0.1),
-            )
-          : ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
-              onPressed: () => _markPaid(id),
-              child: Text('Mark Paid',
-                  style: GoogleFonts.poppins(fontSize: 12)),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: AppColors.navy.withOpacity(0.1),
+          child: Text(staffName.isNotEmpty ? staffName[0] : '?',
+              style: const TextStyle(
+                  color: AppColors.navy, fontWeight: FontWeight.w600)),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(staffName,
+                  style:
+                      GoogleFonts.poppins(fontWeight: FontWeight.w600)),
             ),
+            status == 'PAID'
+                ? Chip(
+                    label: Text('PAID',
+                        style: GoogleFonts.poppins(
+                            fontSize: 11, color: Colors.green)),
+                    backgroundColor: Colors.green.withOpacity(0.1),
+                    materialTapTargetSize:
+                        MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  )
+                : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        minimumSize: Size.zero),
+                    onPressed: () => _markPaid(id),
+                    child: Text('Mark Paid',
+                        style: GoogleFonts.poppins(fontSize: 11)),
+                  ),
+          ],
+        ),
+        subtitle: Text(
+            '${department.isNotEmpty ? department : 'N/A'}  |  Net: Rs ${_fmt(netSalary)}',
+            style: GoogleFonts.poppins(
+                fontSize: 12, color: AppColors.textSecondary)),
+        children: [
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              children: [
+                if (designation.isNotEmpty)
+                  _detailRow('Designation', designation),
+                const Divider(height: 16),
+                _sectionHeader('Earnings'),
+                _detailRow('Basic Pay', 'Rs ${_fmt(basicPay)}'),
+                _detailRow('HRA', 'Rs ${_fmt(hra)}'),
+                _detailRow('DA', 'Rs ${_fmt(da)}'),
+                _detailRow('TA', 'Rs ${_fmt(ta)}'),
+                if (otherAllowances > 0)
+                  _detailRow(
+                      'Other Allowances', 'Rs ${_fmt(otherAllowances)}'),
+                _detailRow('Gross Salary', 'Rs ${_fmt(grossSalary)}',
+                    bold: true),
+                const Divider(height: 16),
+                _sectionHeader('Deductions'),
+                _detailRow('PF', 'Rs ${_fmt(pf)}'),
+                _detailRow('Tax', 'Rs ${_fmt(tax)}'),
+                if (otherDeductions > 0)
+                  _detailRow(
+                      'Other Deductions', 'Rs ${_fmt(otherDeductions)}'),
+                _detailRow(
+                    'Total Deductions', 'Rs ${_fmt(totalDeductions)}',
+                    bold: true, color: Colors.red),
+                const Divider(height: 16),
+                _detailRow('Net Salary', 'Rs ${_fmt(netSalary)}',
+                    bold: true, color: Colors.green[700]!),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(title,
+            style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.5)),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value,
+      {bool bold = false, Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          Text(value,
+              style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                  color: color ?? AppColors.navy)),
+        ],
+      ),
     );
   }
 
@@ -163,8 +278,16 @@ class _SalaryScreenState extends State<SalaryScreen> {
     try {
       await StaffApiService.markSalaryPaid(id);
       _loadSalaries();
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to mark as paid: $e')),
+        );
+      }
+    }
   }
+
+  String _fmt(double v) => v.toStringAsFixed(0);
 
   String _monthName(int m) {
     const names = [

@@ -3,6 +3,12 @@ import 'dio_client.dart';
 class ChatApiService {
   static const _base = '/chat';
 
+  /// Get all tenant users as chat contacts
+  static Future<List<dynamic>> getContacts() async {
+    final response = await DioClient.get('/users');
+    return response.data as List<dynamic>;
+  }
+
   /// Get all chat rooms for the current user
   static Future<List<dynamic>> getMyRooms(String userId) async {
     final response = await DioClient.get(
@@ -12,18 +18,20 @@ class ChatApiService {
     return response.data as List<dynamic>;
   }
 
-  /// Get or create a chat room
+  /// Get or create a chat room between two users
   static Future<Map<String, dynamic>> getOrCreateRoom({
-    required List<String> participants,
+    required String userId1,
+    required String userId2,
     required String studentId,
-    required Map<String, String> participantNames,
-    required Map<String, String> participantRoles,
+    required Map<String, String> names,
+    required Map<String, String> roles,
   }) async {
     final response = await DioClient.post('$_base/rooms', data: {
-      'participants': participants,
+      'userId1': userId1,
+      'userId2': userId2,
       'studentId': studentId,
-      'participantNames': participantNames,
-      'participantRoles': participantRoles,
+      'names': names,
+      'roles': roles,
     });
     return response.data as Map<String, dynamic>;
   }
