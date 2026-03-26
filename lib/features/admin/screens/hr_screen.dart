@@ -62,7 +62,10 @@ class _HrScreenState extends State<HrScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _activeSection = 'dashboard'),
+                onPressed: () {
+                  setState(() => _activeSection = 'dashboard');
+                  _loadDashboard();
+                },
               ),
               Text(title,
                   style: GoogleFonts.poppins(
