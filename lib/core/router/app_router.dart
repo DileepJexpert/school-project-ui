@@ -11,7 +11,10 @@ import '../../features/contact/contact_page.dart';
 import '../../features/results/results_page.dart';
 import '../../features/admin/admin_dashboard_page.dart';
 import '../../features/auth/login_page.dart';
+import '../../features/parent/parent_dashboard_page.dart';
+import '../../features/student_portal/student_dashboard_page.dart';
 import '../../services/auth_service.dart';
+import '../../models/auth_models.dart';
 
 class AppRouter {
   AppRouter._();
@@ -27,6 +30,8 @@ class AppRouter {
   static const String contact = '/contact';
   static const String results = '/results';
   static const String adminDashboard = '/admin-dashboard';
+  static const String parentDashboard = '/parent-dashboard';
+  static const String studentDashboard = '/student-dashboard';
   static const String login = '/login';
 
   static final List<NavItem> publicNavItems = [
@@ -40,6 +45,15 @@ class AppRouter {
     NavItem(label: 'Results', route: results, icon: Icons.assessment_outlined),
     NavItem(label: 'Contact', route: contact, icon: Icons.contact_mail_outlined),
   ];
+
+  /// Returns the correct dashboard route based on user role
+  static String dashboardRouteForRole(String? role) {
+    return switch (role) {
+      UserRole.parent => parentDashboard,
+      UserRole.student => studentDashboard,
+      _ => adminDashboard,
+    };
+  }
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -70,6 +84,20 @@ class AppRouter {
           return _buildRoute(const LoginPage(), settings);
         }
         return _buildRoute(const AdminDashboardPage(), settings);
+      case parentDashboard:
+        // Guard: only PARENT role
+        if (!AuthService.instance.isLoggedIn ||
+            AuthService.instance.currentUser?.role != UserRole.parent) {
+          return _buildRoute(const LoginPage(), settings);
+        }
+        return _buildRoute(const ParentDashboardPage(), settings);
+      case studentDashboard:
+        // Guard: only STUDENT role
+        if (!AuthService.instance.isLoggedIn ||
+            AuthService.instance.currentUser?.role != UserRole.student) {
+          return _buildRoute(const LoginPage(), settings);
+        }
+        return _buildRoute(const StudentDashboardPage(), settings);
       default:
         return _buildRoute(const HomePage(), settings);
     }

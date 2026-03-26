@@ -9,14 +9,14 @@ import '../../models/auth_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/dio_client.dart';
 
-/// Login page — supports all roles.
+/// Login page -- supports all roles.
 ///
 /// Flow:
 ///   1. User enters school code (tenantId), e.g., "springfield"
 ///   2. School code is validated via GET /platform/schools/{tenantId}/validate
 ///   3. User enters email + password
 ///   4. Login via POST /api/auth/login (tenant) or /platform/auth/login (super admin)
-///   5. On success, navigate to /admin-dashboard
+///   5. On success, navigate to role-appropriate dashboard
 ///
 /// The "Platform Admin" toggle skips the school code step and uses /platform/auth/login.
 class LoginPage extends StatefulWidget {
@@ -49,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // ── School code validation ───────────────────────────────────────────────
+  // -- School code validation
 
   Future<void> _validateSchool() async {
     final code = _schoolCodeCtrl.text.trim().toLowerCase();
@@ -84,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ── Login ────────────────────────────────────────────────────────────────
+  // -- Login
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -108,7 +108,10 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed(AppRouter.adminDashboard);
+        // Role-based redirect
+        final role = AuthService.instance.currentUser?.role;
+        final route = AppRouter.dashboardRouteForRole(role);
+        Navigator.of(context).pushReplacementNamed(route);
       }
     } catch (e) {
       setState(() {
@@ -136,7 +139,7 @@ class _LoginPageState extends State<LoginPage> {
     return 'Login failed. Please try again.';
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
+  // -- Build
 
   @override
   Widget build(BuildContext context) {
@@ -343,9 +346,8 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildBackToSite() => TextButton(
         onPressed: () =>
             Navigator.of(context).pushReplacementNamed(AppRouter.home),
-        child: Text('← Back to school website',
+        child: Text('<- Back to school website',
             style: GoogleFonts.poppins(
                 color: Colors.grey[600], fontSize: 13)),
       );
 }
-
