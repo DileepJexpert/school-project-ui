@@ -6,6 +6,9 @@ import '../../core/router/app_router.dart';
 import '../../core/widgets/responsive.dart';
 import '../../models/auth_models.dart';
 import '../../services/auth_service.dart';
+import '../../services/fee_api_service.dart';
+import '../../services/staff_api_service.dart';
+import '../../models/fee_models.dart';
 
 // -- Existing live screens
 import 'screens/attendance_screen.dart';
@@ -24,6 +27,7 @@ import 'screens/transport_admin_screen.dart';
 import 'screens/hr_screen.dart';
 import 'screens/discipline_screen.dart';
 import 'screens/certificates_screen.dart';
+import 'screens/homework_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -47,33 +51,34 @@ final _allItems = [
   const _MenuItem(icon: Icons.dashboard_outlined,        label: 'Overview',       isLive: true),  // 0
   const _MenuItem(icon: Icons.people_alt_outlined,       label: 'Students',       isLive: true),  // 1
   const _MenuItem(icon: Icons.person_add_alt_1_outlined, label: 'Admissions',     isLive: true),  // 2
+  const _MenuItem(icon: Icons.menu_book_outlined,        label: 'Homework',       isLive: true),  // 3
   // -- FINANCE --
-  const _MenuItem(icon: Icons.receipt_long_outlined,     label: 'Fees',           isLive: true),  // 3
-  const _MenuItem(icon: Icons.money_off_outlined,        label: 'Expenses',       isLive: true),  // 4
-  const _MenuItem(icon: Icons.assessment_outlined,       label: 'Reports',        isLive: true),  // 5
+  const _MenuItem(icon: Icons.receipt_long_outlined,     label: 'Fees',           isLive: true),  // 4
+  const _MenuItem(icon: Icons.money_off_outlined,        label: 'Expenses',       isLive: true),  // 5
+  const _MenuItem(icon: Icons.assessment_outlined,       label: 'Reports',        isLive: true),  // 6
   // -- SCHOOL OPERATIONS --
-  const _MenuItem(icon: Icons.rule_folder_outlined,      label: 'Attendance',     isLive: true),  // 6
-  const _MenuItem(icon: Icons.table_chart_outlined,      label: 'Timetable',      isLive: true),  // 7
-  const _MenuItem(icon: Icons.emoji_events_outlined,     label: 'Results',        isLive: true),  // 8
-  const _MenuItem(icon: Icons.directions_bus_outlined,   label: 'Transport',      isLive: true),  // 9
-  const _MenuItem(icon: Icons.gavel_outlined,            label: 'Discipline',     isLive: true),  // 10
+  const _MenuItem(icon: Icons.rule_folder_outlined,      label: 'Attendance',     isLive: true),  // 7
+  const _MenuItem(icon: Icons.table_chart_outlined,      label: 'Timetable',      isLive: true),  // 8
+  const _MenuItem(icon: Icons.emoji_events_outlined,     label: 'Results',        isLive: true),  // 9
+  const _MenuItem(icon: Icons.directions_bus_outlined,   label: 'Transport',      isLive: true),  // 10
+  const _MenuItem(icon: Icons.gavel_outlined,            label: 'Discipline',     isLive: true),  // 11
   // -- COMMUNICATION --
-  const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 11
-  const _MenuItem(icon: Icons.chat_outlined,             label: 'Chat',           isLive: true),  // 12
+  const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 12
+  const _MenuItem(icon: Icons.chat_outlined,             label: 'Chat',           isLive: true),  // 13
   // -- HR & PAYROLL --
-  const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 13
+  const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 14
   // -- ADMINISTRATION --
-  const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 14
-  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 15
+  const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 15
+  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 16
 ];
 
 final _groups = [
-  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2]]),
-  _MenuGroup(title: 'FINANCE',           items: [_allItems[3], _allItems[4], _allItems[5]]),
-  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[6], _allItems[7], _allItems[8], _allItems[9], _allItems[10]]),
-  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[11], _allItems[12]]),
-  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[13]]),
-  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[14], _allItems[15]]),
+  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3]]),
+  _MenuGroup(title: 'FINANCE',           items: [_allItems[4], _allItems[5], _allItems[6]]),
+  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[7], _allItems[8], _allItems[9], _allItems[10], _allItems[11]]),
+  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[12], _allItems[13]]),
+  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[14]]),
+  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[15], _allItems[16]]),
 ];
 
 // --------- Page ---------
@@ -91,26 +96,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   bool _sideMenuVisible = true;
 
   // Maps bottom-nav slot -> global _allItems index: Overview, Students, Fees, Admissions
-  static const _bottomNavToGlobal = [0, 1, 3, 2];
+  static const _bottomNavToGlobal = [0, 1, 4, 2];
 
   Widget _buildContent() {
     switch (_selectedIndex) {
       case 0:  return const _OverviewContent();
       case 1:  return const StudentsScreen();
       case 2:  return const AdmissionScreen();
-      case 3:  return const FeeScreen();
-      case 4:  return const ExpenseScreen();
-      case 5:  return const ReportsScreen();
-      case 6:  return const AttendanceScreen();
-      case 7:  return const TimetableScreen();
-      case 8:  return const ResultsAdminScreen();
-      case 9:  return const TransportAdminScreen();
-      case 10: return const DisciplineScreen();
-      case 11: return const NotificationsScreen();
-      case 12: return const ChatListScreen();
-      case 13: return const HrScreen();
-      case 14: return const CertificatesScreen();
-      case 15: return const SettingsScreen();
+      case 3:  return const HomeworkScreen();
+      case 4:  return const FeeScreen();
+      case 5:  return const ExpenseScreen();
+      case 6:  return const ReportsScreen();
+      case 7:  return const AttendanceScreen();
+      case 8:  return const TimetableScreen();
+      case 9:  return const ResultsAdminScreen();
+      case 10: return const TransportAdminScreen();
+      case 11: return const DisciplineScreen();
+      case 12: return const NotificationsScreen();
+      case 13: return const ChatListScreen();
+      case 14: return const HrScreen();
+      case 15: return const CertificatesScreen();
+      case 16: return const SettingsScreen();
       default: return const SizedBox.shrink();
     }
   }
@@ -396,11 +402,77 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
 // --------- Overview ---------
 
-class _OverviewContent extends StatelessWidget {
+class _OverviewContent extends StatefulWidget {
   const _OverviewContent();
 
   @override
+  State<_OverviewContent> createState() => _OverviewContentState();
+}
+
+class _OverviewContentState extends State<_OverviewContent> {
+  bool _loading = true;
+  SchoolSummary? _schoolSummary;
+  Map<String, dynamic>? _staffDashboard;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final results = await Future.wait([
+        FeeApiService.getSchoolSummary(),
+        StaffApiService.getStaffDashboard(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _schoolSummary = results[0] as SchoolSummary;
+          _staffDashboard = results[1] as Map<String, dynamic>;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load dashboard: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  String _formatNumber(int n) {
+    if (n >= 10000000) return '${(n / 10000000).toStringAsFixed(1)}Cr';
+    if (n >= 100000) return '${(n / 100000).toStringAsFixed(1)}L';
+    if (n >= 1000) {
+      final s = n.toString();
+      final buf = StringBuffer();
+      for (int i = 0; i < s.length; i++) {
+        if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+        buf.write(s[i]);
+      }
+      return buf.toString();
+    }
+    return n.toString();
+  }
+
+  String _formatRevenue(double amount) {
+    if (amount >= 10000000) return 'Rs ${(amount / 10000000).toStringAsFixed(1)}Cr';
+    if (amount >= 100000) return 'Rs ${(amount / 100000).toStringAsFixed(1)}L';
+    if (amount >= 1000) return 'Rs ${(amount / 1000).toStringAsFixed(1)}K';
+    return 'Rs ${amount.toStringAsFixed(0)}';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final totalStudents = _schoolSummary?.totalStudents ?? 0;
+    final totalStaff = (_staffDashboard?['totalStaff'] as num?)?.toInt() ?? 0;
+    final pendingLeaves =
+        (_staffDashboard?['pendingLeaveRequests'] as num?)?.toInt() ?? 0;
+    final revenue = _schoolSummary?.totalFeesCollected ?? 0.0;
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(Responsive.contentPadding(context)),
       child: Column(
@@ -419,29 +491,39 @@ class _OverviewContent extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w400)),
           const SizedBox(height: 24),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = Responsive.gridColumns(context);
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  _statCard(context, 'Total Students', '2,400',
-                      Icons.people_alt_rounded, AppColors.navy,
-                      constraints.maxWidth, columns),
-                  _statCard(context, 'Total Staff', '180',
-                      Icons.badge_rounded, const Color(0xFF0D9488),
-                      constraints.maxWidth, columns),
-                  _statCard(context, 'Upcoming Events', '3',
-                      Icons.event_available_rounded, AppColors.gold,
-                      constraints.maxWidth, columns),
-                  _statCard(context, 'Revenue (Month)', 'Rs 12.5L',
-                      Icons.monetization_on_rounded, const Color(0xFFDB2777),
-                      constraints.maxWidth, columns),
-                ],
-              );
-            },
-          ),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = Responsive.gridColumns(context);
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    _statCard(context, 'Total Students',
+                        _formatNumber(totalStudents),
+                        Icons.people_alt_rounded, AppColors.navy,
+                        constraints.maxWidth, columns),
+                    _statCard(context, 'Total Staff',
+                        _formatNumber(totalStaff),
+                        Icons.badge_rounded, const Color(0xFF0D9488),
+                        constraints.maxWidth, columns),
+                    _statCard(context, 'Pending Leaves',
+                        '$pendingLeaves',
+                        Icons.event_busy_rounded, AppColors.gold,
+                        constraints.maxWidth, columns),
+                    _statCard(context, 'Revenue (Total)',
+                        _formatRevenue(revenue),
+                        Icons.monetization_on_rounded, const Color(0xFFDB2777),
+                        constraints.maxWidth, columns),
+                  ],
+                );
+              },
+            ),
           const SizedBox(height: 32),
           Text('Live Modules',
               style: GoogleFonts.poppins(
@@ -471,6 +553,7 @@ class _OverviewContent extends StatelessWidget {
             _liveChip(Icons.chat_outlined,                'Chat'),
             _liveChip(Icons.badge_outlined,               'HR & Staff'),
             _liveChip(Icons.description_outlined,         'Certificates'),
+            _liveChip(Icons.menu_book_outlined,           'Homework'),
           ]),
         ],
       ),
