@@ -97,6 +97,13 @@ class SchoolConstants {
   /// Available sections for Class 1–12.
   static const List<String> sections = ['A', 'B'];
 
+  /// Common school subjects for dropdowns.
+  static const List<String> commonSubjects = [
+    'English', 'Hindi', 'Mathematics', 'Science', 'Social Studies',
+    'Computer Science', 'Physical Education', 'Art', 'Music',
+    'Sanskrit', 'EVS', 'General Knowledge', 'Moral Science',
+  ];
+
   /// Full flat list of all class+section combinations as stored in MongoDB.
   /// Pre-primary classes appear once (no section).
   /// Class 1–12 appear twice (one entry per section).
