@@ -5,26 +5,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/responsive.dart';
 import '../../services/auth_service.dart';
-
-import 'screens/student_overview_screen.dart';
-import 'screens/my_attendance_screen.dart';
-import 'screens/my_results_screen.dart';
-import 'screens/my_timetable_screen.dart';
-import 'screens/my_fees_screen.dart';
-
-class _MenuItem {
-  final IconData icon;
-  final String label;
-  const _MenuItem({required this.icon, required this.label});
-}
-
-final _menuItems = [
-  const _MenuItem(icon: Icons.dashboard_outlined, label: 'Overview'),
-  const _MenuItem(icon: Icons.rule_folder_outlined, label: 'Attendance'),
-  const _MenuItem(icon: Icons.emoji_events_outlined, label: 'Results'),
-  const _MenuItem(icon: Icons.table_chart_outlined, label: 'Timetable'),
-  const _MenuItem(icon: Icons.receipt_long_outlined, label: 'Fees'),
-];
+import '../../services/homework_api_service.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   const StudentDashboardPage({super.key});
@@ -34,79 +15,28 @@ class StudentDashboardPage extends StatefulWidget {
 }
 
 class _StudentDashboardPageState extends State<StudentDashboardPage> {
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _selectedIndex = 0;
-  bool _sideMenuVisible = true;
-
-  Widget _buildContent() {
-    switch (_selectedIndex) {
-      case 0:
-        return StudentOverviewScreen(
-          onNavigate: (index) => setState(() => _selectedIndex = index),
-        );
-      case 1:
-        return const MyAttendanceScreen();
-      case 2:
-        return const MyResultsScreen();
-      case 3:
-        return const MyTimetableScreen();
-      case 4:
-        return const MyFeesScreen();
-      default:
-        return const SizedBox.shrink();
-    }
-  }
+  bool _loading = true;
+  List<dynamic> _homeworkList = [];
 
   @override
-  Widget build(BuildContext context) {
-    final isMobile = Responsive.isMobile(context);
-    final isDesktop = Responsive.isDesktop(context);
-    final sidebarWidth = isDesktop ? 240.0 : 200.0;
+  void initState() {
+    super.initState();
+    _loadHomework();
+  }
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: AppColors.cream,
-      appBar: AppBar(
-        backgroundColor: AppColors.navy,
-        leading: isMobile
-            ? IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              )
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () =>
-                    setState(() => _sideMenuVisible = !_sideMenuVisible),
-              ),
-        title: Text(
-          _menuItems[_selectedIndex].label,
-          style:
-              GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18),
-        ),
-      ),
-      drawer: isMobile
-          ? Drawer(
-              backgroundColor: AppColors.white,
-              child: _buildMenuList(),
-            )
-          : null,
-      body: Row(
-        children: [
-          if (!isMobile && _sideMenuVisible)
-            Material(
-              elevation: 2,
-              child: SizedBox(
-                width: sidebarWidth,
-                child: ColoredBox(
-                  color: AppColors.white,
-                  child: _buildMenuList(),
-                ),
-              ),
-            ),
-          Expanded(child: _buildContent()),
-        ],
-      ),
-    );
+  Future<void> _loadHomework() async {
+    setState(() => _loading = true);
+    try {
+      final data = await HomeworkApiService.getMyHomework();
+      if (mounted) setState(() => _homeworkList = data);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load homework: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _logout() async {
@@ -116,101 +46,173 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     }
   }
 
-  Widget _buildMenuList() {
+  @override
+  Widget build(BuildContext context) {
     final user = AuthService.instance.currentUser;
     final userName = user?.fullName ?? 'Student';
 
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        Container(
-          padding: EdgeInsets.fromLTRB(
-              20, Responsive.isMobile(context) ? 48 : 24, 20, 20),
-          color: AppColors.navy,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.school, color: Colors.white, size: 36),
-              const SizedBox(height: 8),
-              Text(userName,
-                  style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-              Text('Student Portal',
-                  style: GoogleFonts.poppins(
-                      color: AppColors.goldLight,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400)),
-            ],
+    return Scaffold(
+      backgroundColor: AppColors.cream,
+      appBar: AppBar(
+        backgroundColor: AppColors.navy,
+        title: Text('My Homework',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600, fontSize: 18)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_outlined),
+            tooltip: 'Logout',
+            onPressed: _logout,
           ),
-        ),
-        const SizedBox(height: 8),
-        for (int i = 0; i < _menuItems.length; i++) _buildMenuItem(i),
-        const Divider(indent: 16, endIndent: 16, height: 24),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: _logout,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  const Icon(Icons.logout_outlined,
-                      size: 20, color: AppColors.error),
-                  const SizedBox(width: 14),
-                  Text('Logout',
-                      style: GoogleFonts.poppins(
-                          color: AppColors.error, fontSize: 14)),
-                ],
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFE5E7EB)),
               ),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Welcome, $userName!',
+                    style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navy)),
+                const SizedBox(height: 4),
+                Text('Here are your homework assignments.',
+                    style: GoogleFonts.poppins(
+                        fontSize: 14, color: AppColors.textSecondary)),
+              ],
+            ),
           ),
-        ),
-      ],
+          // Homework list
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _homeworkList.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.menu_book_outlined,
+                                size: 56, color: Colors.grey[300]),
+                            const SizedBox(height: 12),
+                            Text('No homework assigned yet!',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textSecondary)),
+                            const SizedBox(height: 4),
+                            Text('Enjoy your free time.',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    color: AppColors.textLight)),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadHomework,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _homeworkList.length,
+                          itemBuilder: (context, index) {
+                            final hw = _homeworkList[index]
+                                as Map<String, dynamic>;
+                            return _buildHomeworkCard(hw);
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildMenuItem(int index) {
-    final item = _menuItems[index];
-    final isActive = _selectedIndex == index;
-    return Material(
-      color: isActive ? AppColors.goldPale : Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() => _selectedIndex = index);
-          if (Responsive.isMobile(context)) Navigator.pop(context);
-        },
-        child: Container(
-          decoration: isActive
-              ? const BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: AppColors.gold, width: 3),
+  Widget _buildHomeworkCard(Map<String, dynamic> hw) {
+    final title = hw['title'] as String? ?? '';
+    final description = hw['description'] as String? ?? '';
+    final subject = hw['subject'] as String? ?? '';
+    final teacherName = hw['teacherName'] as String? ?? '';
+    final dueDate = hw['dueDate'] as String? ?? '';
+    final assignedDate = hw['assignedDate'] as String? ?? '';
+
+    final isDue = dueDate.isNotEmpty && DateTime.tryParse(dueDate) != null
+        ? DateTime.parse(dueDate).isBefore(DateTime.now())
+        : false;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D9488).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                )
-              : null,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
-          child: Row(
-            children: [
-              Icon(item.icon,
-                  size: 18,
-                  color:
-                      isActive ? AppColors.navy : AppColors.textSecondary),
-              const SizedBox(width: 14),
-              Text(item.label,
+                  child: Text(subject,
+                      style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0D9488))),
+                ),
+                const Spacer(),
+                Icon(Icons.flag_outlined,
+                    size: 16,
+                    color: isDue ? Colors.red : Colors.orange),
+                const SizedBox(width: 4),
+                Text(isDue ? 'Overdue' : 'Due: $dueDate',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDue ? Colors.red : Colors.orange)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(title,
+                style: GoogleFonts.poppins(
+                    fontSize: 16, fontWeight: FontWeight.w600)),
+            if (description.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(description,
                   style: GoogleFonts.poppins(
-                    fontWeight:
-                        isActive ? FontWeight.w600 : FontWeight.w400,
-                    color: isActive
-                        ? AppColors.navy
-                        : AppColors.textSecondary,
-                    fontSize: 13,
-                  )),
+                      fontSize: 13, color: AppColors.textSecondary)),
             ],
-          ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.person_outline,
+                    size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(teacherName,
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: AppColors.textSecondary)),
+                const SizedBox(width: 16),
+                Icon(Icons.calendar_today,
+                    size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text('Assigned: $assignedDate',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: AppColors.textSecondary)),
+              ],
+            ),
+          ],
         ),
       ),
     );
