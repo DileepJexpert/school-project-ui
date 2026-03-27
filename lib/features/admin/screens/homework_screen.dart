@@ -339,8 +339,6 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
               _lastUsedClass = selectedClass;
               _lastUsedSubject = actualSubject;
 
-              if (!addAnother) Navigator.pop(ctx);
-
               try {
                 if (isEdit) {
                   await HomeworkApiService.updateHomework(
@@ -348,6 +346,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
                 } else {
                   await HomeworkApiService.createHomework(data);
                 }
+                if (!addAnother && ctx.mounted) Navigator.pop(ctx);
                 _loadHomework();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
