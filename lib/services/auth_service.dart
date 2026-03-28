@@ -157,7 +157,7 @@ class AuthService {
       UserRole.superAdmin || UserRole.schoolAdmin => true,
       UserRole.teacher => const {
           'Overview', 'Students', 'Attendance', 'Timetable', 'Results',
-          'Notifications', 'Discipline', 'Chat', 'Homework'
+          'Notifications', 'Discipline', 'Chat', 'Homework', 'Video Tutorials'
         }.contains(menuLabel),
       UserRole.accountant => const {
           'Overview', 'Students', 'Fees', 'Expenses', 'Reports',

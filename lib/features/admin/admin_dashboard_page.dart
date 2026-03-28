@@ -28,6 +28,8 @@ import 'screens/hr_screen.dart';
 import 'screens/discipline_screen.dart';
 import 'screens/certificates_screen.dart';
 import 'screens/homework_screen.dart';
+import 'screens/video_management_screen.dart';
+import 'screens/ai_config_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -52,33 +54,35 @@ final _allItems = [
   const _MenuItem(icon: Icons.people_alt_outlined,       label: 'Students',       isLive: true),  // 1
   const _MenuItem(icon: Icons.person_add_alt_1_outlined, label: 'Admissions',     isLive: true),  // 2
   const _MenuItem(icon: Icons.menu_book_outlined,        label: 'Homework',       isLive: true),  // 3
+  const _MenuItem(icon: Icons.video_library_outlined,   label: 'Video Tutorials', isLive: true),  // 4
   // -- FINANCE --
-  const _MenuItem(icon: Icons.receipt_long_outlined,     label: 'Fees',           isLive: true),  // 4
-  const _MenuItem(icon: Icons.money_off_outlined,        label: 'Expenses',       isLive: true),  // 5
-  const _MenuItem(icon: Icons.assessment_outlined,       label: 'Reports',        isLive: true),  // 6
+  const _MenuItem(icon: Icons.receipt_long_outlined,     label: 'Fees',           isLive: true),  // 5
+  const _MenuItem(icon: Icons.money_off_outlined,        label: 'Expenses',       isLive: true),  // 6
+  const _MenuItem(icon: Icons.assessment_outlined,       label: 'Reports',        isLive: true),  // 7
   // -- SCHOOL OPERATIONS --
-  const _MenuItem(icon: Icons.rule_folder_outlined,      label: 'Attendance',     isLive: true),  // 7
-  const _MenuItem(icon: Icons.table_chart_outlined,      label: 'Timetable',      isLive: true),  // 8
-  const _MenuItem(icon: Icons.emoji_events_outlined,     label: 'Results',        isLive: true),  // 9
-  const _MenuItem(icon: Icons.directions_bus_outlined,   label: 'Transport',      isLive: true),  // 10
-  const _MenuItem(icon: Icons.gavel_outlined,            label: 'Discipline',     isLive: true),  // 11
+  const _MenuItem(icon: Icons.rule_folder_outlined,      label: 'Attendance',     isLive: true),  // 8
+  const _MenuItem(icon: Icons.table_chart_outlined,      label: 'Timetable',      isLive: true),  // 9
+  const _MenuItem(icon: Icons.emoji_events_outlined,     label: 'Results',        isLive: true),  // 10
+  const _MenuItem(icon: Icons.directions_bus_outlined,   label: 'Transport',      isLive: true),  // 11
+  const _MenuItem(icon: Icons.gavel_outlined,            label: 'Discipline',     isLive: true),  // 12
   // -- COMMUNICATION --
-  const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 12
-  const _MenuItem(icon: Icons.chat_outlined,             label: 'Chat',           isLive: true),  // 13
+  const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 13
+  const _MenuItem(icon: Icons.chat_outlined,             label: 'Chat',           isLive: true),  // 14
   // -- HR & PAYROLL --
-  const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 14
+  const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 15
   // -- ADMINISTRATION --
-  const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 15
-  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 16
+  const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 16
+  const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 17
+  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 18
 ];
 
 final _groups = [
-  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3]]),
-  _MenuGroup(title: 'FINANCE',           items: [_allItems[4], _allItems[5], _allItems[6]]),
-  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[7], _allItems[8], _allItems[9], _allItems[10], _allItems[11]]),
-  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[12], _allItems[13]]),
-  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[14]]),
-  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[15], _allItems[16]]),
+  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4]]),
+  _MenuGroup(title: 'FINANCE',           items: [_allItems[5], _allItems[6], _allItems[7]]),
+  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12]]),
+  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14]]),
+  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[15]]),
+  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[16], _allItems[17], _allItems[18]]),
 ];
 
 // --------- Page ---------
@@ -96,7 +100,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   bool _sideMenuVisible = true;
 
   // Maps bottom-nav slot -> global _allItems index: Overview, Students, Fees, Admissions
-  static const _bottomNavToGlobal = [0, 1, 4, 2];
+  static const _bottomNavToGlobal = [0, 1, 5, 2];
 
   Widget _buildContent() {
     switch (_selectedIndex) {
@@ -104,19 +108,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 1:  return const StudentsScreen();
       case 2:  return const AdmissionScreen();
       case 3:  return const HomeworkScreen();
-      case 4:  return const FeeScreen();
-      case 5:  return const ExpenseScreen();
-      case 6:  return const ReportsScreen();
-      case 7:  return const AttendanceScreen();
-      case 8:  return const TimetableScreen();
-      case 9:  return const ResultsAdminScreen();
-      case 10: return const TransportAdminScreen();
-      case 11: return const DisciplineScreen();
-      case 12: return const NotificationsScreen();
-      case 13: return const ChatListScreen();
-      case 14: return const HrScreen();
-      case 15: return const CertificatesScreen();
-      case 16: return const SettingsScreen();
+      case 4:  return const VideoManagementScreen();
+      case 5:  return const FeeScreen();
+      case 6:  return const ExpenseScreen();
+      case 7:  return const ReportsScreen();
+      case 8:  return const AttendanceScreen();
+      case 9:  return const TimetableScreen();
+      case 10: return const ResultsAdminScreen();
+      case 11: return const TransportAdminScreen();
+      case 12: return const DisciplineScreen();
+      case 13: return const NotificationsScreen();
+      case 14: return const ChatListScreen();
+      case 15: return const HrScreen();
+      case 16: return const CertificatesScreen();
+      case 17: return const AiConfigScreen();
+      case 18: return const SettingsScreen();
       default: return const SizedBox.shrink();
     }
   }
@@ -554,6 +560,8 @@ class _OverviewContentState extends State<_OverviewContent> {
             _liveChip(Icons.badge_outlined,               'HR & Staff'),
             _liveChip(Icons.description_outlined,         'Certificates'),
             _liveChip(Icons.menu_book_outlined,           'Homework'),
+            _liveChip(Icons.video_library_outlined,       'Video Tutorials'),
+            _liveChip(Icons.smart_toy_outlined,           'AI Settings'),
           ]),
         ],
       ),
