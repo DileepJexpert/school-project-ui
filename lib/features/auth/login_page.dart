@@ -101,6 +101,13 @@ class _LoginPageState extends State<LoginPage> {
           _passwordCtrl.text,
         );
       } else {
+        // Ensure tenant_id is saved before login API call
+        final code = _schoolCodeCtrl.text.trim().toLowerCase();
+        if (code.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('tenant_id', code);
+        }
+
         await AuthService.instance.loginTenant(
           _emailCtrl.text.trim(),
           _passwordCtrl.text,
