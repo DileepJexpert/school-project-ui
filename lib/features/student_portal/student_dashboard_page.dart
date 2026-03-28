@@ -3,9 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
-import '../../core/widgets/responsive.dart';
 import '../../services/auth_service.dart';
 import '../../services/homework_api_service.dart';
+import 'screens/ai_homework_helper_screen.dart';
+import 'screens/my_videos_screen.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   const StudentDashboardPage({super.key});
@@ -14,14 +15,23 @@ class StudentDashboardPage extends StatefulWidget {
   State<StudentDashboardPage> createState() => _StudentDashboardPageState();
 }
 
-class _StudentDashboardPageState extends State<StudentDashboardPage> {
+class _StudentDashboardPageState extends State<StudentDashboardPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   bool _loading = true;
   List<dynamic> _homeworkList = [];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _loadHomework();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadHomework() async {
@@ -55,7 +65,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: AppColors.navy,
-        title: Text('My Homework',
+        title: Text('Student Portal',
             style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w600, fontSize: 18)),
         actions: [
@@ -66,14 +76,26 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           ),
           const SizedBox(width: 4),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppColors.gold,
+          indicatorWeight: 3,
+          labelStyle: GoogleFonts.poppins(
+              fontSize: 13, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.poppins(fontSize: 13),
+          tabs: const [
+            Tab(icon: Icon(Icons.menu_book_outlined, size: 18), text: 'Homework'),
+            Tab(icon: Icon(Icons.video_library_outlined, size: 18), text: 'Videos'),
+            Tab(icon: Icon(Icons.smart_toy_outlined, size: 18), text: 'AI Helper'),
+          ],
+        ),
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Welcome header
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               color: AppColors.white,
               border: Border(
@@ -85,55 +107,68 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
               children: [
                 Text('Welcome, $userName!',
                     style: GoogleFonts.poppins(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: AppColors.navy)),
-                const SizedBox(height: 4),
-                Text('Here are your homework assignments.',
+                const SizedBox(height: 2),
+                Text('Your learning dashboard',
                     style: GoogleFonts.poppins(
-                        fontSize: 14, color: AppColors.textSecondary)),
+                        fontSize: 13, color: AppColors.textSecondary)),
               ],
             ),
           ),
-          // Homework list
+          // Tab content
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _homeworkList.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.menu_book_outlined,
-                                size: 56, color: Colors.grey[300]),
-                            const SizedBox(height: 12),
-                            Text('No homework assigned yet!',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textSecondary)),
-                            const SizedBox(height: 4),
-                            Text('Enjoy your free time.',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    color: AppColors.textLight)),
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadHomework,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _homeworkList.length,
-                          itemBuilder: (context, index) {
-                            final hw = _homeworkList[index]
-                                as Map<String, dynamic>;
-                            return _buildHomeworkCard(hw);
-                          },
-                        ),
-                      ),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Tab 1: Homework
+                _buildHomeworkTab(),
+                // Tab 2: Videos
+                const MyVideosScreen(),
+                // Tab 3: AI Helper
+                _buildAiHelperTab(),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHomeworkTab() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_homeworkList.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.menu_book_outlined, size: 56, color: Colors.grey[300]),
+            const SizedBox(height: 12),
+            Text('No homework assigned yet!',
+                style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary)),
+            const SizedBox(height: 4),
+            Text('Enjoy your free time.',
+                style: GoogleFonts.poppins(
+                    fontSize: 13, color: AppColors.textLight)),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadHomework,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _homeworkList.length,
+        itemBuilder: (context, index) {
+          final hw = _homeworkList[index] as Map<String, dynamic>;
+          return _buildHomeworkCard(hw);
+        },
       ),
     );
   }
@@ -145,6 +180,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     final teacherName = hw['teacherName'] as String? ?? '';
     final dueDate = hw['dueDate'] as String? ?? '';
     final assignedDate = hw['assignedDate'] as String? ?? '';
+    final homeworkId = hw['id'] as String?;
 
     final isDue = dueDate.isNotEmpty && DateTime.tryParse(dueDate) != null
         ? DateTime.parse(dueDate).isBefore(DateTime.now())
@@ -210,11 +246,53 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                 Text('Assigned: $assignedDate',
                     style: GoogleFonts.poppins(
                         fontSize: 12, color: AppColors.textSecondary)),
+                const Spacer(),
+                // Ask AI button
+                Material(
+                  color: AppColors.navy.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AiHomeworkHelperScreen(
+                            homeworkId: homeworkId,
+                            subject: subject,
+                            homeworkTitle: title,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.smart_toy_outlined,
+                              size: 14, color: AppColors.navy),
+                          const SizedBox(width: 4),
+                          Text('Ask AI',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.navy)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildAiHelperTab() {
+    return const AiHomeworkHelperScreen();
   }
 }
