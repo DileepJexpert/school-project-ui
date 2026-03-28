@@ -429,23 +429,11 @@ class _OverviewContentState extends State<_OverviewContent> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final results = await Future.wait([
-        FeeApiService.getSchoolSummary(),
-        StaffApiService.getStaffDashboard(),
-      ]);
-      if (mounted) {
-        setState(() {
-          _schoolSummary = results[0] as SchoolSummary;
-          _staffDashboard = results[1] as Map<String, dynamic>;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load dashboard: $e')),
-        );
-      }
-    }
+      _schoolSummary = await FeeApiService.getSchoolSummary();
+    } catch (_) {}
+    try {
+      _staffDashboard = await StaffApiService.getStaffDashboard();
+    } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
 
