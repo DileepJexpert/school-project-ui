@@ -3,23 +3,38 @@ import 'dio_client.dart';
 class PaymentGatewayService {
   static const _base = '/payment-gateway';
 
-  /// Create a Razorpay payment order
+  /// Whether the school has enabled online payments, plus the Razorpay key id.
+  /// Returns: { enabled: bool, keyId: String? }
+  static Future<Map<String, dynamic>> getConfig() async {
+    final response = await DioClient.get('$_base/config');
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Create a Razorpay payment order for a single installment.
   static Future<Map<String, dynamic>> createOrder({
     required String studentId,
     required String installmentId,
+    required String installmentLabel,
     required double amount,
-    String currency = 'INR',
+    String? studentName,
+    String? className,
+    String? parentEmail,
+    String? parentPhone,
   }) async {
     final response = await DioClient.post('$_base/create-order', data: {
       'studentId': studentId,
       'installmentId': installmentId,
+      'installmentLabel': installmentLabel,
       'amount': amount,
-      'currency': currency,
+      if (studentName != null) 'studentName': studentName,
+      if (className != null) 'className': className,
+      if (parentEmail != null) 'parentEmail': parentEmail,
+      if (parentPhone != null) 'parentPhone': parentPhone,
     });
     return response.data as Map<String, dynamic>;
   }
 
-  /// Verify payment after Razorpay checkout
+  /// Verify payment after the Razorpay checkout completes.
   static Future<Map<String, dynamic>> verifyPayment({
     required String razorpayOrderId,
     required String razorpayPaymentId,
@@ -33,7 +48,7 @@ class PaymentGatewayService {
     return response.data as Map<String, dynamic>;
   }
 
-  /// Get payment order status
+  /// Get payment order status by Razorpay order id.
   static Future<Map<String, dynamic>> getOrderStatus(String orderId) async {
     final response = await DioClient.get('$_base/status/$orderId');
     return response.data as Map<String, dynamic>;
