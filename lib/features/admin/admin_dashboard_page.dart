@@ -30,6 +30,7 @@ import 'screens/certificates_screen.dart';
 import 'screens/homework_screen.dart';
 import 'screens/video_management_screen.dart';
 import 'screens/ai_config_screen.dart';
+import 'screens/whatsapp_config_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -68,21 +69,22 @@ final _allItems = [
   // -- COMMUNICATION --
   const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 13
   const _MenuItem(icon: Icons.chat_outlined,             label: 'Chat',           isLive: true),  // 14
+  const _MenuItem(icon: Icons.chat_bubble_outlined,      label: 'WhatsApp Agent', isLive: true),  // 15
   // -- HR & PAYROLL --
-  const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 15
+  const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 16
   // -- ADMINISTRATION --
-  const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 16
-  const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 17
-  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 18
+  const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 17
+  const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 18
+  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 19
 ];
 
 final _groups = [
   _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4]]),
   _MenuGroup(title: 'FINANCE',           items: [_allItems[5], _allItems[6], _allItems[7]]),
   _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12]]),
-  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14]]),
-  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[15]]),
-  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[16], _allItems[17], _allItems[18]]),
+  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15]]),
+  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[16]]),
+  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19]]),
 ];
 
 // --------- Page ---------
@@ -103,6 +105,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   static const _bottomNavToGlobal = [0, 1, 5, 2];
 
   Widget _buildContent() {
+    // Role guard: the sidebar hides unauthorized items, but this also blocks
+    // programmatic navigation from rendering screens the role can't access.
+    final label = _allItems[_selectedIndex].label;
+    if (!AuthService.instance.canAccessMenu(label)) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text('You don\'t have permission to view $label',
+                style: GoogleFonts.poppins(color: Colors.grey[600])),
+          ],
+        ),
+      );
+    }
     switch (_selectedIndex) {
       case 0:  return const _OverviewContent();
       case 1:  return const StudentsScreen();
@@ -119,10 +137,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 12: return const DisciplineScreen();
       case 13: return const NotificationsScreen();
       case 14: return const ChatListScreen();
-      case 15: return const HrScreen();
-      case 16: return const CertificatesScreen();
-      case 17: return const AiConfigScreen();
-      case 18: return const SettingsScreen();
+      case 15: return const WhatsAppConfigScreen();
+      case 16: return const HrScreen();
+      case 17: return const CertificatesScreen();
+      case 18: return const AiConfigScreen();
+      case 19: return const SettingsScreen();
       default: return const SizedBox.shrink();
     }
   }
@@ -429,23 +448,11 @@ class _OverviewContentState extends State<_OverviewContent> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final results = await Future.wait([
-        FeeApiService.getSchoolSummary(),
-        StaffApiService.getStaffDashboard(),
-      ]);
-      if (mounted) {
-        setState(() {
-          _schoolSummary = results[0] as SchoolSummary;
-          _staffDashboard = results[1] as Map<String, dynamic>;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load dashboard: $e')),
-        );
-      }
-    }
+      _schoolSummary = await FeeApiService.getSchoolSummary();
+    } catch (_) {}
+    try {
+      _staffDashboard = await StaffApiService.getStaffDashboard();
+    } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
 
