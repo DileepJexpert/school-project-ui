@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'token_storage.dart';
 
 class DioClient {
   static late Dio _dio;
@@ -39,8 +42,8 @@ class DioClient {
           final tenantId = prefs.getString('tenant_id') ?? 'default';
           options.headers['X-Tenant-ID'] = tenantId;
 
-          // Bearer token (when logged in)
-          final token = prefs.getString('auth_token');
+          // Bearer token (when logged in) — from secure storage
+          final token = await TokenStorage.getToken();
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -56,8 +59,7 @@ class DioClient {
             final refreshed = await _tryRefreshToken();
             if (refreshed) {
               // Retry the original request with the new token
-              final prefs = await SharedPreferences.getInstance();
-              final newToken = prefs.getString('auth_token');
+              final newToken = await TokenStorage.getToken();
               error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
               try {
                 final response = await _dio.fetch(error.requestOptions);
@@ -73,17 +75,20 @@ class DioClient {
       ),
     );
 
-    // Logging interceptor (disable in production builds)
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (obj) => print('[DIO] $obj'),
-    ));
+    // Logging interceptor — DEBUG BUILDS ONLY.
+    // Request/response bodies contain passwords and bearer tokens;
+    // they must never be logged in production.
+    if (kDebugMode) {
+      _dio.interceptors.add(LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        logPrint: (obj) => debugPrint('[DIO] $obj'),
+      ));
+    }
   }
 
   static Future<bool> _tryRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('auth_refresh_token');
+    final refreshToken = await TokenStorage.getRefreshToken();
     if (refreshToken == null) return false;
     try {
       final response = await Dio().post(
@@ -94,11 +99,13 @@ class DioClient {
       final token = response.data['token'] as String?;
       final newRefresh = response.data['refreshToken'] as String?;
       if (token != null) {
-        await prefs.setString('auth_token', token);
-        if (newRefresh != null) await prefs.setString('auth_refresh_token', newRefresh);
+        await TokenStorage.saveToken(token);
+        if (newRefresh != null) await TokenStorage.saveRefreshToken(newRefresh);
         return true;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[DioClient] Token refresh failed: $e');
+    }
     return false;
   }
 
@@ -150,6 +157,6 @@ class DioClient {
       default:
         message = 'An unexpected error occurred.';
     }
-    print('[DioClient Error] $message');
+    debugPrint('[DioClient Error] $message');
   }
 }

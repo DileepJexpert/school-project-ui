@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/router/app_router.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/dio_client.dart';
 import '../../../services/tenant_service.dart';
 
@@ -155,8 +156,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('auth_token');
+      await AuthService.instance.logout();
       if (mounted) {
         Navigator.pushReplacementNamed(context, AppRouter.home);
       }

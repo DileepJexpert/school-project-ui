@@ -105,6 +105,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   static const _bottomNavToGlobal = [0, 1, 5, 2];
 
   Widget _buildContent() {
+    // Role guard: the sidebar hides unauthorized items, but this also blocks
+    // programmatic navigation from rendering screens the role can't access.
+    final label = _allItems[_selectedIndex].label;
+    if (!AuthService.instance.canAccessMenu(label)) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text('You don\'t have permission to view $label',
+                style: GoogleFonts.poppins(color: Colors.grey[600])),
+          ],
+        ),
+      );
+    }
     switch (_selectedIndex) {
       case 0:  return const _OverviewContent();
       case 1:  return const StudentsScreen();
