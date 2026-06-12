@@ -137,7 +137,7 @@ class _LoginPageState extends State<LoginPage> {
 
   String _friendlyError(String raw) {
     if (raw.contains('401') || raw.contains('Invalid credentials')) {
-      return 'Incorrect email or password.';
+      return 'Incorrect email/phone or password.';
     }
     if (raw.contains('403')) return 'Your account has been deactivated.';
     if (raw.contains('connection') || raw.contains('timeout')) {
@@ -273,16 +273,15 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildEmailField() => TextFormField(
         controller: _emailCtrl,
-        keyboardType: TextInputType.emailAddress,
+        keyboardType: TextInputType.text,
         decoration: InputDecoration(
-          labelText: 'Email',
-          prefixIcon: const Icon(Icons.email_outlined),
+          labelText: 'Email or Phone',
+          prefixIcon: const Icon(Icons.person_outline),
           border:
               OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
         validator: (v) {
-          if (v == null || v.trim().isEmpty) return 'Enter your email';
-          if (!v.contains('@')) return 'Enter a valid email';
+          if (v == null || v.trim().isEmpty) return 'Enter your email or phone number';
           return null;
         },
         textInputAction: TextInputAction.next,
