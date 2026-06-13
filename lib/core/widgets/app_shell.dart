@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../models/school_data.dart';
 import '../constants/app_constants.dart';
 import '../router/app_router.dart';
 import 'responsive.dart';
@@ -98,11 +99,10 @@ class _MarqueeBannerState extends State<_MarqueeBanner>
             children: [
               const SizedBox(width: 100),
               Text(
-                '📢  Admissions Open for 2026-27   |   '
-                '🏆  National Science Olympiad — 3 Gold Medals   |   '
-                '📅  Annual Science Exhibition — March 15, 2026   |   '
-                '📞  Contact: ${AppStrings.phone}   |   '
-                '✉️  ${AppStrings.email}',
+                SchoolData.marqueeText.isNotEmpty
+                    ? SchoolData.marqueeText
+                    : '📞  Contact: ${AppStrings.phone}   |   '
+                      '✉️  ${AppStrings.email}',
                 style: GoogleFonts.nunitoSans(
                   color: AppColors.goldLight,
                   fontSize: 12,
@@ -150,7 +150,9 @@ class _DesktopNavbar extends StatelessWidget {
                       decoration: const BoxDecoration(color: AppColors.gold),
                       alignment: Alignment.center,
                       child: Text(
-                        'S',
+                        AppStrings.schoolShortName.isNotEmpty
+                            ? AppStrings.schoolShortName[0]
+                            : 'S',
                         style: GoogleFonts.cormorantGaramond(
                           color: AppColors.navyDark,
                           fontWeight: FontWeight.w700,
@@ -330,8 +332,12 @@ class _MobileDrawer extends StatelessWidget {
                     width: 38, height: 38,
                     color: AppColors.gold,
                     alignment: Alignment.center,
-                    child: Text('S', style: GoogleFonts.cormorantGaramond(
-                      color: AppColors.navyDark, fontWeight: FontWeight.w700, fontSize: 22,
+                    child: Text(
+                      AppStrings.schoolShortName.isNotEmpty
+                          ? AppStrings.schoolShortName[0]
+                          : 'S',
+                      style: GoogleFonts.cormorantGaramond(
+                        color: AppColors.navyDark, fontWeight: FontWeight.w700, fontSize: 22,
                     )),
                   ),
                   const SizedBox(width: 12),
@@ -470,8 +476,12 @@ class _Footer extends StatelessWidget {
             Container(
               width: 32, height: 32, color: AppColors.gold,
               alignment: Alignment.center,
-              child: Text('S', style: GoogleFonts.cormorantGaramond(
-                color: AppColors.navyDark, fontWeight: FontWeight.w700, fontSize: 18,
+              child: Text(
+                AppStrings.schoolShortName.isNotEmpty
+                    ? AppStrings.schoolShortName[0]
+                    : 'S',
+                style: GoogleFonts.cormorantGaramond(
+                  color: AppColors.navyDark, fontWeight: FontWeight.w700, fontSize: 18,
               )),
             ),
             const SizedBox(width: 10),

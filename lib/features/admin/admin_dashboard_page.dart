@@ -31,6 +31,7 @@ import 'screens/homework_screen.dart';
 import 'screens/video_management_screen.dart';
 import 'screens/ai_config_screen.dart';
 import 'screens/whatsapp_config_screen.dart';
+import 'screens/website_editor_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -74,8 +75,9 @@ final _allItems = [
   const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 16
   // -- ADMINISTRATION --
   const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 17
-  const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 18
-  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 19
+  const _MenuItem(icon: Icons.language_outlined,         label: 'Website',        isLive: true),  // 18
+  const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 19
+  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 20
 ];
 
 final _groups = [
@@ -84,7 +86,7 @@ final _groups = [
   _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12]]),
   _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15]]),
   _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[16]]),
-  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19]]),
+  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19], _allItems[20]]),
 ];
 
 // --------- Page ---------
@@ -140,8 +142,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 15: return const WhatsAppConfigScreen();
       case 16: return const HrScreen();
       case 17: return const CertificatesScreen();
-      case 18: return const AiConfigScreen();
-      case 19: return const SettingsScreen();
+      case 18: return const WebsiteEditorScreen();
+      case 19: return const AiConfigScreen();
+      case 20: return const SettingsScreen();
       default: return const SizedBox.shrink();
     }
   }

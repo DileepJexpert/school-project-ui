@@ -144,13 +144,60 @@ class SchoolConstants {
 class AppStrings {
   AppStrings._();
 
-  static const String schoolName = 'Springfield International Academy';
-  static const String schoolShortName = 'SIA';
-  static const String tagline = 'Nurturing Minds, Building Futures';
-  static const String accreditation = 'CBSE Affiliated';
-  static const String founded = '1987';
-  static const String phone = '+1 (555) 234-5678';
-  static const String email = 'admissions@springfieldacademy.edu';
-  static const String address = '42 Heritage Lane, Springfield, IL 62704';
-  static const String officeHours = 'Mon – Fri: 8:00 AM – 4:00 PM\nSat: 9:00 AM – 1:00 PM';
+  /// All fields are mutable — populated from SchoolData after the website
+  /// config is fetched from the backend. Defaults match the original
+  /// hardcoded values so the site renders even before the API responds.
+  static String get schoolName => _schoolName;
+  static String get schoolShortName => _shortName;
+  static String get tagline => _tagline;
+  static String get accreditation => _accreditation;
+  static String get founded => _founded;
+  static String get phone => _phone;
+  static String get email => _email;
+  static String get address => _address;
+  static String get officeHours => _officeHours;
+
+  static String _schoolName = 'Springfield International Academy';
+  static String _shortName = 'SIA';
+  static String _tagline = 'Nurturing Minds, Building Futures';
+  static String _accreditation = 'CBSE Affiliated';
+  static String _founded = '1987';
+  static String _phone = '+1 (555) 234-5678';
+  static String _email = 'admissions@springfieldacademy.edu';
+  static String _address = '42 Heritage Lane, Springfield, IL 62704';
+  static String _officeHours = 'Mon – Fri: 8:00 AM – 4:00 PM\nSat: 9:00 AM – 1:00 PM';
+
+  /// Called after SchoolData loads from API — syncs identity fields.
+  static void syncFromSchoolData() {
+    // Import dynamically to avoid circular — SchoolData is in models/
+    // We reference the static fields directly since they're top-level.
+    _schoolName = _sd('schoolName', _schoolName);
+    _shortName = _sd('shortName', _shortName);
+    _tagline = _sd('tagline', _tagline);
+    _accreditation = _sd('accreditation', _accreditation);
+    _founded = _sd('founded', _founded);
+    _phone = _sd('contactPhone', _phone);
+    _email = _sd('contactEmail', _email);
+    _address = _sd('address', _address);
+    _officeHours = _sd('officeHours', _officeHours);
+  }
+
+  /// Reads a SchoolData static field by name. Avoids importing school_data
+  /// in this constants file by accepting the value map externally.
+  static Map<String, String>? _syncMap;
+  static void syncWith(Map<String, String> values) {
+    _syncMap = values;
+    _schoolName = values['schoolName'] ?? _schoolName;
+    _shortName = values['shortName'] ?? _shortName;
+    _tagline = values['tagline'] ?? _tagline;
+    _accreditation = values['accreditation'] ?? _accreditation;
+    _founded = values['founded'] ?? _founded;
+    _phone = values['phone'] ?? _phone;
+    _email = values['email'] ?? _email;
+    _address = values['address'] ?? _address;
+    _officeHours = values['officeHours'] ?? _officeHours;
+  }
+
+  static String _sd(String key, String fallback) =>
+      _syncMap?[key] ?? fallback;
 }
