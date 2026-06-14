@@ -1,3 +1,7 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
@@ -6,6 +10,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../models/student_model.dart';
 import '../../../services/admission_api_service.dart';
 import '../../../services/csv_export_service.dart';
+import '../../../services/dio_client.dart';
 import '../../../services/student_api_service.dart';
 import 'new_admission_screen.dart';
 import 'student_detail_screen.dart';
@@ -272,6 +277,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.navy,
             side: const BorderSide(color: AppColors.navy),
+          ),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: _showImportDialog,
+          icon: const Icon(Icons.upload_file, size: 16),
+          label: const Text('Import CSV'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.success,
+            side: const BorderSide(color: AppColors.success),
           ),
         ),
         const SizedBox(width: 8),
@@ -1111,6 +1126,244 @@ class _StudentsScreenState extends State<StudentsScreen> {
         },
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // CSV Import
+  // ---------------------------------------------------------------------------
+
+  void _showImportDialog() {
+    html.File? selectedFile;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
+              title: Row(
+                children: [
+                  const Icon(Icons.upload_file, color: AppColors.navy),
+                  const SizedBox(width: 8),
+                  Text('Import Students from CSV',
+                      style: GoogleFonts.cormorantGaramond(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 20,
+                          color: AppColors.navy)),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        'Upload a CSV file with student data. Parent accounts will be auto-created.',
+                        style: GoogleFonts.nunitoSans(
+                            fontSize: 13, color: AppColors.textSecondary)),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _downloadTemplate,
+                      icon: const Icon(Icons.download, size: 18),
+                      label: const Text('Download Template CSV'),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            final input = html.FileUploadInputElement()
+                              ..accept = '.csv';
+                            input.click();
+                            input.onChange.listen((event) {
+                              if (input.files != null &&
+                                  input.files!.isNotEmpty) {
+                                setDialogState(
+                                    () => selectedFile = input.files![0]);
+                              }
+                            });
+                          },
+                          icon: const Icon(Icons.attach_file, size: 18),
+                          label: const Text('Choose File'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.navy,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        if (selectedFile != null)
+                          Expanded(
+                            child: Text(selectedFile!.name,
+                                style: GoogleFonts.nunitoSans(fontSize: 13),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                        'Columns: fullName, dateOfBirth, gender, class, academicYear, rollNumber, '
+                        'fatherName, fatherMobile, fatherEmail, motherName, motherMobile, '
+                        'motherEmail, address, phone',
+                        style: GoogleFonts.nunitoSans(
+                            fontSize: 11, color: AppColors.textLight)),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancel',
+                      style: GoogleFonts.nunitoSans(
+                          color: AppColors.textSecondary)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: selectedFile == null
+                      ? null
+                      : () async {
+                          Navigator.pop(ctx);
+                          await _uploadCsv(selectedFile!);
+                        },
+                  icon: const Icon(Icons.upload, size: 18),
+                  label: const Text('Import'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _downloadTemplate() async {
+    try {
+      final response = await DioClient.instance.get(
+        '/students/import/template',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final blob = html.Blob([response.data]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'student_import_template.csv')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      _showSnack('Failed to download template: $e', isError: true);
+    }
+  }
+
+  Future<void> _uploadCsv(html.File file) async {
+    // Show loading overlay
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      await reader.onLoad.first;
+
+      final bytes = reader.result as List<int>;
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: file.name),
+      });
+
+      final response = await DioClient.instance.post(
+        '/students/import/csv',
+        data: formData,
+      );
+
+      if (mounted) Navigator.pop(context); // close loading
+
+      final result = response.data as Map<String, dynamic>;
+      final imported = result['imported'] ?? 0;
+      final total = result['total'] ?? 0;
+      final errors = (result['errors'] as List?)?.cast<String>() ?? [];
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
+            title: Row(
+              children: [
+                Icon(errors.isEmpty ? Icons.check_circle : Icons.warning,
+                    color: errors.isEmpty ? AppColors.success : AppColors.warning),
+                const SizedBox(width: 8),
+                Text('Import Complete',
+                    style: GoogleFonts.cormorantGaramond(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 20,
+                        color: AppColors.navy)),
+              ],
+            ),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$imported of $total students imported successfully.',
+                      style: GoogleFonts.nunitoSans(fontSize: 14)),
+                  if (errors.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text('Errors:',
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.error,
+                            fontSize: 13)),
+                    const SizedBox(height: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: errors
+                              .map((e) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text('• $e',
+                                        style: GoogleFonts.nunitoSans(
+                                            fontSize: 12,
+                                            color: AppColors.error)),
+                                  ))
+                              .toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _loadStudents(); // refresh the student list
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navy,
+                    foregroundColor: Colors.white),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // close loading
+        _showSnack('Import failed: $e', isError: true);
+      }
+    }
   }
 
   Future<void> _showDetail(BuildContext ctx, StudentModel s) async {
