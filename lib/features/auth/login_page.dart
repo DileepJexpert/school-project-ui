@@ -42,6 +42,22 @@ class _LoginPageState extends State<LoginPage> {
   bool _schoolValidated = false;
 
   @override
+  void initState() {
+    super.initState();
+    _autoFillSchoolCode();
+  }
+
+  /// If the school was detected from the subdomain/URL, pre-fill and validate.
+  Future<void> _autoFillSchoolCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final tenantId = prefs.getString('tenant_id');
+    if (tenantId != null && tenantId != 'default' && tenantId.isNotEmpty) {
+      _schoolCodeCtrl.text = tenantId;
+      _validateSchool();
+    }
+  }
+
+  @override
   void dispose() {
     _schoolCodeCtrl.dispose();
     _emailCtrl.dispose();
