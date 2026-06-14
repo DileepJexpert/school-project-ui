@@ -1,3 +1,7 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -1190,6 +1194,7 @@ class _ReportCardTabState extends State<_ReportCardTab> {
   final _studentIdCtrl = TextEditingController();
   StudentReportCard? _card;
   bool _loading = false;
+  bool _downloading = false;
 
   @override
   void dispose() {
@@ -1218,6 +1223,25 @@ class _ReportCardTabState extends State<_ReportCardTab> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+  }
+
+  Future<void> _downloadPdf() async {
+    if (_year == null || _studentIdCtrl.text.isEmpty) return;
+    setState(() => _downloading = true);
+    try {
+      final bytes = await ResultApiService.downloadReportCardPdf(
+          _studentIdCtrl.text.trim(), _year!);
+      final blob =
+          html.Blob([Uint8List.fromList(bytes)], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'report_card_$_year.pdf')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      _snack('Download failed: $e', AppColors.error);
+    }
+    if (mounted) setState(() => _downloading = false);
   }
 
   Widget _trendIcon(String trend) {
@@ -1284,6 +1308,23 @@ class _ReportCardTabState extends State<_ReportCardTab> {
                 style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700)),
             onPressed: _loading ? null : _load,
           ),
+          if (_card != null)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.navy,
+                  side: const BorderSide(color: AppColors.navy),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 14)),
+              icon: _downloading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf),
+              label: Text(_downloading ? 'Downloading…' : 'Download PDF',
+                  style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700)),
+              onPressed: _downloading ? null : _downloadPdf,
+            ),
         ]),
         const SizedBox(height: 24),
         if (card != null) ...[

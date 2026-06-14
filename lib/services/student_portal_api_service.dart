@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import 'dio_client.dart';
 
 class StudentPortalApiService {
@@ -50,5 +52,15 @@ class StudentPortalApiService {
   static Future<Map<String, dynamic>> getMyFees() async {
     final response = await DioClient.get('$_base/fees');
     return response.data as Map<String, dynamic>;
+  }
+
+  /// Download report card PDF
+  static Future<List<int>> downloadReportCardPdf(String academicYear) async {
+    final resp = await DioClient.instance.get(
+      '/api$_base/results/pdf',
+      queryParameters: {'academicYear': academicYear},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return resp.data as List<int>;
   }
 }

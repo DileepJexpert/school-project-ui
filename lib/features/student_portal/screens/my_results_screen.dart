@@ -1,3 +1,7 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -14,6 +18,7 @@ class MyResultsScreen extends StatefulWidget {
 
 class _MyResultsScreenState extends State<MyResultsScreen> {
   bool _loading = true;
+  bool _downloading = false;
   String? _error;
   Map<String, dynamic>? _results;
 
@@ -61,11 +66,31 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('My Results',
-              style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('My Results',
+                  style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy)),
+              OutlinedButton.icon(
+                onPressed: _downloading ? null : _downloadPdf,
+                icon: _downloading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.picture_as_pdf, size: 18),
+                label: Text(_downloading ? 'Downloading...' : 'Download PDF',
+                    style: GoogleFonts.poppins(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.navy,
+                  side: const BorderSide(color: AppColors.navy),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -150,5 +175,28 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _downloadPdf() async {
+    final year = _results?['academicYear'] as String?;
+    if (year == null) return;
+
+    setState(() => _downloading = true);
+    try {
+      final bytes = await StudentPortalApiService.downloadReportCardPdf(year);
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'report_card_$year.pdf')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to download: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _downloading = false);
   }
 }
