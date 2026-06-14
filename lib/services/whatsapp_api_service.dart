@@ -29,4 +29,9 @@ class WhatsAppApiService {
       'message': message,
     });
   }
+
+  /// Manually trigger fee reminders for this school (admin)
+  static Future<void> sendFeeReminders() async {
+    await DioClient.post('$_base/send-fee-reminders');
+  }
 }
