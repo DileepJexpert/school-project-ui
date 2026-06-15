@@ -59,8 +59,9 @@ class ParentApiService {
   /// Download report card PDF for a specific child
   static Future<List<int>> downloadReportCardPdf(
       String studentId, String academicYear) async {
+    // baseUrl already ends in /api, so pass the path without an /api prefix.
     final resp = await DioClient.instance.get(
-      '/api$_base/child/$studentId/results/pdf',
+      '$_base/child/$studentId/results/pdf',
       queryParameters: {'academicYear': academicYear},
       options: Options(responseType: ResponseType.bytes),
     );

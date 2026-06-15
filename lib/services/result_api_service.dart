@@ -108,7 +108,7 @@ class ResultApiService {
   static Future<Map<String, dynamic>> publishResults(
       String className, String examType, String year) async {
     final r = await DioClient.instance.put(
-      '/api/results/publish',
+      '$_base/publish',
       queryParameters: {
         'className': className,
         'examType': examType,
@@ -172,8 +172,9 @@ class ResultApiService {
 
   static Future<List<int>> downloadReportCardPdf(
       String studentId, String year) async {
+    // baseUrl already ends in /api, so pass the path without an /api prefix.
     final resp = await DioClient.instance.get(
-      '/api/results/student/$studentId/report/pdf',
+      '$_base/student/$studentId/report/pdf',
       queryParameters: {'year': year},
       options: Options(responseType: ResponseType.bytes),
     );

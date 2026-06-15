@@ -56,8 +56,9 @@ class StudentPortalApiService {
 
   /// Download report card PDF
   static Future<List<int>> downloadReportCardPdf(String academicYear) async {
+    // baseUrl already ends in /api, so pass the path without an /api prefix.
     final resp = await DioClient.instance.get(
-      '/api$_base/results/pdf',
+      '$_base/results/pdf',
       queryParameters: {'academicYear': academicYear},
       options: Options(responseType: ResponseType.bytes),
     );

@@ -1,5 +1,6 @@
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -1268,10 +1269,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
     try {
       final reader = html.FileReader();
+      // Subscribe to onLoad before starting the read to avoid missing the event.
+      final loadFuture = reader.onLoad.first;
       reader.readAsArrayBuffer(file);
-      await reader.onLoad.first;
+      await loadFuture;
 
-      final bytes = reader.result as List<int>;
+      // readAsArrayBuffer yields a ByteBuffer, not a List<int>.
+      final bytes = (reader.result as ByteBuffer).asUint8List();
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(bytes, filename: file.name),
       });
