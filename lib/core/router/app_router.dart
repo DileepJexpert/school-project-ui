@@ -11,6 +11,7 @@ import '../../features/transport/transport_page.dart';
 import '../../features/contact/contact_page.dart';
 import '../../features/results/results_page.dart';
 import '../../features/admin/admin_dashboard_page.dart';
+import '../../features/auth/force_password_change_screen.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/parent/parent_dashboard_page.dart';
 import '../../features/student_portal/student_dashboard_page.dart';
@@ -35,6 +36,7 @@ class AppRouter {
   static const String parentDashboard = '/parent-dashboard';
   static const String studentDashboard = '/student-dashboard';
   static const String login = '/login';
+  static const String forcePasswordChange = '/force-password-change';
 
   static final List<NavItem> publicNavItems = [
     NavItem(label: 'Home', route: home, icon: Icons.home_outlined),
@@ -81,6 +83,12 @@ class AppRouter {
         return _buildRoute(const ResultsPage(), settings);
       case login:
         return _buildRoute(const LoginPage(), settings);
+      case forcePasswordChange:
+        // Guard: only show if authenticated (the screen itself prevents back nav)
+        if (!AuthService.instance.isLoggedIn) {
+          return _buildRoute(const LoginPage(), settings);
+        }
+        return _buildRoute(const ForcePasswordChangeScreen(), settings);
       case adminDashboard:
         // Guard: redirect to login if not authenticated or no admin access
         if (!AuthService.instance.isLoggedIn ||

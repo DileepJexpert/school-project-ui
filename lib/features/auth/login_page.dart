@@ -131,6 +131,13 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (mounted) {
+        // Force password change takes priority over role-based redirect
+        if (AuthService.instance.mustChangePassword) {
+          Navigator.of(context)
+              .pushReplacementNamed(AppRouter.forcePasswordChange);
+          return;
+        }
+
         // Role-based redirect
         final role = AuthService.instance.currentUser?.role;
         final route = AppRouter.dashboardRouteForRole(role);

@@ -20,10 +20,12 @@ class AuthService {
   AuthUser? _currentUser;
   String? _token;
   String? _refreshToken;
+  bool _mustChangePassword = false;
 
   AuthUser? get currentUser => _currentUser;
   String? get token => _token;
   bool get isLoggedIn => _currentUser != null && _token != null;
+  bool get mustChangePassword => _mustChangePassword;
 
   // -- Initialization
 
@@ -48,12 +50,12 @@ class AuthService {
 
   /// Login for school-level users (SCHOOL_ADMIN, TEACHER, etc.).
   /// The current tenant_id in SharedPreferences must be set before calling this.
-  Future<AuthUser> loginTenant(String email, String password) async {
+  Future<AuthResponse> loginTenant(String email, String password) async {
     return _doLogin('/auth/login', email, password);
   }
 
   /// Login for SUPER_ADMIN users (uses /platform/auth/login, platform_db).
-  Future<AuthUser> loginPlatform(String email, String password) async {
+  Future<AuthResponse> loginPlatform(String email, String password) async {
     // Platform login uses a different base URL prefix -- strip /api from baseUrl
     final dio = DioClient.instance;
     final response = await dio.post(
@@ -64,7 +66,7 @@ class AuthService {
     return _handleLoginResponse(response);
   }
 
-  Future<AuthUser> _doLogin(String path, String email, String password) async {
+  Future<AuthResponse> _doLogin(String path, String email, String password) async {
     final response = await DioClient.post(path, data: {
       'email': email,
       'password': password,
@@ -72,13 +74,14 @@ class AuthService {
     return _handleLoginResponse(response);
   }
 
-  Future<AuthUser> _handleLoginResponse(Response response) async {
+  Future<AuthResponse> _handleLoginResponse(Response response) async {
     final data = response.data as Map<String, dynamic>;
     final authResponse = AuthResponse.fromJson(data);
 
     _token = authResponse.token;
     _refreshToken = authResponse.refreshToken;
     _currentUser = authResponse.user;
+    _mustChangePassword = authResponse.mustChangePassword;
 
     await TokenStorage.saveToken(_token!);
     if (_refreshToken != null) {
@@ -92,7 +95,23 @@ class AuthService {
       await prefs.setString('tenant_id', _currentUser!.tenantId!);
     }
 
-    return _currentUser!;
+    return authResponse;
+  }
+
+  // -- Force password change
+
+  /// Sets the initial password for users who must change their default password.
+  /// The backend does not require the current password for this endpoint.
+  Future<void> setInitialPassword(String newPassword) async {
+    await DioClient.post('/auth/set-initial-password', data: {
+      'newPassword': newPassword,
+    });
+    _mustChangePassword = false;
+  }
+
+  /// Clears the mustChangePassword flag (e.g. after successful password change).
+  void clearMustChangePassword() {
+    _mustChangePassword = false;
   }
 
   // -- Refresh
