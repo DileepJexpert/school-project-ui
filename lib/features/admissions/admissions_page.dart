@@ -19,6 +19,12 @@ class AdmissionsPage extends StatelessWidget {
         children: [
           const PageHeader(title: 'Admissions', subtitle: 'Begin your journey with Springfield International Academy'),
           _ProcessSection(),
+          CtaBanner(
+            title: 'Ready to Apply?',
+            subtitle: 'Submit your application online and begin your journey with us.',
+            buttonText: 'Apply Online',
+            onPressed: () => Navigator.pushNamed(context, AppRouter.admissionsApply),
+          ),
           _DatesAndFormsSection(),
           _FeeSection(),
         ],

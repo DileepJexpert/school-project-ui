@@ -27,4 +27,26 @@ class SchoolWebsiteService {
     final response = await DioClient.put('/website', data: data);
     return response.data as Map<String, dynamic>;
   }
+
+  // ── Public Admission endpoints (no auth) ──
+
+  /// Submit a public online admission application.
+  /// Returns the created record (includes enquiry/admission number).
+  static Future<Map<String, dynamic>> submitPublicAdmission(
+      String tenantId, Map<String, dynamic> data) async {
+    final serverRoot =
+        DioClient.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    final response = await Dio()
+        .post('$serverRoot/public/admissions/$tenantId', data: data);
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Fetch the list of classes available for public admission.
+  static Future<List<String>> getAvailableClasses(String tenantId) async {
+    final serverRoot =
+        DioClient.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    final response =
+        await Dio().get('$serverRoot/public/admissions/$tenantId/classes');
+    return (response.data as List).cast<String>();
+  }
 }

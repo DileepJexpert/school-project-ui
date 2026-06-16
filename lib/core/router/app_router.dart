@@ -4,6 +4,7 @@ import '../../features/home/home_page.dart';
 import '../../features/about/about_page.dart';
 import '../../features/academics/academics_page.dart';
 import '../../features/admissions/admissions_page.dart';
+import '../../features/admissions/online_admission_form_page.dart';
 import '../../features/gallery/gallery_page.dart';
 import '../../features/events/events_page.dart';
 import '../../features/transport/transport_page.dart';
@@ -24,6 +25,7 @@ class AppRouter {
   static const String about = '/about';
   static const String academics = '/academics';
   static const String admissions = '/admissions';
+  static const String admissionsApply = '/admissions/apply';
   static const String gallery = '/gallery';
   static const String events = '/events';
   static const String transport = '/transport';
@@ -65,6 +67,8 @@ class AppRouter {
         return _buildRoute(const AcademicsPage(), settings);
       case admissions:
         return _buildRoute(const AdmissionsPage(), settings);
+      case admissionsApply:
+        return _buildRoute(const OnlineAdmissionFormPage(), settings);
       case gallery:
         return _buildRoute(const GalleryPage(), settings);
       case events:
