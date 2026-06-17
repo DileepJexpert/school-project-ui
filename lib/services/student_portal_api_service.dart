@@ -54,6 +54,16 @@ class StudentPortalApiService {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Get student's published exam schedules
+  static Future<List<Map<String, dynamic>>> getMyExamSchedule(
+      String academicYear) async {
+    final response = await DioClient.get(
+      '$_base/exam-schedule',
+      queryParams: {'academicYear': academicYear},
+    );
+    return (response.data as List).cast<Map<String, dynamic>>();
+  }
+
   /// Download report card PDF
   static Future<List<int>> downloadReportCardPdf(String academicYear) async {
     // baseUrl already ends in /api, so pass the path without an /api prefix.

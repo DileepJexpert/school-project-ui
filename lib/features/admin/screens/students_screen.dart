@@ -291,6 +291,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
         ),
         const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: _showBulkIdCardDialog,
+          icon: const Icon(Icons.credit_card_outlined, size: 16),
+          label: const Text('Bulk ID Cards'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF7C3AED),
+            side: const BorderSide(color: Color(0xFF7C3AED)),
+          ),
+        ),
+        const SizedBox(width: 8),
         ElevatedButton.icon(
           onPressed: _loadStudents,
           icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -544,6 +554,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
         onTap: () => _showDetail(ctx, students[i]),
         onEdit: () => _editStudent(ctx, students[i]),
         onSetStatus: (status) => _setStatus(students[i], status),
+        onDownloadIdCard: students[i].id != null
+            ? () => _downloadIdCard(students[i].id!, students[i].fullName)
+            : null,
       ),
     );
   }
@@ -1130,6 +1143,196 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // ID Card Download
+  // ---------------------------------------------------------------------------
+
+  Future<void> _downloadIdCard(String studentId, String studentName) async {
+    try {
+      final resp = await DioClient.instance.get(
+        '/students/$studentId/id-card',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = resp.data as List<int>;
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'id_card_$studentName.pdf')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      _showSnack('Failed to download ID card: $e', isError: true);
+    }
+  }
+
+  void _showBulkIdCardDialog() {
+    String? selectedClass;
+    bool downloading = false;
+
+    final classesWithStudents = _students
+        .where((s) => s.status == 'ACTIVE' && s.classForAdmission != null)
+        .map((s) => s.classForAdmission!)
+        .toSet()
+        .toList()
+      ..sort((a, b) {
+        final (baseA, secA) = SchoolConstants.parseClassName(a);
+        final (baseB, secB) = SchoolConstants.parseClassName(b);
+        final iA = SchoolConstants.baseClasses.indexOf(baseA);
+        final iB = SchoolConstants.baseClasses.indexOf(baseB);
+        return iA != iB ? iA.compareTo(iB) : secA.compareTo(secB);
+      });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          final selectedStudents = selectedClass == null
+              ? <StudentModel>[]
+              : _students
+                  .where((s) =>
+                      s.status == 'ACTIVE' &&
+                      s.classForAdmission == selectedClass)
+                  .toList();
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
+            title: Row(
+              children: [
+                const Icon(Icons.credit_card_outlined,
+                    color: Color(0xFF7C3AED)),
+                const SizedBox(width: 8),
+                Text('Bulk ID Card Generation',
+                    style: GoogleFonts.cormorantGaramond(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 20,
+                        color: AppColors.navy)),
+              ],
+            ),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      'Select a class to generate ID cards for all active students.',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 13, color: AppColors.textSecondary)),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedClass,
+                    decoration: InputDecoration(
+                      labelText: 'Select Class',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMD)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 14),
+                    ),
+                    items: classesWithStudents
+                        .map(
+                            (c) => DropdownMenuItem(value: c, child: Text(c)))
+                        .toList(),
+                    onChanged: downloading
+                        ? null
+                        : (v) => setSt(() => selectedClass = v),
+                  ),
+                  if (selectedClass != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7C3AED).withOpacity(0.06),
+                        border: Border.all(
+                            color: const Color(0xFF7C3AED).withOpacity(0.2)),
+                        borderRadius:
+                            BorderRadius.circular(AppSizes.radiusMD),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.people_rounded,
+                            size: 18, color: Color(0xFF7C3AED)),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${selectedStudents.length} active student(s) in $selectedClass',
+                          style: GoogleFonts.nunitoSans(
+                              fontSize: 13, color: AppColors.navy),
+                        ),
+                      ]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed:
+                    downloading ? null : () => Navigator.pop(ctx),
+                child: Text('Cancel',
+                    style: GoogleFonts.nunitoSans(
+                        color: AppColors.textSecondary)),
+              ),
+              ElevatedButton.icon(
+                onPressed: selectedClass == null ||
+                        selectedStudents.isEmpty ||
+                        downloading
+                    ? null
+                    : () async {
+                        setSt(() => downloading = true);
+                        try {
+                          final studentIds = selectedStudents
+                              .where((s) => s.id != null)
+                              .map((s) => s.id!)
+                              .toList();
+                          final resp = await DioClient.instance.post(
+                            '/students/id-cards/bulk',
+                            data: {'studentIds': studentIds},
+                            options:
+                                Options(responseType: ResponseType.bytes),
+                          );
+                          final bytes = resp.data as List<int>;
+                          final blob = html.Blob(
+                              [Uint8List.fromList(bytes)],
+                              'application/pdf');
+                          final url =
+                              html.Url.createObjectUrlFromBlob(blob);
+                          html.AnchorElement(href: url)
+                            ..setAttribute('download',
+                                'id_cards_$selectedClass.pdf')
+                            ..click();
+                          html.Url.revokeObjectUrl(url);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _showSnack(
+                              'ID cards downloaded for ${studentIds.length} student(s)');
+                        } catch (e) {
+                          setSt(() => downloading = false);
+                          _showSnack('Failed to generate ID cards: $e',
+                              isError: true);
+                        }
+                      },
+                icon: downloading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.download, size: 18),
+                label: Text(
+                    downloading ? 'Generating...' : 'Generate & Download'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // CSV Import
   // ---------------------------------------------------------------------------
 
@@ -1387,12 +1590,14 @@ class _StudentCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final void Function(String status) onSetStatus;
+  final VoidCallback? onDownloadIdCard;
 
   const _StudentCard({
     required this.student,
     required this.onTap,
     required this.onEdit,
     required this.onSetStatus,
+    this.onDownloadIdCard,
   });
 
   @override
@@ -1441,6 +1646,17 @@ class _StudentCard extends StatelessWidget {
               ),
             ),
             _statusBadge(student.status),
+            const SizedBox(width: 4),
+            if (onDownloadIdCard != null)
+              IconButton(
+                onPressed: onDownloadIdCard,
+                icon: const Icon(Icons.credit_card_outlined, size: 18),
+                tooltip: 'Download ID Card',
+                color: const Color(0xFF7C3AED),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                splashRadius: 18,
+              ),
             const SizedBox(width: 4),
             _buildMenu(),
           ]),

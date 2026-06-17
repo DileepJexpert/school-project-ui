@@ -6,6 +6,7 @@ import '../../core/router/app_router.dart';
 import '../../services/auth_service.dart';
 import '../../services/homework_api_service.dart';
 import 'screens/ai_homework_helper_screen.dart';
+import 'screens/exam_schedule_screen.dart';
 import 'screens/my_books_screen.dart';
 import 'screens/my_videos_screen.dart';
 
@@ -25,7 +26,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _loadHomework();
   }
 
@@ -88,6 +89,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
             Tab(icon: Icon(Icons.menu_book_outlined, size: 18), text: 'Homework'),
             Tab(icon: Icon(Icons.video_library_outlined, size: 18), text: 'Videos'),
             Tab(icon: Icon(Icons.local_library_outlined, size: 18), text: 'My Books'),
+            Tab(icon: Icon(Icons.quiz_outlined, size: 18), text: 'Exams'),
             Tab(icon: Icon(Icons.smart_toy_outlined, size: 18), text: 'AI Helper'),
           ],
         ),
@@ -130,7 +132,9 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
                 const MyVideosScreen(),
                 // Tab 3: My Books
                 const MyBooksScreen(),
-                // Tab 4: AI Helper
+                // Tab 4: Exam Schedule
+                const StudentExamScheduleScreen(),
+                // Tab 5: AI Helper
                 _buildAiHelperTab(),
               ],
             ),
