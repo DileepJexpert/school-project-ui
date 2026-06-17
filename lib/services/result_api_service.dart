@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../models/result_models.dart';
 import '../models/student_model.dart';
 import 'dio_client.dart';
@@ -106,7 +108,7 @@ class ResultApiService {
   static Future<Map<String, dynamic>> publishResults(
       String className, String examType, String year) async {
     final r = await DioClient.instance.put(
-      '/api/results/publish',
+      '$_base/publish',
       queryParameters: {
         'className': className,
         'examType': examType,
@@ -164,5 +166,18 @@ class ResultApiService {
         await DioClient.post('$_base/coscholastic', data: data);
     return CoscholasticAssessment.fromJson(
         resp.data as Map<String, dynamic>);
+  }
+
+  // ── Report card PDF ───────────────────────────────────────────────────
+
+  static Future<List<int>> downloadReportCardPdf(
+      String studentId, String year) async {
+    // baseUrl already ends in /api, so pass the path without an /api prefix.
+    final resp = await DioClient.instance.get(
+      '$_base/student/$studentId/report/pdf',
+      queryParameters: {'year': year},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return resp.data as List<int>;
   }
 }

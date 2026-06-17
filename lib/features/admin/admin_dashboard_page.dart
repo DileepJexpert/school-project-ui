@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -31,6 +32,25 @@ import 'screens/homework_screen.dart';
 import 'screens/video_management_screen.dart';
 import 'screens/ai_config_screen.dart';
 import 'screens/whatsapp_config_screen.dart';
+import 'screens/website_editor_screen.dart';
+import 'screens/event_management_screen.dart';
+import 'screens/library_screen.dart';
+import 'screens/exam_schedule_screen.dart';
+import 'screens/bulk_message_screen.dart';
+import 'screens/asset_management_screen.dart';
+import 'screens/study_material_screen.dart';
+import 'screens/quiz_management_screen.dart';
+import 'screens/daily_diary_screen.dart';
+import 'screens/visitor_management_screen.dart';
+import 'screens/health_record_screen.dart';
+import 'screens/complaint_screen.dart';
+import 'screens/attendance_analytics_screen.dart';
+import 'screens/notice_board_screen.dart';
+import 'screens/awards_screen.dart';
+import 'screens/staff_payroll_screen.dart';
+import 'screens/gallery_screen.dart';
+import 'screens/meeting_screen.dart';
+import 'screens/promotion_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -74,17 +94,37 @@ final _allItems = [
   const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 16
   // -- ADMINISTRATION --
   const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 17
-  const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 18
-  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 19
+  const _MenuItem(icon: Icons.language_outlined,         label: 'Website',        isLive: true),  // 18
+  const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 19
+  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 20
+  // -- SCHOOL OPERATIONS (appended) --
+  const _MenuItem(icon: Icons.event_outlined,            label: 'Events',         isLive: true),  // 21
+  const _MenuItem(icon: Icons.local_library_outlined,    label: 'Library',        isLive: true),  // 22
+  const _MenuItem(icon: Icons.quiz_outlined,             label: 'Exam Schedule',  isLive: true),  // 23
+  const _MenuItem(icon: Icons.campaign_outlined,         label: 'Bulk Messages', isLive: true),  // 24
+  const _MenuItem(icon: Icons.inventory_2_outlined,      label: 'Assets',        isLive: true),  // 25
+  const _MenuItem(icon: Icons.library_books_outlined,    label: 'Study Materials', isLive: true), // 26
+  const _MenuItem(icon: Icons.quiz_outlined,             label: 'Quiz Manager',  isLive: true),  // 27
+  const _MenuItem(icon: Icons.auto_stories_outlined,     label: 'Daily Diary',   isLive: true),  // 28
+  const _MenuItem(icon: Icons.person_pin_outlined,       label: 'Visitors',      isLive: true),  // 29
+  const _MenuItem(icon: Icons.health_and_safety_outlined, label: 'Health Records', isLive: true), // 30
+  const _MenuItem(icon: Icons.feedback_outlined,          label: 'Complaints',    isLive: true),  // 31
+  const _MenuItem(icon: Icons.analytics_outlined,         label: 'Attendance Analytics', isLive: true), // 32
+  const _MenuItem(icon: Icons.campaign_outlined,          label: 'Notice Board', isLive: true),  // 33
+  const _MenuItem(icon: Icons.emoji_events_outlined,      label: 'Awards',       isLive: true),  // 34
+  const _MenuItem(icon: Icons.account_balance_wallet_outlined, label: 'Staff & Payroll', isLive: true), // 35
+  const _MenuItem(icon: Icons.photo_library_outlined,    label: 'Gallery',      isLive: true),  // 36
+  const _MenuItem(icon: Icons.groups_outlined,           label: 'Meetings',     isLive: true),  // 37
+  const _MenuItem(icon: Icons.school_outlined,           label: 'Promotions',   isLive: true),  // 38
 ];
 
 final _groups = [
-  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4]]),
+  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4], _allItems[23], _allItems[26], _allItems[27], _allItems[28], _allItems[34], _allItems[38]]),
   _MenuGroup(title: 'FINANCE',           items: [_allItems[5], _allItems[6], _allItems[7]]),
-  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12]]),
-  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15]]),
-  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[16]]),
-  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19]]),
+  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12], _allItems[21], _allItems[22], _allItems[30], _allItems[32]]),
+  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15], _allItems[24], _allItems[31], _allItems[33], _allItems[37]]),
+  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[16], _allItems[35]]),
+  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19], _allItems[20], _allItems[25], _allItems[29], _allItems[36]]),
 ];
 
 // --------- Page ---------
@@ -140,8 +180,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 15: return const WhatsAppConfigScreen();
       case 16: return const HrScreen();
       case 17: return const CertificatesScreen();
-      case 18: return const AiConfigScreen();
-      case 19: return const SettingsScreen();
+      case 18: return const WebsiteEditorScreen();
+      case 19: return const AiConfigScreen();
+      case 20: return const SettingsScreen();
+      case 21: return const EventManagementScreen();
+      case 22: return const LibraryScreen();
+      case 23: return const ExamScheduleScreen();
+      case 24: return const BulkMessageScreen();
+      case 25: return const AssetManagementScreen();
+      case 26: return const StudyMaterialScreen();
+      case 27: return const QuizManagementScreen();
+      case 28: return const DailyDiaryScreen();
+      case 29: return const VisitorManagementScreen();
+      case 30: return const HealthRecordScreen();
+      case 31: return const ComplaintScreen();
+      case 32: return const AttendanceAnalyticsScreen();
+      case 33: return const NoticeBoardScreen();
+      case 34: return const AwardsScreen();
+      case 35: return const StaffPayrollScreen();
+      case 36: return const GalleryScreen();
+      case 37: return const MeetingScreen();
+      case 38: return const PromotionScreen();
       default: return const SizedBox.shrink();
     }
   }
@@ -270,7 +329,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Widget _buildMenuList() {
     final auth = AuthService.instance;
     // Build a flat index so that tapping a group item knows its global index.
-    int globalIndex = 0;
     final groupWidgets = <Widget>[];
 
     for (final group in _groups) {
@@ -280,9 +338,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       for (final item in group.items) {
         if (auth.canAccessMenu(item.label)) {
           visibleItems.add(item);
-          visibleIndices.add(globalIndex);
+          visibleIndices.add(_allItems.indexOf(item));
         }
-        globalIndex++;
       }
       // Only render the group header if it has visible items
       if (visibleItems.isNotEmpty) {
@@ -438,6 +495,7 @@ class _OverviewContentState extends State<_OverviewContent> {
   bool _loading = true;
   SchoolSummary? _schoolSummary;
   Map<String, dynamic>? _staffDashboard;
+  Map<String, dynamic>? _analytics;
 
   @override
   void initState() {
@@ -452,6 +510,9 @@ class _OverviewContentState extends State<_OverviewContent> {
     } catch (_) {}
     try {
       _staffDashboard = await StaffApiService.getStaffDashboard();
+    } catch (_) {}
+    try {
+      _analytics = await FeeApiService.getDashboardAnalytics();
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
@@ -476,6 +537,21 @@ class _OverviewContentState extends State<_OverviewContent> {
     if (amount >= 100000) return 'Rs ${(amount / 100000).toStringAsFixed(1)}L';
     if (amount >= 1000) return 'Rs ${(amount / 1000).toStringAsFixed(1)}K';
     return 'Rs ${amount.toStringAsFixed(0)}';
+  }
+
+  double _attendancePercent() {
+    final present = (_analytics?['todayPresent'] as num?)?.toDouble() ?? 0;
+    final total = (_analytics?['todayTotal'] as num?)?.toDouble() ?? 0;
+    if (total == 0) return 0;
+    return (present / total) * 100;
+  }
+
+  double _feeCollectionRate() {
+    final collected = _schoolSummary?.totalFeesCollected ?? 0.0;
+    final due = _schoolSummary?.totalFeesDue ?? 0.0;
+    final total = collected + due;
+    if (total == 0) return 0;
+    return (collected / total) * 100;
   }
 
   @override
@@ -509,7 +585,8 @@ class _OverviewContentState extends State<_OverviewContent> {
               padding: EdgeInsets.symmetric(vertical: 40),
               child: Center(child: CircularProgressIndicator()),
             )
-          else
+          else ...[
+            // ── KPI Cards ──────────────────────────────────────────────────
             LayoutBuilder(
               builder: (context, constraints) {
                 final columns = Responsive.gridColumns(context);
@@ -533,72 +610,765 @@ class _OverviewContentState extends State<_OverviewContent> {
                         _formatRevenue(revenue),
                         Icons.monetization_on_rounded, const Color(0xFFDB2777),
                         constraints.maxWidth, columns),
+                    _statCard(context, "Today's Attendance",
+                        '${_attendancePercent().toStringAsFixed(1)}%',
+                        Icons.check_circle_rounded, AppColors.success,
+                        constraints.maxWidth, columns),
+                    _statCard(context, 'Fee Collection Rate',
+                        '${_feeCollectionRate().toStringAsFixed(1)}%',
+                        Icons.trending_up_rounded, AppColors.info,
+                        constraints.maxWidth, columns),
                   ],
                 );
               },
             ),
-          const SizedBox(height: 32),
-          Text('Live Modules',
-              style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy)),
-          const SizedBox(height: 4),
-          Text('All modules below are connected to the Spring Boot backend.',
-              style: GoogleFonts.poppins(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400)),
-          const SizedBox(height: 16),
-          Wrap(spacing: 10, runSpacing: 10, children: [
-            _liveChip(Icons.people_alt_outlined,          'Students'),
-            _liveChip(Icons.person_add_alt_1_outlined,    'Admissions'),
-            _liveChip(Icons.receipt_long_outlined,        'Fees'),
-            _liveChip(Icons.money_off_outlined,           'Expenses'),
-            _liveChip(Icons.assessment_outlined,          'Reports'),
-            _liveChip(Icons.rule_folder_outlined,         'Attendance'),
-            _liveChip(Icons.table_chart_outlined,         'Timetable'),
-            _liveChip(Icons.emoji_events_outlined,        'Results'),
-            _liveChip(Icons.directions_bus_outlined,      'Transport'),
-            _liveChip(Icons.notifications_active_outlined,'Notifications'),
-            _liveChip(Icons.settings_outlined,            'Settings'),
-            _liveChip(Icons.gavel_outlined,               'Discipline'),
-            _liveChip(Icons.chat_outlined,                'Chat'),
-            _liveChip(Icons.badge_outlined,               'HR & Staff'),
-            _liveChip(Icons.description_outlined,         'Certificates'),
-            _liveChip(Icons.menu_book_outlined,           'Homework'),
-            _liveChip(Icons.video_library_outlined,       'Video Tutorials'),
-            _liveChip(Icons.smart_toy_outlined,           'AI Settings'),
-          ]),
+            const SizedBox(height: 32),
+            // ── Charts Section ─────────────────────────────────────────────
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = Responsive.isDesktop(context) ||
+                    Responsive.isTablet(context);
+                if (isWide) {
+                  return Column(
+                    children: [
+                      // Row 1: Monthly Fee Collection + Class-wise Enrollment
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _buildMonthlyFeeChart()),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildClassEnrollmentChart()),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Row 2: Today's Attendance + Weekly Attendance
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _buildTodayAttendancePie()),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildWeeklyAttendanceChart()),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Row 3: Gender Distribution + New Admissions
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _buildGenderDistributionPie()),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildNewAdmissionsCard()),
+                        ],
+                      ),
+                    ],
+                  );
+                }
+                // Mobile: single column
+                return Column(
+                  children: [
+                    _buildMonthlyFeeChart(),
+                    const SizedBox(height: 16),
+                    _buildClassEnrollmentChart(),
+                    const SizedBox(height: 16),
+                    _buildTodayAttendancePie(),
+                    const SizedBox(height: 16),
+                    _buildWeeklyAttendanceChart(),
+                    const SizedBox(height: 16),
+                    _buildGenderDistributionPie(),
+                    const SizedBox(height: 16),
+                    _buildNewAdmissionsCard(),
+                  ],
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _liveChip(IconData icon, String label) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: AppColors.success.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.success.withOpacity(0.3)),
+  // ── Chart Card wrapper ───────────────────────────────────────────────────
+  Widget _chartCard({required String title, required Widget child}) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy)),
+            const SizedBox(height: 16),
+            child,
+          ],
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 15, color: AppColors.success),
-          const SizedBox(width: 6),
-          Text(label,
-              style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.success)),
-          const SizedBox(width: 5),
-          Container(
-              width: 5,
-              height: 5,
-              decoration: const BoxDecoration(
-                  color: AppColors.success, shape: BoxShape.circle)),
-        ]),
-      );
+      ),
+    );
+  }
 
+  // ── Chart A: Monthly Fee Collection (Line Chart) ────────────────────────
+  Widget _buildMonthlyFeeChart() {
+    final collections = _schoolSummary?.monthlyCollections;
+    if (collections == null || collections.isEmpty) {
+      return _chartCard(
+        title: 'Monthly Fee Collection',
+        child: const SizedBox(
+          height: 250,
+          child: Center(child: Text('No data')),
+        ),
+      );
+    }
+
+    final maxY = collections.map((e) => e.amount).reduce((a, b) => a > b ? a : b);
+    final yInterval = maxY > 0 ? (maxY / 4).ceilToDouble() : 1.0;
+
+    return _chartCard(
+      title: 'Monthly Fee Collection',
+      child: SizedBox(
+        height: 250,
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: yInterval,
+              getDrawingHorizontalLine: (value) => FlLine(
+                color: AppColors.border.withOpacity(0.5),
+                strokeWidth: 1,
+              ),
+            ),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 50,
+                  getTitlesWidget: (value, meta) {
+                    String label;
+                    if (value >= 100000) {
+                      label = '${(value / 100000).toStringAsFixed(1)}L';
+                    } else if (value >= 1000) {
+                      label = '${(value / 1000).toStringAsFixed(0)}K';
+                    } else {
+                      label = value.toStringAsFixed(0);
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(label,
+                          style: GoogleFonts.poppins(
+                              fontSize: 10, color: AppColors.textSecondary)),
+                    );
+                  },
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 30,
+                  getTitlesWidget: (value, meta) {
+                    final idx = value.toInt();
+                    if (idx < 0 || idx >= collections.length) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        collections[idx].label.length > 3
+                            ? collections[idx].label.substring(0, 3)
+                            : collections[idx].label,
+                        style: GoogleFonts.poppins(
+                            fontSize: 10, color: AppColors.textSecondary),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+            ),
+            borderData: FlBorderData(show: false),
+            minX: 0,
+            maxX: (collections.length - 1).toDouble(),
+            minY: 0,
+            maxY: maxY * 1.15,
+            lineBarsData: [
+              LineChartBarData(
+                spots: List.generate(
+                  collections.length,
+                  (i) => FlSpot(i.toDouble(), collections[i].amount),
+                ),
+                isCurved: true,
+                color: AppColors.navy,
+                barWidth: 3,
+                dotData: FlDotData(
+                  show: true,
+                  getDotPainter: (spot, percent, barData, index) =>
+                      FlDotCirclePainter(
+                    radius: 4,
+                    color: AppColors.navy,
+                    strokeWidth: 2,
+                    strokeColor: Colors.white,
+                  ),
+                ),
+                belowBarData: BarAreaData(
+                  show: true,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppColors.navy.withOpacity(0.25),
+                      AppColors.navy.withOpacity(0.02),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipItems: (touchedSpots) {
+                  return touchedSpots.map((spot) {
+                    return LineTooltipItem(
+                      _formatRevenue(spot.y),
+                      GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12),
+                    );
+                  }).toList();
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Chart B: Class-wise Enrollment (Horizontal Bar) ─────────────────────
+  Widget _buildClassEnrollmentChart() {
+    final enrollment = _schoolSummary?.enrollmentByClass;
+    if (enrollment == null || enrollment.isEmpty) {
+      return _chartCard(
+        title: 'Class-wise Enrollment',
+        child: const SizedBox(
+          height: 250,
+          child: Center(child: Text('No data')),
+        ),
+      );
+    }
+
+    final entries = enrollment.entries.toList();
+    final maxVal =
+        entries.map((e) => e.value).reduce((a, b) => a > b ? a : b).toDouble();
+
+    return _chartCard(
+      title: 'Class-wise Enrollment',
+      child: SizedBox(
+        height: (entries.length * 32.0).clamp(150, 400),
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: maxVal * 1.2,
+            barTouchData: BarTouchData(
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  return BarTooltipItem(
+                    '${entries[group.x.toInt()].key}: ${rod.toY.toInt()}',
+                    GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12),
+                  );
+                },
+              ),
+            ),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 80,
+                  getTitlesWidget: (value, meta) {
+                    final idx = value.toInt();
+                    if (idx < 0 || idx >= entries.length) {
+                      return const SizedBox.shrink();
+                    }
+                    String label = entries[idx].key;
+                    if (label.length > 10) {
+                      label = '${label.substring(0, 10)}..';
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(label,
+                          style: GoogleFonts.poppins(
+                              fontSize: 10, color: AppColors.textSecondary),
+                          overflow: TextOverflow.ellipsis),
+                    );
+                  },
+                ),
+              ),
+              bottomTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+            ),
+            borderData: FlBorderData(show: false),
+            gridData: FlGridData(
+              show: true,
+              drawHorizontalLine: false,
+              drawVerticalLine: true,
+              getDrawingVerticalLine: (value) => FlLine(
+                color: AppColors.border.withOpacity(0.5),
+                strokeWidth: 1,
+              ),
+            ),
+            barGroups: List.generate(entries.length, (i) {
+              return BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: entries[i].value.toDouble(),
+                    color: AppColors.gold,
+                    width: 18,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(4),
+                      bottomRight: Radius.circular(4),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Chart C: Today's Attendance (Donut/Pie) ─────────────────────────────
+  Widget _buildTodayAttendancePie() {
+    if (_analytics == null) {
+      return _chartCard(
+        title: "Today's Attendance",
+        child: const SizedBox(
+          height: 200,
+          child: Center(child: Text('No data')),
+        ),
+      );
+    }
+
+    final present = (_analytics!['todayPresent'] as num?)?.toDouble() ?? 0;
+    final absent = (_analytics!['todayAbsent'] as num?)?.toDouble() ?? 0;
+    final late = (_analytics!['todayLate'] as num?)?.toDouble() ?? 0;
+    final halfDay = (_analytics!['todayHalfDay'] as num?)?.toDouble() ?? 0;
+    final total = present + absent + late + halfDay;
+
+    if (total == 0) {
+      return _chartCard(
+        title: "Today's Attendance",
+        child: const SizedBox(
+          height: 200,
+          child: Center(child: Text('No data')),
+        ),
+      );
+    }
+
+    final percent = (present / total * 100).toStringAsFixed(1);
+
+    return _chartCard(
+      title: "Today's Attendance",
+      child: SizedBox(
+        height: 200,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 40,
+                sections: [
+                  PieChartSectionData(
+                    value: present,
+                    title: '${present.toInt()}',
+                    color: AppColors.success,
+                    radius: 45,
+                    titleStyle: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white),
+                  ),
+                  PieChartSectionData(
+                    value: absent,
+                    title: '${absent.toInt()}',
+                    color: AppColors.error,
+                    radius: 45,
+                    titleStyle: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white),
+                  ),
+                  PieChartSectionData(
+                    value: late,
+                    title: '${late.toInt()}',
+                    color: AppColors.warning,
+                    radius: 45,
+                    titleStyle: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white),
+                  ),
+                  PieChartSectionData(
+                    value: halfDay,
+                    title: '${halfDay.toInt()}',
+                    color: AppColors.info,
+                    radius: 45,
+                    titleStyle: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('$percent%',
+                    style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navy)),
+                Text('Present',
+                    style: GoogleFonts.poppins(
+                        fontSize: 10, color: AppColors.textSecondary)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Chart D: Weekly Attendance Trend (Grouped Bar) ──────────────────────
+  Widget _buildWeeklyAttendanceChart() {
+    final weekly = _analytics?['weeklyAttendance'] as List?;
+    if (weekly == null || weekly.isEmpty) {
+      return _chartCard(
+        title: 'Weekly Attendance Trend',
+        child: const SizedBox(
+          height: 250,
+          child: Center(child: Text('No data')),
+        ),
+      );
+    }
+
+    double maxTotal = 0;
+    for (final day in weekly) {
+      final t = (day['total'] as num?)?.toDouble() ?? 0;
+      if (t > maxTotal) maxTotal = t;
+    }
+
+    return _chartCard(
+      title: 'Weekly Attendance Trend',
+      child: SizedBox(
+        height: 250,
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: maxTotal * 1.15,
+            barTouchData: BarTouchData(
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  final labels = ['Present', 'Absent', 'Late'];
+                  return BarTooltipItem(
+                    '${labels[rodIndex]}: ${rod.toY.toInt()}',
+                    GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12),
+                  );
+                },
+              ),
+            ),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) {
+                    return Text(value.toInt().toString(),
+                        style: GoogleFonts.poppins(
+                            fontSize: 10, color: AppColors.textSecondary));
+                  },
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 30,
+                  getTitlesWidget: (value, meta) {
+                    final idx = value.toInt();
+                    if (idx < 0 || idx >= weekly.length) {
+                      return const SizedBox.shrink();
+                    }
+                    final label = weekly[idx]['date']?.toString() ??
+                        (idx < dayNames.length ? dayNames[idx] : '$idx');
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(label,
+                          style: GoogleFonts.poppins(
+                              fontSize: 10, color: AppColors.textSecondary)),
+                    );
+                  },
+                ),
+              ),
+              topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+            ),
+            borderData: FlBorderData(show: false),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (value) => FlLine(
+                color: AppColors.border.withOpacity(0.5),
+                strokeWidth: 1,
+              ),
+            ),
+            barGroups: List.generate(weekly.length, (i) {
+              final day = weekly[i] as Map<String, dynamic>;
+              final present = (day['present'] as num?)?.toDouble() ?? 0;
+              final absent = (day['absent'] as num?)?.toDouble() ?? 0;
+              final lateCount = (day['late'] as num?)?.toDouble() ?? 0;
+              return BarChartGroupData(
+                x: i,
+                barsSpace: 2,
+                barRods: [
+                  BarChartRodData(
+                    toY: present,
+                    color: AppColors.success,
+                    width: 10,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(3)),
+                  ),
+                  BarChartRodData(
+                    toY: absent,
+                    color: AppColors.error,
+                    width: 10,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(3)),
+                  ),
+                  BarChartRodData(
+                    toY: lateCount,
+                    color: AppColors.warning,
+                    width: 10,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(3)),
+                  ),
+                ],
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Chart E: Gender Distribution (Pie) ──────────────────────────────────
+  Widget _buildGenderDistributionPie() {
+    final genderMap = _analytics?['genderDistribution'] as Map<String, dynamic>?;
+    if (genderMap == null || genderMap.isEmpty) {
+      return _chartCard(
+        title: 'Gender Distribution',
+        child: const SizedBox(
+          height: 200,
+          child: Center(child: Text('No data')),
+        ),
+      );
+    }
+
+    final colorMap = <String, Color>{
+      'Male': AppColors.navy,
+      'Female': AppColors.gold,
+      'Other': const Color(0xFF0D9488),
+    };
+
+    final entries = genderMap.entries.toList();
+
+    return _chartCard(
+      title: 'Gender Distribution',
+      child: SizedBox(
+        height: 200,
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 30,
+                  sections: entries.map((e) {
+                    final val = (e.value as num).toDouble();
+                    return PieChartSectionData(
+                      value: val,
+                      title: '${val.toInt()}',
+                      color: colorMap[e.key] ?? AppColors.textSecondary,
+                      radius: 40,
+                      titleStyle: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: entries.map((e) {
+                  final color = colorMap[e.key] ?? AppColors.textSecondary;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('${e.key}: ${(e.value as num).toInt()}',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppColors.textPrimary)),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Chart F: New Admissions Comparison ──────────────────────────────────
+  Widget _buildNewAdmissionsCard() {
+    final thisMonth =
+        (_analytics?['newAdmissionsThisMonth'] as num?)?.toInt() ?? 0;
+    final lastMonth =
+        (_analytics?['newAdmissionsLastMonth'] as num?)?.toInt() ?? 0;
+
+    final diff = thisMonth - lastMonth;
+    final isUp = diff >= 0;
+    final changeColor = isUp ? AppColors.success : AppColors.error;
+    final changeIcon = isUp ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+    final changeText = isUp ? '+$diff' : '$diff';
+
+    double percentChange = 0;
+    if (lastMonth > 0) {
+      percentChange = (diff / lastMonth) * 100;
+    }
+
+    return _chartCard(
+      title: 'New Admissions',
+      child: SizedBox(
+        height: 200,
+        child: _analytics == null
+            ? const Center(child: Text('No data'))
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // This Month
+                      Column(
+                        children: [
+                          Text('This Month',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary)),
+                          const SizedBox(height: 8),
+                          Text('$thisMonth',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navy)),
+                        ],
+                      ),
+                      // Divider
+                      Container(
+                        width: 1,
+                        height: 60,
+                        color: AppColors.border,
+                      ),
+                      // Last Month
+                      Column(
+                        children: [
+                          Text('Last Month',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary)),
+                          const SizedBox(height: 8),
+                          Text('$lastMonth',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Change indicator
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: changeColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(changeIcon, size: 18, color: changeColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$changeText (${percentChange.toStringAsFixed(1)}%)',
+                          style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: changeColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ── KPI Stat Card ───────────────────────────────────────────────────────
   Widget _statCard(
     BuildContext context,
     String title,

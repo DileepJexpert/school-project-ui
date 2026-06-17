@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import 'dio_client.dart';
 
 class ParentApiService {
@@ -52,5 +54,17 @@ class ParentApiService {
   static Future<dynamic> getChildTimetable(String studentId) async {
     final response = await DioClient.get('$_base/child/$studentId/timetable');
     return response.data;
+  }
+
+  /// Download report card PDF for a specific child
+  static Future<List<int>> downloadReportCardPdf(
+      String studentId, String academicYear) async {
+    // baseUrl already ends in /api, so pass the path without an /api prefix.
+    final resp = await DioClient.instance.get(
+      '$_base/child/$studentId/results/pdf',
+      queryParameters: {'academicYear': academicYear},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return resp.data as List<int>;
   }
 }

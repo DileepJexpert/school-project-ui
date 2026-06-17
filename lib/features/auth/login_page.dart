@@ -42,6 +42,22 @@ class _LoginPageState extends State<LoginPage> {
   bool _schoolValidated = false;
 
   @override
+  void initState() {
+    super.initState();
+    _autoFillSchoolCode();
+  }
+
+  /// If the school was detected from the subdomain/URL, pre-fill and validate.
+  Future<void> _autoFillSchoolCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final tenantId = prefs.getString('tenant_id');
+    if (tenantId != null && tenantId != 'default' && tenantId.isNotEmpty) {
+      _schoolCodeCtrl.text = tenantId;
+      _validateSchool();
+    }
+  }
+
+  @override
   void dispose() {
     _schoolCodeCtrl.dispose();
     _emailCtrl.dispose();
@@ -115,6 +131,13 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (mounted) {
+        // Force password change takes priority over role-based redirect
+        if (AuthService.instance.mustChangePassword) {
+          Navigator.of(context)
+              .pushReplacementNamed(AppRouter.forcePasswordChange);
+          return;
+        }
+
         // Role-based redirect
         final role = AuthService.instance.currentUser?.role;
         final route = AppRouter.dashboardRouteForRole(role);
@@ -137,7 +160,7 @@ class _LoginPageState extends State<LoginPage> {
 
   String _friendlyError(String raw) {
     if (raw.contains('401') || raw.contains('Invalid credentials')) {
-      return 'Incorrect email or password.';
+      return 'Incorrect email/phone or password.';
     }
     if (raw.contains('403')) return 'Your account has been deactivated.';
     if (raw.contains('connection') || raw.contains('timeout')) {
@@ -273,16 +296,15 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildEmailField() => TextFormField(
         controller: _emailCtrl,
-        keyboardType: TextInputType.emailAddress,
+        keyboardType: TextInputType.text,
         decoration: InputDecoration(
-          labelText: 'Email',
-          prefixIcon: const Icon(Icons.email_outlined),
+          labelText: 'Email or Phone',
+          prefixIcon: const Icon(Icons.person_outline),
           border:
               OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
         validator: (v) {
-          if (v == null || v.trim().isEmpty) return 'Enter your email';
-          if (!v.contains('@')) return 'Enter a valid email';
+          if (v == null || v.trim().isEmpty) return 'Enter your email or phone number';
           return null;
         },
         textInputAction: TextInputAction.next,

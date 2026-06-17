@@ -109,12 +109,14 @@ class AuthResponse {
   final String? refreshToken;
   final AuthUser user;
   final int expiresIn;
+  final bool mustChangePassword;
 
   const AuthResponse({
     required this.token,
     this.refreshToken,
     required this.user,
     required this.expiresIn,
+    this.mustChangePassword = false,
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) => AuthResponse(
@@ -122,5 +124,6 @@ class AuthResponse {
         refreshToken: json['refreshToken'] as String?,
         user: AuthUser.fromJson(json),
         expiresIn: (json['expiresIn'] as num?)?.toInt() ?? 86400,
+        mustChangePassword: json['mustChangePassword'] as bool? ?? false,
       );
 }

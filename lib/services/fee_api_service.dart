@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../models/fee_models.dart';
 import 'dio_client.dart';
 
@@ -69,6 +71,12 @@ class FeeApiService {
     await DioClient.delete('$_structureBase/$id');
   }
 
+  // ── Dashboard Analytics ───────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getDashboardAnalytics() async {
+    final response = await DioClient.get('/reports/dashboard-analytics');
+    return response.data as Map<String, dynamic>;
+  }
+
   // ── School Summary (Reports Screen) ──────────────────────────────────────
   static Future<SchoolSummary> getSchoolSummary() async {
     final response = await DioClient.get('/reports/school-summary');
@@ -118,5 +126,23 @@ class FeeApiService {
 
   static Future<void> deleteExpense(String id) async {
     await DioClient.delete('$_expenseBase/$id');
+  }
+
+  // ── Receipt Downloads ───────────────────────────────────────────────────
+  static Future<List<int>> downloadReceipt(String feeRecordId) async {
+    final r = await DioClient.instance.get(
+      '$_feeBase/receipt/$feeRecordId',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return r.data as List<int>;
+  }
+
+  static Future<List<int>> downloadBulkReceipts(String className, String academicYear) async {
+    final r = await DioClient.instance.get(
+      '$_feeBase/receipts/bulk',
+      queryParameters: {'className': className, 'academicYear': academicYear},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return r.data as List<int>;
   }
 }

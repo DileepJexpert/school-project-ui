@@ -1,3 +1,7 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -17,6 +21,7 @@ class ChildResultsScreen extends StatefulWidget {
 
 class _ChildResultsScreenState extends State<ChildResultsScreen> {
   bool _loading = false;
+  bool _downloading = false;
   String? _error;
   Map<String, dynamic>? _results;
 
@@ -71,7 +76,7 @@ class _ChildResultsScreenState extends State<ChildResultsScreen> {
 
     final subjects = (_results?['subjects'] as List<dynamic>?) ?? [];
     final overallPct =
-        (_results?['overallPercentage'] as num?)?.toDouble() ?? 0;
+        (_results?['cumulativePercentage'] as num?)?.toDouble() ?? 0;
     final overallGrade = _results?['overallGrade'] as String? ?? '';
 
     return SingleChildScrollView(
@@ -79,11 +84,33 @@ class _ChildResultsScreenState extends State<ChildResultsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${widget.studentName}\'s Results',
-              style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text('${widget.studentName}\'s Results',
+                    style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navy)),
+              ),
+              OutlinedButton.icon(
+                onPressed: _downloading ? null : _downloadPdf,
+                icon: _downloading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.picture_as_pdf, size: 18),
+                label: Text(_downloading ? 'Downloading...' : 'Download PDF',
+                    style: GoogleFonts.poppins(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.navy,
+                  side: const BorderSide(color: AppColors.navy),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -132,16 +159,15 @@ class _ChildResultsScreenState extends State<ChildResultsScreen> {
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final subject = subjects[index] as Map<String, dynamic>;
-                final name = subject['subjectName'] as String? ?? '';
-                final marks = (subject['marksObtained'] as num?)?.toDouble() ?? 0;
-                final total = (subject['totalMarks'] as num?)?.toDouble() ?? 100;
-                final grade = subject['grade'] as String? ?? '';
-                final pct = total > 0 ? (marks / total * 100) : 0.0;
+                final name = subject['subject'] as String? ?? '';
+                final pct =
+                    (subject['weightedPercentage'] as num?)?.toDouble() ?? 0.0;
+                final grade = subject['predictedGrade'] as String? ?? '';
 
                 return ListTile(
                   title: Text(name, style: GoogleFonts.poppins(fontSize: 14)),
                   subtitle: LinearProgressIndicator(
-                    value: pct / 100,
+                    value: (pct / 100).clamp(0.0, 1.0),
                     backgroundColor: Colors.grey[200],
                     color: pct >= 80
                         ? Colors.green
@@ -153,7 +179,7 @@ class _ChildResultsScreenState extends State<ChildResultsScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('${marks.toInt()}/${total.toInt()}',
+                      Text('${pct.toStringAsFixed(1)}%',
                           style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w600, fontSize: 14)),
                       Text(grade,
@@ -168,5 +194,29 @@ class _ChildResultsScreenState extends State<ChildResultsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _downloadPdf() async {
+    final year = _results?['academicYear'] as String?;
+    if (year == null || widget.studentId == null) return;
+
+    setState(() => _downloading = true);
+    try {
+      final bytes =
+          await ParentApiService.downloadReportCardPdf(widget.studentId!, year);
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'report_card_${widget.studentName}_$year.pdf')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to download: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _downloading = false);
   }
 }

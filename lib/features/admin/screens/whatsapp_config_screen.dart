@@ -29,6 +29,12 @@ class _WhatsAppConfigScreenState extends State<WhatsAppConfigScreen>
   int _dailyLimit = 30;
   String _defaultLanguage = 'auto';
 
+  // Auto-notification settings
+  bool _absenceAlertEnabled = false;
+  bool _feeReminderEnabled = false;
+  int _feeReminderDaysBefore = 3;
+  bool _sendingReminders = false;
+
   // Conversations
   List<dynamic> _conversations = [];
   bool _loadingConversations = false;
@@ -61,6 +67,9 @@ class _WhatsAppConfigScreenState extends State<WhatsAppConfigScreen>
           _aiProvider = data['aiProvider'] as String?;
           _dailyLimit = (data['dailyLimitPerParent'] as num?)?.toInt() ?? 30;
           _defaultLanguage = data['defaultLanguage'] as String? ?? 'auto';
+          _absenceAlertEnabled = data['absenceAlertEnabled'] == true;
+          _feeReminderEnabled = data['feeReminderEnabled'] == true;
+          _feeReminderDaysBefore = (data['feeReminderDaysBefore'] as num?)?.toInt() ?? 3;
         });
       }
     } catch (e) {
@@ -86,6 +95,9 @@ class _WhatsAppConfigScreenState extends State<WhatsAppConfigScreen>
         'aiProvider': _aiProvider,
         'dailyLimitPerParent': _dailyLimit,
         'defaultLanguage': _defaultLanguage,
+        'absenceAlertEnabled': _absenceAlertEnabled,
+        'feeReminderEnabled': _feeReminderEnabled,
+        'feeReminderDaysBefore': _feeReminderDaysBefore,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -373,6 +385,129 @@ class _WhatsAppConfigScreenState extends State<WhatsAppConfigScreen>
                 },
               ),
             )),
+        const SizedBox(height: 24),
+        const Divider(),
+        const SizedBox(height: 16),
+
+        Text('Automated Notifications',
+            style: GoogleFonts.poppins(
+                fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.navy)),
+        const SizedBox(height: 4),
+        Text('Auto-send WhatsApp messages to parents for important events',
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+        const SizedBox(height: 12),
+
+        Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: SwitchListTile(
+            activeColor: Colors.orange,
+            secondary: Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
+            title: Text('Absence Alerts',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+            subtitle: Text(
+                'Auto-notify parents via WhatsApp when their child is marked absent',
+                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+            value: _absenceAlertEnabled,
+            onChanged: (v) => setState(() => _absenceAlertEnabled = v),
+          ),
+        ),
+
+        Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            children: [
+              SwitchListTile(
+                activeColor: Colors.orange,
+                secondary: Icon(Icons.payment, color: Colors.orange[700]),
+                title: Text('Fee Due Reminders',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+                subtitle: Text(
+                    'Auto-send fee payment reminders daily at 9 AM',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: Colors.grey[600])),
+                value: _feeReminderEnabled,
+                onChanged: (v) => setState(() => _feeReminderEnabled = v),
+              ),
+              if (_feeReminderEnabled)
+                Padding(
+                  padding:
+                      const EdgeInsets.only(left: 72, right: 16, bottom: 12),
+                  child: Row(
+                    children: [
+                      Text('Remind ',
+                          style: GoogleFonts.poppins(fontSize: 13)),
+                      SizedBox(
+                        width: 60,
+                        child: DropdownButtonFormField<int>(
+                          value: _feeReminderDaysBefore,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 0, child: Text('0')),
+                            DropdownMenuItem(value: 1, child: Text('1')),
+                            DropdownMenuItem(value: 3, child: Text('3')),
+                            DropdownMenuItem(value: 5, child: Text('5')),
+                            DropdownMenuItem(value: 7, child: Text('7')),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _feeReminderDaysBefore = v ?? 3),
+                        ),
+                      ),
+                      Text(' days before due date',
+                          style: GoogleFonts.poppins(fontSize: 13)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 40,
+          child: OutlinedButton.icon(
+            onPressed: _sendingReminders
+                ? null
+                : () async {
+                    setState(() => _sendingReminders = true);
+                    try {
+                      await WhatsAppApiService.sendFeeReminders();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Fee reminders sent!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed: $e')),
+                        );
+                      }
+                    }
+                    if (mounted) setState(() => _sendingReminders = false);
+                  },
+            icon: _sendingReminders
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.send, size: 18),
+            label: Text(
+                _sendingReminders
+                    ? 'Sending...'
+                    : 'Send Fee Reminders Now',
+                style: GoogleFonts.poppins(fontSize: 13)),
+          ),
+        ),
+
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,

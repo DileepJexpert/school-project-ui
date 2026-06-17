@@ -4,12 +4,14 @@ import '../../features/home/home_page.dart';
 import '../../features/about/about_page.dart';
 import '../../features/academics/academics_page.dart';
 import '../../features/admissions/admissions_page.dart';
+import '../../features/admissions/online_admission_form_page.dart';
 import '../../features/gallery/gallery_page.dart';
 import '../../features/events/events_page.dart';
 import '../../features/transport/transport_page.dart';
 import '../../features/contact/contact_page.dart';
 import '../../features/results/results_page.dart';
 import '../../features/admin/admin_dashboard_page.dart';
+import '../../features/auth/force_password_change_screen.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/parent/parent_dashboard_page.dart';
 import '../../features/student_portal/student_dashboard_page.dart';
@@ -24,6 +26,7 @@ class AppRouter {
   static const String about = '/about';
   static const String academics = '/academics';
   static const String admissions = '/admissions';
+  static const String admissionsApply = '/admissions/apply';
   static const String gallery = '/gallery';
   static const String events = '/events';
   static const String transport = '/transport';
@@ -33,6 +36,7 @@ class AppRouter {
   static const String parentDashboard = '/parent-dashboard';
   static const String studentDashboard = '/student-dashboard';
   static const String login = '/login';
+  static const String forcePasswordChange = '/force-password-change';
 
   static final List<NavItem> publicNavItems = [
     NavItem(label: 'Home', route: home, icon: Icons.home_outlined),
@@ -65,6 +69,8 @@ class AppRouter {
         return _buildRoute(const AcademicsPage(), settings);
       case admissions:
         return _buildRoute(const AdmissionsPage(), settings);
+      case admissionsApply:
+        return _buildRoute(const OnlineAdmissionFormPage(), settings);
       case gallery:
         return _buildRoute(const GalleryPage(), settings);
       case events:
@@ -77,6 +83,12 @@ class AppRouter {
         return _buildRoute(const ResultsPage(), settings);
       case login:
         return _buildRoute(const LoginPage(), settings);
+      case forcePasswordChange:
+        // Guard: only show if authenticated (the screen itself prevents back nav)
+        if (!AuthService.instance.isLoggedIn) {
+          return _buildRoute(const LoginPage(), settings);
+        }
+        return _buildRoute(const ForcePasswordChangeScreen(), settings);
       case adminDashboard:
         // Guard: redirect to login if not authenticated or no admin access
         if (!AuthService.instance.isLoggedIn ||

@@ -1,4 +1,8 @@
 import 'dart:async';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -159,6 +163,33 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     }
   }
 
+  Future<void> _downloadReceiptPdf(String transactionId, String receiptNumber) async {
+    try {
+      final bytes = await FeeApiService.downloadReceipt(transactionId);
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'receipt_$receiptNumber.pdf')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Receipt $receiptNumber downloaded'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to download receipt: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
   void _showSuccessDialog(PaymentRecord r) {
     showDialog(
       context: context,
@@ -178,6 +209,15 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
           _receiptRow('Date', _dateFmt.format(r.paymentDate)),
         ]),
         actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.download_rounded, size: 18),
+            label: const Text('Download Receipt'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.navy,
+              side: const BorderSide(color: AppColors.navy),
+            ),
+            onPressed: () => _downloadReceiptPdf(r.id, r.receiptNumber),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.navy, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(context),
