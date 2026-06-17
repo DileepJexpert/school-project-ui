@@ -6,6 +6,7 @@ import '../../core/router/app_router.dart';
 import '../../services/auth_service.dart';
 import '../../services/homework_api_service.dart';
 import 'screens/ai_homework_helper_screen.dart';
+import 'screens/my_books_screen.dart';
 import 'screens/my_videos_screen.dart';
 
 class StudentDashboardPage extends StatefulWidget {
@@ -24,7 +25,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadHomework();
   }
 
@@ -86,6 +87,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
           tabs: const [
             Tab(icon: Icon(Icons.menu_book_outlined, size: 18), text: 'Homework'),
             Tab(icon: Icon(Icons.video_library_outlined, size: 18), text: 'Videos'),
+            Tab(icon: Icon(Icons.local_library_outlined, size: 18), text: 'My Books'),
             Tab(icon: Icon(Icons.smart_toy_outlined, size: 18), text: 'AI Helper'),
           ],
         ),
@@ -126,7 +128,9 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
                 _buildHomeworkTab(),
                 // Tab 2: Videos
                 const MyVideosScreen(),
-                // Tab 3: AI Helper
+                // Tab 3: My Books
+                const MyBooksScreen(),
+                // Tab 4: AI Helper
                 _buildAiHelperTab(),
               ],
             ),

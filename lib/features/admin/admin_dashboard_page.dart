@@ -33,6 +33,8 @@ import 'screens/video_management_screen.dart';
 import 'screens/ai_config_screen.dart';
 import 'screens/whatsapp_config_screen.dart';
 import 'screens/website_editor_screen.dart';
+import 'screens/event_management_screen.dart';
+import 'screens/library_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -79,12 +81,15 @@ final _allItems = [
   const _MenuItem(icon: Icons.language_outlined,         label: 'Website',        isLive: true),  // 18
   const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 19
   const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 20
+  // -- SCHOOL OPERATIONS (appended) --
+  const _MenuItem(icon: Icons.event_outlined,            label: 'Events',         isLive: true),  // 21
+  const _MenuItem(icon: Icons.local_library_outlined,    label: 'Library',        isLive: true),  // 22
 ];
 
 final _groups = [
   _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4]]),
   _MenuGroup(title: 'FINANCE',           items: [_allItems[5], _allItems[6], _allItems[7]]),
-  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12]]),
+  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12], _allItems[21], _allItems[22]]),
   _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15]]),
   _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[16]]),
   _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19], _allItems[20]]),
@@ -146,6 +151,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 18: return const WebsiteEditorScreen();
       case 19: return const AiConfigScreen();
       case 20: return const SettingsScreen();
+      case 21: return const EventManagementScreen();
+      case 22: return const LibraryScreen();
       default: return const SizedBox.shrink();
     }
   }
@@ -274,7 +281,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Widget _buildMenuList() {
     final auth = AuthService.instance;
     // Build a flat index so that tapping a group item knows its global index.
-    int globalIndex = 0;
     final groupWidgets = <Widget>[];
 
     for (final group in _groups) {
@@ -284,9 +290,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       for (final item in group.items) {
         if (auth.canAccessMenu(item.label)) {
           visibleItems.add(item);
-          visibleIndices.add(globalIndex);
+          visibleIndices.add(_allItems.indexOf(item));
         }
-        globalIndex++;
       }
       // Only render the group header if it has visible items
       if (visibleItems.isNotEmpty) {
