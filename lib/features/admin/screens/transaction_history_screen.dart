@@ -1,3 +1,7 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -68,7 +72,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _source = _TxnSource([], _currency, _dateFmt);
+    _source = _TxnSource([], _currency, _dateFmt,
+        onDownloadReceipt: _downloadReceipt);
     _range  = _rangeFor('30D');
     _fetch();
     _searchCtrl.addListener(_applySearch);
@@ -156,6 +161,32 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   void _selectMode(String mode) {
     setState(() => _modeFilter = mode);
     _fetch();
+  }
+
+  // ── receipt download ──────────────────────────────────────────────────────
+
+  void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: isError ? AppColors.error : AppColors.success,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  Future<void> _downloadReceipt(TransactionRecord txn) async {
+    try {
+      final bytes = await FeeApiService.downloadReceipt(txn.id);
+      final blob = html.Blob([Uint8List.fromList(bytes)], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'receipt_${txn.receiptNumber}.pdf')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      _showSnack('Receipt ${txn.receiptNumber} downloaded');
+    } catch (e) {
+      _showSnack('Failed to download receipt: $e', isError: true);
+    }
   }
 
   // ── build ─────────────────────────────────────────────────────────────────
@@ -543,6 +574,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     DataColumn(label: Text('Discount'), numeric: true),
                     DataColumn(label: Text('Net'),      numeric: true),
                     DataColumn(label: Text('Mode')),
+                    DataColumn(label: Text('')),
                   ],
                   source: _source,   // stable — NEVER pass a new instance here
                 ),
@@ -733,8 +765,10 @@ class _TxnSource extends DataTableSource {
   List<TransactionRecord> _data;
   final NumberFormat currency;
   final DateFormat dateFmt;
+  final void Function(TransactionRecord txn) onDownloadReceipt;
 
-  _TxnSource(List<TransactionRecord> data, this.currency, this.dateFmt)
+  _TxnSource(List<TransactionRecord> data, this.currency, this.dateFmt,
+      {required this.onDownloadReceipt})
       : _data = data;
 
   /// Call this instead of recreating the source.
@@ -814,6 +848,17 @@ class _TxnSource extends DataTableSource {
           style: GoogleFonts.nunitoSans(fontSize: 11),
         ),
       ])),
+      DataCell(
+        IconButton(
+          icon: const Icon(Icons.download_rounded, size: 16),
+          tooltip: 'Download Receipt',
+          color: AppColors.navy,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          splashRadius: 16,
+          onPressed: () => onDownloadReceipt(t),
+        ),
+      ),
     ]);
   }
 
