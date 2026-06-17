@@ -47,6 +47,8 @@ import 'screens/complaint_screen.dart';
 import 'screens/attendance_analytics_screen.dart';
 import 'screens/notice_board_screen.dart';
 import 'screens/awards_screen.dart';
+import 'screens/staff_payroll_screen.dart';
+import 'screens/gallery_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -108,6 +110,8 @@ final _allItems = [
   const _MenuItem(icon: Icons.analytics_outlined,         label: 'Attendance Analytics', isLive: true), // 32
   const _MenuItem(icon: Icons.campaign_outlined,          label: 'Notice Board', isLive: true),  // 33
   const _MenuItem(icon: Icons.emoji_events_outlined,      label: 'Awards',       isLive: true),  // 34
+  const _MenuItem(icon: Icons.account_balance_wallet_outlined, label: 'Staff & Payroll', isLive: true), // 35
+  const _MenuItem(icon: Icons.photo_library_outlined,    label: 'Gallery',      isLive: true),  // 36
 ];
 
 final _groups = [
@@ -115,8 +119,8 @@ final _groups = [
   _MenuGroup(title: 'FINANCE',           items: [_allItems[5], _allItems[6], _allItems[7]]),
   _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12], _allItems[21], _allItems[22], _allItems[30], _allItems[32]]),
   _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15], _allItems[24], _allItems[31], _allItems[33]]),
-  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[16]]),
-  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19], _allItems[20], _allItems[25], _allItems[29]]),
+  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[16], _allItems[35]]),
+  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19], _allItems[20], _allItems[25], _allItems[29], _allItems[36]]),
 ];
 
 // --------- Page ---------
@@ -189,6 +193,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 32: return const AttendanceAnalyticsScreen();
       case 33: return const NoticeBoardScreen();
       case 34: return const AwardsScreen();
+      case 35: return const StaffPayrollScreen();
+      case 36: return const GalleryScreen();
       default: return const SizedBox.shrink();
     }
   }
