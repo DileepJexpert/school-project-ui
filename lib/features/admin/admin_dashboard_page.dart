@@ -38,6 +38,8 @@ import 'screens/library_screen.dart';
 import 'screens/exam_schedule_screen.dart';
 import 'screens/bulk_message_screen.dart';
 import 'screens/asset_management_screen.dart';
+import 'screens/study_material_screen.dart';
+import 'screens/quiz_management_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -90,10 +92,12 @@ final _allItems = [
   const _MenuItem(icon: Icons.quiz_outlined,             label: 'Exam Schedule',  isLive: true),  // 23
   const _MenuItem(icon: Icons.campaign_outlined,         label: 'Bulk Messages', isLive: true),  // 24
   const _MenuItem(icon: Icons.inventory_2_outlined,      label: 'Assets',        isLive: true),  // 25
+  const _MenuItem(icon: Icons.library_books_outlined,    label: 'Study Materials', isLive: true), // 26
+  const _MenuItem(icon: Icons.quiz_outlined,             label: 'Quiz Manager',  isLive: true),  // 27
 ];
 
 final _groups = [
-  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4], _allItems[23]]),
+  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4], _allItems[23], _allItems[26], _allItems[27]]),
   _MenuGroup(title: 'FINANCE',           items: [_allItems[5], _allItems[6], _allItems[7]]),
   _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12], _allItems[21], _allItems[22]]),
   _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15], _allItems[24]]),
@@ -162,6 +166,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 23: return const ExamScheduleScreen();
       case 24: return const BulkMessageScreen();
       case 25: return const AssetManagementScreen();
+      case 26: return const StudyMaterialScreen();
+      case 27: return const QuizManagementScreen();
       default: return const SizedBox.shrink();
     }
   }
