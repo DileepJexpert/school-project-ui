@@ -7,8 +7,10 @@ import '../../services/auth_service.dart';
 import '../../services/homework_api_service.dart';
 import 'screens/ai_homework_helper_screen.dart';
 import 'screens/exam_schedule_screen.dart';
+import 'screens/awards_screen.dart';
 import 'screens/complaint_screen.dart';
 import 'screens/daily_diary_screen.dart';
+import 'screens/notice_screen.dart';
 import 'screens/learning_kit_screen.dart';
 import 'screens/my_books_screen.dart';
 import 'screens/my_videos_screen.dart';
@@ -29,7 +31,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 10, vsync: this);
     _loadHomework();
   }
 
@@ -96,6 +98,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
             Tab(icon: Icon(Icons.auto_stories_outlined, size: 18), text: 'Learning'),
             Tab(icon: Icon(Icons.menu_book, size: 18), text: 'Diary'),
             Tab(icon: Icon(Icons.feedback_outlined, size: 18), text: 'Complaints'),
+            Tab(icon: Icon(Icons.campaign_outlined, size: 18), text: 'Notices'),
+            Tab(icon: Icon(Icons.emoji_events_outlined, size: 18), text: 'Awards'),
             Tab(icon: Icon(Icons.smart_toy_outlined, size: 18), text: 'AI Helper'),
           ],
         ),
@@ -146,7 +150,11 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
                 const StudentDailyDiaryScreen(),
                 // Tab 7: Complaints
                 const StudentComplaintScreen(),
-                // Tab 8: AI Helper
+                // Tab 8: Notices
+                const StudentNoticeScreen(),
+                // Tab 9: Awards
+                const StudentAwardsScreen(),
+                // Tab 10: AI Helper
                 _buildAiHelperTab(),
               ],
             ),

@@ -45,6 +45,8 @@ import 'screens/visitor_management_screen.dart';
 import 'screens/health_record_screen.dart';
 import 'screens/complaint_screen.dart';
 import 'screens/attendance_analytics_screen.dart';
+import 'screens/notice_board_screen.dart';
+import 'screens/awards_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -104,13 +106,15 @@ final _allItems = [
   const _MenuItem(icon: Icons.health_and_safety_outlined, label: 'Health Records', isLive: true), // 30
   const _MenuItem(icon: Icons.feedback_outlined,          label: 'Complaints',    isLive: true),  // 31
   const _MenuItem(icon: Icons.analytics_outlined,         label: 'Attendance Analytics', isLive: true), // 32
+  const _MenuItem(icon: Icons.campaign_outlined,          label: 'Notice Board', isLive: true),  // 33
+  const _MenuItem(icon: Icons.emoji_events_outlined,      label: 'Awards',       isLive: true),  // 34
 ];
 
 final _groups = [
-  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4], _allItems[23], _allItems[26], _allItems[27], _allItems[28]]),
+  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4], _allItems[23], _allItems[26], _allItems[27], _allItems[28], _allItems[34]]),
   _MenuGroup(title: 'FINANCE',           items: [_allItems[5], _allItems[6], _allItems[7]]),
   _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12], _allItems[21], _allItems[22], _allItems[30], _allItems[32]]),
-  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15], _allItems[24], _allItems[31]]),
+  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14], _allItems[15], _allItems[24], _allItems[31], _allItems[33]]),
   _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[16]]),
   _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[17], _allItems[18], _allItems[19], _allItems[20], _allItems[25], _allItems[29]]),
 ];
@@ -183,6 +187,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       case 30: return const HealthRecordScreen();
       case 31: return const ComplaintScreen();
       case 32: return const AttendanceAnalyticsScreen();
+      case 33: return const NoticeBoardScreen();
+      case 34: return const AwardsScreen();
       default: return const SizedBox.shrink();
     }
   }
