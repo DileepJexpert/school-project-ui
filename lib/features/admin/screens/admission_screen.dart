@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/shared_widgets.dart';
 import '../../../models/admission_data.dart';
 import '../../../services/admission_api_service.dart';
 import '../../../services/csv_export_service.dart';
@@ -46,7 +47,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       final students = await AdmissionApiService.getStudents();
       // Set _all first, then call _filter separately to avoid nested setState
       setState(() {
-        _all = students.where((s) => s.status.toUpperCase() == 'ENQUIRY').toList();
+        _all =
+            students.where((s) => s.status.toUpperCase() == 'ENQUIRY').toList();
       });
       _filter();
     } catch (e) {
@@ -82,10 +84,10 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       case _SortBy.nameZA:
         list.sort((a, b) => b.fullName.compareTo(a.fullName));
       case _SortBy.classAsc:
-        list.sort((a, b) =>
-            SchoolConstants.allClasses
-                .indexOf(a.classForAdmission)
-                .compareTo(SchoolConstants.allClasses.indexOf(b.classForAdmission)));
+        list.sort((a, b) => SchoolConstants.allClasses
+            .indexOf(a.classForAdmission)
+            .compareTo(
+                SchoolConstants.allClasses.indexOf(b.classForAdmission)));
     }
     setState(() => _filtered = list);
   }
@@ -97,7 +99,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       final base = SchoolConstants.parseClassName(s.classForAdmission).$1;
       if (seen.add(base)) result.add(base);
     }
-    result.sort((a, b) => SchoolConstants.baseClasses.indexOf(a)
+    result.sort((a, b) => SchoolConstants.baseClasses
+        .indexOf(a)
         .compareTo(SchoolConstants.baseClasses.indexOf(b)));
     return result;
   }
@@ -114,7 +117,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-          builder: (_) => NewAdmissionScreen(studentId: studentId, admitMode: true)),
+          builder: (_) =>
+              NewAdmissionScreen(studentId: studentId, admitMode: true)),
     );
     if (saved == true) _fetch();
   }
@@ -171,10 +175,13 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('New Enquiry',
               style: GoogleFonts.cormorantGaramond(
-                  fontWeight: FontWeight.w700, fontSize: 22, color: AppColors.navy)),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 22,
+                  color: AppColors.navy)),
           content: SizedBox(
             width: 420,
             child: Form(
@@ -191,12 +198,13 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                   TextFormField(
                     controller: nameCtrl,
                     decoration: _inputDec('Student Name *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     decoration: _inputDec('Class Interested In *'),
-                    value: selectedClass,
+                    initialValue: selectedClass,
                     items: SchoolConstants.baseClasses
                         .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                         .toList(),
@@ -207,7 +215,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                   TextFormField(
                     controller: parentCtrl,
                     decoration: _inputDec('Parent / Guardian Name *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -233,7 +242,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                       if (picked != null) setSt(() => enquiryDate = picked);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 14),
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         border: Border.all(color: AppColors.border),
@@ -263,12 +273,14 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                 child: const Text('Cancel')),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white),
               icon: saving
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.save_alt_outlined, size: 18),
               label: Text(saving ? 'Saving…' : 'Save Enquiry'),
               onPressed: saving
@@ -279,7 +291,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                       try {
                         final student = Student(
                           fullName: nameCtrl.text.trim(),
-                          dateOfBirth: DateTime(2000, 1, 1), // placeholder, admin updates on admission
+                          dateOfBirth: DateTime(2000, 1,
+                              1), // placeholder, admin updates on admission
                           gender: '',
                           bloodGroup: '',
                           nationality: 'Indian',
@@ -317,7 +330,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                         _fetch();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Enquiry saved for ${nameCtrl.text.trim()}'),
+                              content: Text(
+                                  'Enquiry saved for ${nameCtrl.text.trim()}'),
                               backgroundColor: AppColors.success));
                         }
                       } catch (e) {
@@ -340,7 +354,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
         labelText: label,
         filled: true,
         fillColor: AppColors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             borderSide: const BorderSide(color: AppColors.border)),
@@ -348,7 +363,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
             borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             borderSide: const BorderSide(color: AppColors.navy, width: 2)),
         labelStyle: GoogleFonts.nunitoSans(color: AppColors.textSecondary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       );
 
   @override
@@ -404,29 +420,15 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
         ? '$shown of $total enquiries'
         : '$total enquiries pending';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+    return AdminPageScaffold(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Enquiry Management',
-                        style: GoogleFonts.cormorantGaramond(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navy)),
-                    Text(subtitle,
-                        style: GoogleFonts.nunitoSans(
-                            color: AppColors.textSecondary, fontSize: 13)),
-                  ],
-                ),
-              ),
+          AdminPageHeader(
+            title: 'Enquiry Management',
+            subtitle: subtitle,
+            icon: Icons.person_search_outlined,
+            actions: [
               if (_hasActiveFilters)
                 TextButton.icon(
                   onPressed: _clearFilters,
@@ -434,7 +436,6 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                   label: const Text('Clear'),
                   style: TextButton.styleFrom(foregroundColor: AppColors.error),
                 ),
-              const SizedBox(width: 4),
               OutlinedButton.icon(
                 onPressed: _filtered.isEmpty
                     ? null
@@ -459,9 +460,9 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.navy.withOpacity(0.06),
+              color: AppColors.navy.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-              border: Border.all(color: AppColors.navy.withOpacity(0.15)),
+              border: Border.all(color: AppColors.navy.withValues(alpha: 0.15)),
             ),
             child: Row(children: [
               const Icon(Icons.info_outline, size: 16, color: AppColors.navy),
@@ -604,7 +605,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                     onView: (id) => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => StudentDetailScreen(studentId: id))),
+                            builder: (_) =>
+                                StudentDetailScreen(studentId: id))),
                     onAdmit: (id) => _admitEnquiry(id),
                     onDelete: (id, name) => _deleteEnquiry(id, name),
                   ),
@@ -642,13 +644,21 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          _chip('All', _filterClass == null,
-              () => setState(() { _filterClass = null; _filter(); })),
+          _chip(
+              'All',
+              _filterClass == null,
+              () => setState(() {
+                    _filterClass = null;
+                    _filter();
+                  })),
           const SizedBox(width: 6),
           ...classes.map((cls) => Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: _chip(cls, _filterClass == cls, () {
-                  setState(() { _filterClass = cls; _filter(); });
+                  setState(() {
+                    _filterClass = cls;
+                    _filter();
+                  });
                 }),
               )),
         ],
@@ -664,7 +674,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? AppColors.navy : Colors.white,
-          border: Border.all(color: selected ? AppColors.navy : AppColors.border),
+          border:
+              Border.all(color: selected ? AppColors.navy : AppColors.border),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label,
@@ -685,7 +696,12 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       _SortBy.classAsc => 'By Class',
     };
     return PopupMenuButton<_SortBy>(
-      onSelected: (v) { setState(() { _sortBy = v; _filter(); }); },
+      onSelected: (v) {
+        setState(() {
+          _sortBy = v;
+          _filter();
+        });
+      },
       itemBuilder: (_) => const [
         PopupMenuItem(value: _SortBy.dateDesc, child: Text('Newest first')),
         PopupMenuItem(value: _SortBy.dateAsc, child: Text('Oldest first')),
@@ -707,8 +723,11 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
             const SizedBox(width: 4),
             Text(label,
                 style: GoogleFonts.nunitoSans(
-                    fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy)),
-            const Icon(Icons.arrow_drop_down_rounded, size: 18, color: AppColors.navy),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy)),
+            const Icon(Icons.arrow_drop_down_rounded,
+                size: 18, color: AppColors.navy),
           ],
         ),
       ),
@@ -747,7 +766,7 @@ class _EnquiryDataSource extends DataTableSource {
       DataCell(Row(children: [
         CircleAvatar(
           radius: 16,
-          backgroundColor: AppColors.warning.withOpacity(0.15),
+          backgroundColor: AppColors.warning.withValues(alpha: 0.15),
           child: Text(s.fullName.substring(0, 1).toUpperCase(),
               style: GoogleFonts.cormorantGaramond(
                   color: AppColors.warning,
@@ -760,7 +779,7 @@ class _EnquiryDataSource extends DataTableSource {
       DataCell(Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: AppColors.navy.withOpacity(0.08),
+          color: AppColors.navy.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(s.classForAdmission,
@@ -769,16 +788,20 @@ class _EnquiryDataSource extends DataTableSource {
                 fontWeight: FontWeight.w600,
                 color: AppColors.navy)),
       )),
-      DataCell(Text(s.parentDetails.fatherName.isNotEmpty
-          ? s.parentDetails.fatherName
-          : '—', style: GoogleFonts.nunitoSans())),
-      DataCell(Text(s.contactDetails.primaryContactNumber.isNotEmpty
-          ? s.contactDetails.primaryContactNumber
-          : s.parentDetails.fatherMobile.isNotEmpty
-              ? s.parentDetails.fatherMobile
+      DataCell(Text(
+          s.parentDetails.fatherName.isNotEmpty
+              ? s.parentDetails.fatherName
               : '—',
           style: GoogleFonts.nunitoSans())),
-      DataCell(Text(fmt.format(s.dateOfAdmission), style: GoogleFonts.nunitoSans())),
+      DataCell(Text(
+          s.contactDetails.primaryContactNumber.isNotEmpty
+              ? s.contactDetails.primaryContactNumber
+              : s.parentDetails.fatherMobile.isNotEmpty
+                  ? s.parentDetails.fatherMobile
+                  : '—',
+          style: GoogleFonts.nunitoSans())),
+      DataCell(
+          Text(fmt.format(s.dateOfAdmission), style: GoogleFonts.nunitoSans())),
       DataCell(Row(children: [
         IconButton(
           icon: const Icon(Icons.visibility_outlined, size: 18),

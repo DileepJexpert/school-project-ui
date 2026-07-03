@@ -3,29 +3,59 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/responsive.dart';
-import '../../models/auth_models.dart';
 import '../../services/auth_service.dart';
 
-import 'screens/parent_overview_screen.dart';
 import 'screens/child_attendance_screen.dart';
-import 'screens/child_results_screen.dart';
 import 'screens/child_fees_screen.dart';
+import 'screens/child_results_screen.dart';
 import 'screens/child_timetable_screen.dart';
+import 'screens/parent_overview_screen.dart';
 
 class _MenuItem {
   final IconData icon;
   final String label;
-  const _MenuItem({required this.icon, required this.label});
+  final String hint;
+
+  const _MenuItem({
+    required this.icon,
+    required this.label,
+    required this.hint,
+  });
 }
 
-final _menuItems = [
-  const _MenuItem(icon: Icons.dashboard_outlined, label: 'Overview'),
-  const _MenuItem(icon: Icons.rule_folder_outlined, label: 'Attendance'),
-  const _MenuItem(icon: Icons.emoji_events_outlined, label: 'Results'),
-  const _MenuItem(icon: Icons.receipt_long_outlined, label: 'Fees'),
-  const _MenuItem(icon: Icons.table_chart_outlined, label: 'Timetable'),
-  const _MenuItem(icon: Icons.chat_outlined, label: 'Chat'),
+const _menuItems = [
+  _MenuItem(
+    icon: Icons.dashboard_outlined,
+    label: 'Overview',
+    hint: 'Children, alerts and quick actions',
+  ),
+  _MenuItem(
+    icon: Icons.fact_check_outlined,
+    label: 'Attendance',
+    hint: 'Daily presence and trends',
+  ),
+  _MenuItem(
+    icon: Icons.emoji_events_outlined,
+    label: 'Results',
+    hint: 'Marks, grades and progress',
+  ),
+  _MenuItem(
+    icon: Icons.receipt_long_outlined,
+    label: 'Fees',
+    hint: 'Paid, pending and receipts',
+  ),
+  _MenuItem(
+    icon: Icons.calendar_month_outlined,
+    label: 'Timetable',
+    hint: 'Today and weekly schedule',
+  ),
+  _MenuItem(
+    icon: Icons.chat_bubble_outline_rounded,
+    label: 'Chat',
+    hint: 'Teacher communication',
+  ),
 ];
 
 class ParentDashboardPage extends StatefulWidget {
@@ -38,9 +68,7 @@ class ParentDashboardPage extends StatefulWidget {
 class _ParentDashboardPageState extends State<ParentDashboardPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 0;
-  bool _sideMenuVisible = true;
 
-  // Currently selected child (set from overview screen)
   String? _selectedChildId;
   String? _selectedChildName;
 
@@ -52,103 +80,70 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
   }
 
   Widget _buildContent() {
-    switch (_selectedIndex) {
-      case 0:
-        return ParentOverviewScreen(
+    return switch (_selectedIndex) {
+      0 => ParentOverviewScreen(
           onSelectChild: _selectChild,
           onNavigate: (index) => setState(() => _selectedIndex = index),
-        );
-      case 1:
-        return ChildAttendanceScreen(
+        ),
+      1 => ChildAttendanceScreen(
           studentId: _selectedChildId,
           studentName: _selectedChildName,
-        );
-      case 2:
-        return ChildResultsScreen(
+        ),
+      2 => ChildResultsScreen(
           studentId: _selectedChildId,
           studentName: _selectedChildName,
-        );
-      case 3:
-        return ChildFeesScreen(
+        ),
+      3 => ChildFeesScreen(
           studentId: _selectedChildId,
           studentName: _selectedChildName,
-        );
-      case 4:
-        return ChildTimetableScreen(
+        ),
+      4 => ChildTimetableScreen(
           studentId: _selectedChildId,
           studentName: _selectedChildName,
-        );
-      case 5:
-        return const Center(
-          child: Text('Chat - Coming Soon'),
-        );
-      default:
-        return const SizedBox.shrink();
-    }
+        ),
+      5 => const _ComingSoonPanel(),
+      _ => const SizedBox.shrink(),
+    };
   }
 
   @override
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
-    final isDesktop = Responsive.isDesktop(context);
-    final sidebarWidth = isDesktop ? 240.0 : 200.0;
+    final railWidth = Responsive.isDesktop(context) ? 280.0 : 232.0;
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.cream,
-      appBar: AppBar(
-        backgroundColor: AppColors.navy,
-        leading: isMobile
-            ? IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              )
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () =>
-                    setState(() => _sideMenuVisible = !_sideMenuVisible),
-              ),
-        title: Text(
-          _menuItems[_selectedIndex].label,
-          style:
-              GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18),
-        ),
-        actions: [
-          if (_selectedChildName != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Chip(
-                avatar: const Icon(Icons.person, size: 16),
-                label: Text(_selectedChildName!,
-                    style: GoogleFonts.poppins(fontSize: 12)),
-                backgroundColor: AppColors.goldPale,
-              ),
-            ),
-        ],
-      ),
-      drawer: isMobile
-          ? Drawer(
-              backgroundColor: AppColors.white,
-              child: _buildMenuList(),
-            )
-          : null,
+      backgroundColor: context.palette.canvas,
+      drawer:
+          isMobile ? Drawer(child: _PortalRail(onSelect: _selectTab)) : null,
       body: Row(
         children: [
-          if (!isMobile && _sideMenuVisible)
-            Material(
-              elevation: 2,
-              child: SizedBox(
-                width: sidebarWidth,
-                child: ColoredBox(
-                  color: AppColors.white,
-                  child: _buildMenuList(),
-                ),
-              ),
+          if (!isMobile)
+            SizedBox(
+              width: railWidth,
+              child: _PortalRail(onSelect: _selectTab),
             ),
-          Expanded(child: _buildContent()),
+          Expanded(
+            child: Column(
+              children: [
+                _TopBar(
+                  selectedIndex: _selectedIndex,
+                  childName: _selectedChildName,
+                  onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
+                  onLogout: _logout,
+                ),
+                Expanded(child: _buildContent()),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  void _selectTab(int index) {
+    setState(() => _selectedIndex = index);
+    if (Responsive.isMobile(context)) Navigator.pop(context);
   }
 
   Future<void> _logout() async {
@@ -157,100 +152,289 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
       Navigator.of(context).pushReplacementNamed(AppRouter.login);
     }
   }
+}
 
-  Widget _buildMenuList() {
-    final user = AuthService.instance.currentUser;
-    final userName = user?.fullName ?? 'Parent';
+class _TopBar extends StatelessWidget {
+  final int selectedIndex;
+  final String? childName;
+  final VoidCallback onOpenMenu;
+  final VoidCallback onLogout;
 
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        Container(
-          padding: EdgeInsets.fromLTRB(
-              20, Responsive.isMobile(context) ? 48 : 24, 20, 20),
-          color: AppColors.navy,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.family_restroom, color: Colors.white, size: 36),
-              const SizedBox(height: 8),
-              Text(userName,
-                  style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-              Text('Parent Portal',
-                  style: GoogleFonts.poppins(
-                      color: AppColors.goldLight,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400)),
-            ],
+  const _TopBar({
+    required this.selectedIndex,
+    required this.childName,
+    required this.onOpenMenu,
+    required this.onLogout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final item = _menuItems[selectedIndex];
+    final isMobile = Responsive.isMobile(context);
+
+    return Container(
+      height: isMobile ? 74 : 78,
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 24,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        border: Border(bottom: BorderSide(color: context.palette.border)),
+      ),
+      child: Row(
+        children: [
+          if (isMobile) ...[
+            IconButton(
+              onPressed: onOpenMenu,
+              icon: const Icon(Icons.menu_rounded),
+              tooltip: 'Open menu',
+            ),
+            const SizedBox(width: 6),
+          ],
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: context.palette.brand.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+              border: Border.all(color: context.palette.border),
+            ),
+            child: Icon(item.icon, color: context.palette.brand, size: 22),
           ),
-        ),
-        const SizedBox(height: 8),
-        for (int i = 0; i < _menuItems.length; i++) _buildMenuItem(i),
-        const Divider(indent: 16, endIndent: 16, height: 24),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: _logout,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: isMobile ? 18 : 21,
+                      ),
+                ),
+                Text(
+                  item.hint,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          if (childName != null && !isMobile) ...[
+            _ChildChip(name: childName!),
+            const SizedBox(width: 10),
+          ],
+          IconButton(
+            onPressed: onLogout,
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Logout',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PortalRail extends StatelessWidget {
+  final ValueChanged<int> onSelect;
+
+  const _PortalRail({required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final userName = AuthService.instance.currentUser?.fullName ?? 'Parent';
+
+    return Container(
+      color: context.palette.surface,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: context.palette.heroGradient,
+                borderRadius: BorderRadius.circular(AppSizes.radiusXL),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.logout_outlined,
-                      size: 20, color: AppColors.error),
-                  const SizedBox(width: 14),
-                  Text('Logout',
-                      style: GoogleFonts.poppins(
-                          color: AppColors.error, fontSize: 14)),
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.white.withValues(alpha: 0.14),
+                    foregroundColor: Colors.white,
+                    child: const Icon(Icons.family_restroom_rounded),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    userName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunitoSans(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Parent command center',
+                    style: GoogleFonts.nunitoSans(
+                      color: Colors.white.withValues(alpha: 0.68),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(10, 4, 10, 16),
+                itemCount: _menuItems.length,
+                itemBuilder: (context, index) => _RailButton(
+                  index: index,
+                  onTap: () => onSelect(index),
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
+}
 
-  Widget _buildMenuItem(int index) {
+class _RailButton extends StatelessWidget {
+  final int index;
+  final VoidCallback onTap;
+
+  const _RailButton({required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.findAncestorStateOfType<_ParentDashboardPageState>();
+    final isActive = state?._selectedIndex == index;
     final item = _menuItems[index];
-    final isActive = _selectedIndex == index;
-    return Material(
-      color: isActive ? AppColors.goldPale : Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() => _selectedIndex = index);
-          if (Responsive.isMobile(context)) Navigator.pop(context);
-        },
-        child: Container(
-          decoration: isActive
-              ? const BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: AppColors.gold, width: 3),
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: isActive
+            ? context.palette.brand.withValues(alpha: 0.08)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+              border: Border.all(
+                color: isActive ? context.palette.border : Colors.transparent,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  item.icon,
+                  size: 20,
+                  color: isActive ? context.palette.brand : AppColors.textLight,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 14,
+                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                      color: isActive
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                    ),
                   ),
-                )
-              : null,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
-          child: Row(
+                ),
+                if (isActive)
+                  Icon(Icons.chevron_right_rounded,
+                      color: context.palette.brand, size: 19),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChildChip extends StatelessWidget {
+  final String name;
+
+  const _ChildChip({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: context.palette.canvas,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: context.palette.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.person_outline_rounded,
+              size: 16, color: context.palette.brand),
+          const SizedBox(width: 6),
+          Text(
+            name,
+            style: GoogleFonts.nunitoSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComingSoonPanel extends StatelessWidget {
+  const _ComingSoonPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(item.icon,
-                  size: 18,
-                  color:
-                      isActive ? AppColors.navy : AppColors.textSecondary),
-              const SizedBox(width: 14),
-              Text(item.label,
-                  style: GoogleFonts.poppins(
-                    fontWeight:
-                        isActive ? FontWeight.w600 : FontWeight.w400,
-                    color: isActive
-                        ? AppColors.navy
-                        : AppColors.textSecondary,
-                    fontSize: 13,
-                  )),
+              Icon(Icons.chat_bubble_outline_rounded,
+                  color: context.palette.brand, size: 42),
+              const SizedBox(height: 12),
+              Text(
+                'Parent chat is next',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'This space is reserved for teacher conversations and callbacks.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
             ],
           ),
         ),

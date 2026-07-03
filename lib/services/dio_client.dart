@@ -7,8 +7,8 @@ import 'token_storage.dart';
 class DioClient {
   static late Dio _dio;
 
-  // Set at build time via: flutter build web --dart-define=API_BASE_URL=https://your-app.koyeb.app/api
-  // Falls back to localhost for local development.
+  // Set at build time via:
+  // flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8080/api
   static const String _baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://localhost:8080/api',
@@ -32,17 +32,18 @@ class DioClient {
       ),
     );
 
-    // Auth + tenant interceptor — injects X-Tenant-ID and Bearer token
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final prefs = await SharedPreferences.getInstance();
 
-          // Tenant header (always set)
-          final tenantId = prefs.getString('tenant_id') ?? 'default';
-          options.headers['X-Tenant-ID'] = tenantId;
+          final tenantId = prefs.getString('tenant_id');
+          if (tenantId != null && tenantId.isNotEmpty) {
+            options.headers['X-Tenant-ID'] = tenantId;
+          } else {
+            options.headers.remove('X-Tenant-ID');
+          }
 
-          // Bearer token (when logged in) — from secure storage
           final token = await TokenStorage.getToken();
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -50,22 +51,21 @@ class DioClient {
 
           return handler.next(options);
         },
-        onResponse: (response, handler) {
-          return handler.next(response);
-        },
+        onResponse: (response, handler) => handler.next(response),
         onError: (error, handler) async {
-          // Auto-refresh on 401 Unauthorized
           if (error.response?.statusCode == 401) {
             final refreshed = await _tryRefreshToken();
             if (refreshed) {
-              // Retry the original request with the new token
               final newToken = await TokenStorage.getToken();
-              error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+              if (newToken != null && newToken.isNotEmpty) {
+                error.requestOptions.headers['Authorization'] =
+                    'Bearer $newToken';
+              }
               try {
                 final response = await _dio.fetch(error.requestOptions);
                 return handler.resolve(response);
-              } catch (e) {
-                // Refresh worked but retry failed — propagate original error
+              } catch (_) {
+                // Refresh worked but retry failed. Propagate the original error.
               }
             }
           }
@@ -75,15 +75,14 @@ class DioClient {
       ),
     );
 
-    // Logging interceptor — DEBUG BUILDS ONLY.
-    // Request/response bodies contain passwords and bearer tokens;
-    // they must never be logged in production.
     if (kDebugMode) {
-      _dio.interceptors.add(LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (obj) => debugPrint('[DIO] $obj'),
-      ));
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          logPrint: (obj) => debugPrint('[DIO] $obj'),
+        ),
+      );
     }
   }
 
@@ -100,7 +99,9 @@ class DioClient {
       final newRefresh = response.data['refreshToken'] as String?;
       if (token != null) {
         await TokenStorage.saveToken(token);
-        if (newRefresh != null) await TokenStorage.saveRefreshToken(newRefresh);
+        if (newRefresh != null) {
+          await TokenStorage.saveRefreshToken(newRefresh);
+        }
         return true;
       }
     } catch (e) {
@@ -111,52 +112,43 @@ class DioClient {
 
   static Dio get instance => _dio;
 
-  // --- Generic API Methods ---
-
-  static Future<Response> get(String path, {Map<String, dynamic>? queryParams}) async {
-    return await _dio.get(path, queryParameters: queryParams);
+  static Future<Response> get(String path,
+      {Map<String, dynamic>? queryParams}) async {
+    return _dio.get(path, queryParameters: queryParams);
   }
 
   static Future<Response> post(String path, {dynamic data}) async {
-    return await _dio.post(path, data: data);
+    return _dio.post(path, data: data);
   }
 
   static Future<Response> put(String path, {dynamic data}) async {
-    return await _dio.put(path, data: data);
+    return _dio.put(path, data: data);
   }
 
   static Future<Response> delete(String path,
       {Map<String, dynamic>? queryParams}) async {
-    return await _dio.delete(path, queryParameters: queryParams);
+    return _dio.delete(path, queryParameters: queryParams);
   }
-
-  static Future<Response> uploadFile(String path, String filePath, String fieldName) async {
-    final formData = FormData.fromMap({
-      fieldName: await MultipartFile.fromFile(filePath),
-    });
-    return await _dio.post(path, data: formData);
-  }
-
-  // --- Error Handler ---
 
   static void _handleError(DioException error) {
-    String message;
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-        message = 'Connection timed out. Please check your internet.';
-        break;
-      case DioExceptionType.receiveTimeout:
-        message = 'Server took too long to respond.';
-        break;
-      case DioExceptionType.badResponse:
-        message = 'Server error: ${error.response?.statusCode}';
-        break;
-      case DioExceptionType.connectionError:
-        message = 'Could not connect to server. Is it running?';
-        break;
-      default:
-        message = 'An unexpected error occurred.';
+    if (kDebugMode) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          debugPrint('[DioClient Error] Connection timeout');
+          break;
+        case DioExceptionType.badResponse:
+          debugPrint(
+            '[DioClient Error] Server error: ${error.response?.statusCode}',
+          );
+          break;
+        case DioExceptionType.cancel:
+          debugPrint('[DioClient Error] Request cancelled');
+          break;
+        default:
+          debugPrint('[DioClient Error] ${error.message}');
+      }
     }
-    debugPrint('[DioClient Error] $message');
   }
 }

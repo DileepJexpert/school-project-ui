@@ -9,6 +9,7 @@ import '../../../services/admission_api_service.dart';
 
 class NewAdmissionScreen extends StatefulWidget {
   final String? studentId;
+
   /// When true: editing an ENQUIRY record and converting it to a full admission.
   /// Status will be set to ACTIVE on save.
   final bool admitMode;
@@ -52,11 +53,11 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   DateTime? _dob;
   DateTime? _doa;
   String? _gender;
-  String? _baseClass;   // e.g. "Class 5" — base class without section
+  String? _baseClass; // e.g. "Class 5" — base class without section
   String _section = SchoolConstants.sections.first; // 'A' default
   String? _year;
   bool _sameAddr = false;
-  String? _rollNumber;           // preserved from existing record on edit
+  String? _rollNumber; // preserved from existing record on edit
   String _existingStatus = 'ACTIVE'; // preserved from existing record on edit
 
   // The value stored in DB: "Class 5 - A" or "Nursery"
@@ -79,10 +80,14 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       final s = await AdmissionApiService.getStudentById(widget.studentId!);
       setState(() {
         _nameCtrl.text = s.fullName;
-        _dob = s.dateOfBirth.year == 2000 && s.dateOfBirth.month == 1 && s.dateOfBirth.day == 1
+        _dob = s.dateOfBirth.year == 2000 &&
+                s.dateOfBirth.month == 1 &&
+                s.dateOfBirth.day == 1
             ? null // placeholder DOB from enquiry — let admin pick a real one
             : s.dateOfBirth;
-        _gender = _genders.contains(s.gender) ? s.gender : null; // guard non-standard values
+        _gender = _genders.contains(s.gender)
+            ? s.gender
+            : null; // guard non-standard values
         _bloodCtrl.text = s.bloodGroup;
         _nationalityCtrl.text = s.nationality;
         _religionCtrl.text = s.religion;
@@ -138,7 +143,12 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _dob == null || _gender == null || _baseClass == null || _year == null || _doa == null) {
+    if (!_formKey.currentState!.validate() ||
+        _dob == null ||
+        _gender == null ||
+        _baseClass == null ||
+        _year == null ||
+        _doa == null) {
       _showSnack('Please fill all required fields.', isError: true);
       return;
     }
@@ -174,7 +184,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       ),
       contactDetails: ContactDetails(
         permanentAddress: _permAddrCtrl.text.trim(),
-        correspondenceAddress: _sameAddr ? _permAddrCtrl.text.trim() : _corrAddrCtrl.text.trim(),
+        correspondenceAddress:
+            _sameAddr ? _permAddrCtrl.text.trim() : _corrAddrCtrl.text.trim(),
         primaryContactNumber: _primaryCtrl.text.trim(),
       ),
       previousSchoolDetails: PreviousSchoolDetails(
@@ -206,7 +217,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
         hintText: hint,
         filled: true,
         fillColor: AppColors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             borderSide: const BorderSide(color: AppColors.border)),
@@ -214,20 +226,25 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
             borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             borderSide: const BorderSide(color: AppColors.navy, width: 2)),
         labelStyle: GoogleFonts.nunitoSans(color: AppColors.textSecondary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       );
 
-  Widget _dateRow(String label, DateTime? date, void Function(DateTime) onPicked) {
+  Widget _dateRow(
+      String label, DateTime? date, void Function(DateTime) onPicked) {
     return Row(children: [
       Expanded(
         child: Text(
           date == null ? '$label *' : '$label: ${_fmt.format(date)}',
           style: GoogleFonts.nunitoSans(
-              color: date == null ? AppColors.textSecondary : AppColors.textPrimary),
+              color: date == null
+                  ? AppColors.textSecondary
+                  : AppColors.textPrimary),
         ),
       ),
       TextButton.icon(
-        icon: Icon(Icons.calendar_today_outlined, color: AppColors.navy, size: 18),
+        icon: Icon(Icons.calendar_today_outlined,
+            color: AppColors.navy, size: 18),
         label: Text(date == null ? 'Select' : 'Change',
             style: GoogleFonts.nunitoSans(color: AppColors.navy)),
         onPressed: () => _pickDate(onPicked),
@@ -238,7 +255,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   List<Step> get _steps => [
         // Step 0 — Student Details
         Step(
-          title: Text('Student Details', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+          title: Text('Student Details',
+              style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
           isActive: _step >= 0,
           state: _step > 0 ? StepState.complete : StepState.indexed,
           content: Column(children: [
@@ -253,19 +271,26 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               decoration: _dec('Gender *'),
-              value: _gender,
-              items: _genders.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+              initialValue: _gender,
+              items: _genders
+                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                  .toList(),
               onChanged: (v) => setState(() => _gender = v),
               validator: (v) => v == null ? 'Required' : null,
             ),
             const SizedBox(height: 12),
-            TextFormField(controller: _bloodCtrl, decoration: _dec('Blood Group')),
+            TextFormField(
+                controller: _bloodCtrl, decoration: _dec('Blood Group')),
             const SizedBox(height: 12),
-            TextFormField(controller: _nationalityCtrl, decoration: _dec('Nationality')),
+            TextFormField(
+                controller: _nationalityCtrl, decoration: _dec('Nationality')),
             const SizedBox(height: 12),
-            TextFormField(controller: _religionCtrl, decoration: _dec('Religion')),
+            TextFormField(
+                controller: _religionCtrl, decoration: _dec('Religion')),
             const SizedBox(height: 12),
-            TextFormField(controller: _motherTongueCtrl, decoration: _dec('Mother Tongue')),
+            TextFormField(
+                controller: _motherTongueCtrl,
+                decoration: _dec('Mother Tongue')),
             const SizedBox(height: 12),
             TextFormField(
               controller: _aadharCtrl,
@@ -276,7 +301,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
         ),
         // Step 1 — Admission Details
         Step(
-          title: Text('Admission Details', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+          title: Text('Admission Details',
+              style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
           isActive: _step >= 1,
           state: _step > 1 ? StepState.complete : StepState.indexed,
           content: Column(children: [
@@ -287,7 +313,7 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
                 flex: 3,
                 child: DropdownButtonFormField<String>(
                   decoration: _dec('Class *'),
-                  value: _baseClass,
+                  initialValue: _baseClass,
                   items: SchoolConstants.baseClasses
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
@@ -308,9 +334,10 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
                   flex: 2,
                   child: DropdownButtonFormField<String>(
                     decoration: _dec('Section *'),
-                    value: _section,
+                    initialValue: _section,
                     items: SchoolConstants.sections
-                        .map((s) => DropdownMenuItem(value: s, child: Text('Section $s')))
+                        .map((s) => DropdownMenuItem(
+                            value: s, child: Text('Section $s')))
                         .toList(),
                     onChanged: (v) => setState(() => _section = v!),
                   ),
@@ -320,8 +347,10 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               decoration: _dec('Academic Year *'),
-              value: _year,
-              items: _years.map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
+              initialValue: _year,
+              items: _years
+                  .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                  .toList(),
               onChanged: (v) => setState(() => _year = v),
               validator: (v) => v == null ? 'Required' : null,
             ),
@@ -330,18 +359,22 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _admNoCtrl,
-              decoration: _dec('Admission Number', hint: 'Auto-generated if empty'),
+              decoration:
+                  _dec('Admission Number', hint: 'Auto-generated if empty'),
             ),
           ]),
         ),
         // Step 2 — Parent/Guardian
         Step(
-          title: Text('Parent / Guardian', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+          title: Text('Parent / Guardian',
+              style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
           isActive: _step >= 2,
           state: _step > 2 ? StepState.complete : StepState.indexed,
           content: Column(children: [
             const SizedBox(height: 8),
-            Text('Father\'s Details', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
+            Text('Father\'s Details',
+                style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w700, color: AppColors.navy)),
             const SizedBox(height: 8),
             TextFormField(
               controller: _fatherNameCtrl,
@@ -349,7 +382,9 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
               validator: (v) => v!.isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 12),
-            TextFormField(controller: _fatherOccCtrl, decoration: _dec('Father\'s Occupation')),
+            TextFormField(
+                controller: _fatherOccCtrl,
+                decoration: _dec('Father\'s Occupation')),
             const SizedBox(height: 12),
             TextFormField(
               controller: _fatherMobCtrl,
@@ -364,7 +399,9 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
-            Text('Mother\'s Details', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
+            Text('Mother\'s Details',
+                style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w700, color: AppColors.navy)),
             const SizedBox(height: 8),
             TextFormField(
               controller: _motherNameCtrl,
@@ -372,7 +409,9 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
               validator: (v) => v!.isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 12),
-            TextFormField(controller: _motherOccCtrl, decoration: _dec('Mother\'s Occupation')),
+            TextFormField(
+                controller: _motherOccCtrl,
+                decoration: _dec('Mother\'s Occupation')),
             const SizedBox(height: 12),
             TextFormField(
               controller: _motherMobCtrl,
@@ -389,7 +428,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
         ),
         // Step 3 — Contact
         Step(
-          title: Text('Contact Information', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+          title: Text('Contact Information',
+              style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
           isActive: _step >= 3,
           state: _step > 3 ? StepState.complete : StepState.indexed,
           content: Column(children: [
@@ -428,26 +468,35 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
               controller: _primaryCtrl,
               decoration: _dec('Primary Contact *', hint: '+91 XXXXXXXXXX'),
               keyboardType: TextInputType.phone,
-              validator: (v) => v!.isEmpty ? 'Required' : (v.length < 10 ? 'Invalid' : null),
+              validator: (v) =>
+                  v!.isEmpty ? 'Required' : (v.length < 10 ? 'Invalid' : null),
             ),
           ]),
         ),
         // Step 4 — Previous School
         Step(
-          title: Text('Previous School', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+          title: Text('Previous School',
+              style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
           isActive: _step >= 4,
           state: _step > 4 ? StepState.complete : StepState.indexed,
           content: Column(children: [
             const SizedBox(height: 8),
-            TextFormField(controller: _prevSchoolCtrl, decoration: _dec('Previous School Name')),
+            TextFormField(
+                controller: _prevSchoolCtrl,
+                decoration: _dec('Previous School Name')),
             const SizedBox(height: 12),
-            TextFormField(controller: _prevClassCtrl, decoration: _dec('Last Class Attended')),
+            TextFormField(
+                controller: _prevClassCtrl,
+                decoration: _dec('Last Class Attended')),
             const SizedBox(height: 12),
-            TextFormField(controller: _prevBoardCtrl, decoration: _dec('Board (e.g., CBSE, ICSE)')),
+            TextFormField(
+                controller: _prevBoardCtrl,
+                decoration: _dec('Board (e.g., CBSE, ICSE)')),
             const SizedBox(height: 24),
             Text(
               'Note: Document uploads (TC, Report Card) can be added after the student profile is created.',
-              style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12),
+              style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary, fontSize: 12),
             ),
           ]),
         ),
@@ -456,11 +505,27 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   @override
   void dispose() {
     for (final c in [
-      _nameCtrl, _bloodCtrl, _nationalityCtrl, _religionCtrl, _motherTongueCtrl,
-      _aadharCtrl, _admNoCtrl, _fatherNameCtrl, _fatherOccCtrl, _fatherMobCtrl,
-      _fatherEmailCtrl, _motherNameCtrl, _motherOccCtrl, _motherMobCtrl,
-      _motherEmailCtrl, _permAddrCtrl, _corrAddrCtrl, _primaryCtrl,
-      _prevSchoolCtrl, _prevClassCtrl, _prevBoardCtrl,
+      _nameCtrl,
+      _bloodCtrl,
+      _nationalityCtrl,
+      _religionCtrl,
+      _motherTongueCtrl,
+      _aadharCtrl,
+      _admNoCtrl,
+      _fatherNameCtrl,
+      _fatherOccCtrl,
+      _fatherMobCtrl,
+      _fatherEmailCtrl,
+      _motherNameCtrl,
+      _motherOccCtrl,
+      _motherMobCtrl,
+      _motherEmailCtrl,
+      _permAddrCtrl,
+      _corrAddrCtrl,
+      _primaryCtrl,
+      _prevSchoolCtrl,
+      _prevClassCtrl,
+      _prevBoardCtrl,
     ]) c.dispose();
     super.dispose();
   }
@@ -476,7 +541,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
           _isAdmitMode
               ? 'Admit Student'
               : (_isEdit ? 'Edit Student Profile' : 'New Student Admission'),
-          style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700, fontSize: 20),
+          style: GoogleFonts.cormorantGaramond(
+              fontWeight: FontWeight.w700, fontSize: 20),
         ),
       ),
       body: _loading && _isEdit
@@ -503,20 +569,24 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
                     if (_step < _steps.length - 1)
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+                            backgroundColor: AppColors.navy,
+                            foregroundColor: Colors.white),
                         onPressed: details.onStepContinue,
                         child: const Text('Next'),
                       )
                     else
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+                            backgroundColor: AppColors.navy,
+                            foregroundColor: Colors.white),
                         icon: _loading
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : Icon(_isEdit ? Icons.save : Icons.person_add_alt_1),
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : Icon(
+                                _isEdit ? Icons.save : Icons.person_add_alt_1),
                         label: Text(_loading
                             ? 'Saving…'
                             : (_isAdmitMode

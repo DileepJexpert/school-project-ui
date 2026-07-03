@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/shared_widgets.dart';
 import '../../../models/timetable_model.dart';
 import '../../../services/timetable_api_service.dart';
 
@@ -13,16 +15,15 @@ class TimetableScreen extends StatefulWidget {
   State<TimetableScreen> createState() => _TimetableScreenState();
 }
 
-class _TimetableScreenState extends State<TimetableScreen>
-    with SingleTickerProviderStateMixin {
-  final _classCtrl = TextEditingController();
-  final _yearCtrl = TextEditingController(text: '2024-25');
+class _TimetableScreenState extends State<TimetableScreen> {
+  late final TextEditingController _yearCtrl;
 
+  String? _className;
+  String _selectedDay = _days.first;
   List<TimetableModel> _timetable = [];
   bool _loading = false;
   bool _loaded = false;
   String? _error;
-  TabController? _tabCtrl;
 
   static const _days = [
     'MONDAY',
@@ -30,22 +31,32 @@ class _TimetableScreenState extends State<TimetableScreen>
     'WEDNESDAY',
     'THURSDAY',
     'FRIDAY',
-    'SATURDAY'
+    'SATURDAY',
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _yearCtrl = TextEditingController(text: _currentAcademicYear());
+  }
+
+  @override
   void dispose() {
-    _classCtrl.dispose();
     _yearCtrl.dispose();
-    _tabCtrl?.dispose();
     super.dispose();
   }
 
+  String _currentAcademicYear() {
+    final now = DateTime.now();
+    final start = now.month >= 4 ? now.year : now.year - 1;
+    return '$start-${(start + 1).toString().substring(2)}';
+  }
+
   Future<void> _loadTimetable() async {
-    final className = _classCtrl.text.trim();
+    final className = _className;
     final year = _yearCtrl.text.trim();
-    if (className.isEmpty || year.isEmpty) {
-      _showSnack('Enter class name and academic year.', isError: true);
+    if (className == null || className.isEmpty || year.isEmpty) {
+      _snack('Select class and academic year.', isError: true);
       return;
     }
     setState(() {
@@ -54,47 +65,72 @@ class _TimetableScreenState extends State<TimetableScreen>
       _loaded = false;
     });
     try {
-      final data =
-          await TimetableApiService.getClassTimetable(className, year);
-      _timetable = data;
-      _tabCtrl?.dispose();
-      _tabCtrl = TabController(length: _days.length, vsync: this);
-      setState(() => _loaded = true);
+      final data = await TimetableApiService.getClassTimetable(className, year);
+      data.sort((a, b) => _days.indexOf(a.dayOfWeek).compareTo(
+            _days.indexOf(b.dayOfWeek),
+          ));
+      if (!mounted) return;
+      setState(() {
+        _timetable = data;
+        _loaded = true;
+        final firstScheduled = data.isNotEmpty ? data.first.dayOfWeek : null;
+        if (firstScheduled != null && _days.contains(firstScheduled)) {
+          _selectedDay = firstScheduled;
+        }
+      });
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: GoogleFonts.nunitoSans()),
-      backgroundColor: isError ? AppColors.error : AppColors.success,
-    ));
-  }
-
-  TimetableModel? _getDay(String day) {
-    try {
-      return _timetable.firstWhere((t) => t.dayOfWeek == day);
-    } catch (_) {
-      return null;
+  TimetableModel? _entryFor(String day) {
+    for (final entry in _timetable) {
+      if (entry.dayOfWeek == day) return entry;
     }
+    return null;
   }
 
-  void _openAddEditDialog([TimetableModel? existing]) {
-    showDialog(
+  int get _totalPeriods =>
+      _timetable.fold(0, (sum, entry) => sum + entry.periods.length);
+
+  String get _busiestDay {
+    if (_timetable.isEmpty) return 'No day';
+    final sorted = List<TimetableModel>.from(_timetable)
+      ..sort((a, b) => b.periods.length.compareTo(a.periods.length));
+    return _shortDay(sorted.first.dayOfWeek);
+  }
+
+  Future<void> _openEditor([TimetableModel? existing]) async {
+    final className = _className;
+    final year = _yearCtrl.text.trim();
+    if (className == null || className.isEmpty || year.isEmpty) {
+      _snack('Select class and academic year first.', isError: true);
+      return;
+    }
+    final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _AddDayDialog(
-        className: _classCtrl.text.trim(),
-        academicYear: _yearCtrl.text.trim(),
+      builder: (_) => _TimetableDayDialog(
+        className: className,
+        academicYear: year,
+        initialDay: existing?.dayOfWeek ?? _selectedDay,
         existing: existing,
-        onSaved: () {
-          Navigator.pop(_);
-          _loadTimetable();
-          _showSnack('Timetable saved!');
-        },
+      ),
+    );
+    if (saved == true) {
+      _snack('Timetable saved.');
+      _loadTimetable();
+    }
+  }
+
+  void _snack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
       ),
     );
   }
@@ -102,53 +138,70 @@ class _TimetableScreenState extends State<TimetableScreen>
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Timetable',
-              style: GoogleFonts.cormorantGaramond(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy)),
-          Text('View and manage the class schedule',
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary, fontSize: 13)),
-          const SizedBox(height: 20),
-          _buildFilterBar(),
-          const SizedBox(height: 16),
-          Expanded(child: _buildBody()),
-        ],
+      padding: EdgeInsets.all(
+        Responsive.isMobile(context) ? AppSizes.paddingMD : AppSizes.paddingLG,
       ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        AdminPageHeader(
+          title: 'Timetable',
+          subtitle:
+              'Manage class schedules day by day with a compact weekly view.',
+          icon: Icons.calendar_view_week_outlined,
+          actions: [
+            OutlinedButton.icon(
+              onPressed: _loading ? null : _loadTimetable,
+              icon: const Icon(Icons.refresh_rounded, size: 17),
+              label: const Text('Refresh'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => _openEditor(_entryFor(_selectedDay)),
+              icon: const Icon(Icons.edit_calendar_outlined, size: 17),
+              label: const Text('Add / Edit Day'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _filterCard(),
+        const SizedBox(height: 14),
+        if (_loaded) ...[
+          _summaryCards(),
+          const SizedBox(height: 14),
+        ],
+        Expanded(child: _body()),
+      ]),
     );
   }
 
-  Widget _buildFilterBar() {
+  Widget _filterCard() {
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Wrap(
           spacing: 12,
           runSpacing: 12,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             SizedBox(
-              width: 180,
-              child: TextField(
-                controller: _classCtrl,
-                decoration: _inputDecor('Class Name e.g. Class-5A',
-                    Icons.school_outlined),
+              width: 240,
+              child: DropdownButtonFormField<String>(
+                initialValue: _className,
+                decoration: _inputDecoration('Class', Icons.school_outlined),
+                isExpanded: true,
+                items: SchoolConstants.allClasses
+                    .map((className) => DropdownMenuItem(
+                          value: className,
+                          child: Text(className),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() => _className = value),
               ),
             ),
             SizedBox(
               width: 150,
               child: TextField(
                 controller: _yearCtrl,
-                decoration: _inputDecor(
-                    'Academic Year', Icons.calendar_today_outlined),
+                decoration:
+                    _inputDecoration('Academic year', Icons.event_outlined),
               ),
             ),
             ElevatedButton.icon(
@@ -158,486 +211,619 @@ class _TimetableScreenState extends State<TimetableScreen>
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.search_rounded, size: 16),
-              label: Text(_loading ? 'Loading…' : 'Load Timetable'),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 12)),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.search_rounded, size: 17),
+              label: Text(_loading ? 'Loading' : 'Load Timetable'),
             ),
-            if (_loaded)
-              OutlinedButton.icon(
-                onPressed: () => _openAddEditDialog(),
-                icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text('Add / Edit Day'),
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.navy,
-                    side: const BorderSide(color: AppColors.navy),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12)),
-              ),
           ],
         ),
       ),
     );
   }
 
-  InputDecoration _inputDecor(String hint, IconData icon) => InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.nunitoSans(
-            color: AppColors.textLight, fontSize: 13),
-        prefixIcon: Icon(icon, size: 18, color: AppColors.navy),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-          borderSide: const BorderSide(color: AppColors.navy, width: 2),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        isDense: true,
-      );
+  Widget _summaryCards() {
+    final cards = [
+      AdminMetricCard(
+        title: 'Scheduled Days',
+        value: '${_timetable.length}',
+        icon: Icons.date_range_outlined,
+        color: context.palette.brand,
+        caption: 'Out of ${_days.length}',
+      ),
+      AdminMetricCard(
+        title: 'Total Periods',
+        value: '$_totalPeriods',
+        icon: Icons.view_timeline_outlined,
+        color: AppColors.info,
+        caption: 'Weekly load',
+      ),
+      AdminMetricCard(
+        title: 'Busiest Day',
+        value: _busiestDay,
+        icon: Icons.trending_up_rounded,
+        color: AppColors.warning,
+        caption: 'Most periods',
+      ),
+    ];
 
-  Widget _buildBody() {
-    if (_loading) return _buildShimmer();
-    if (_error != null) return _buildError();
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth > 840 ? 3 : 1;
+      final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children:
+            cards.map((card) => SizedBox(width: width, child: card)).toList(),
+      );
+    });
+  }
+
+  Widget _body() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return _errorState();
     if (!_loaded) {
-      return Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.table_chart_outlined,
-              size: 60, color: AppColors.textLight.withOpacity(0.4)),
-          const SizedBox(height: 14),
-          Text('Enter class details and tap Load',
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary, fontSize: 14)),
-        ]),
+      return _emptyState(
+        icon: Icons.calendar_view_week_outlined,
+        title: 'Load a timetable',
+        subtitle: 'Select class and academic year to view the weekly schedule.',
       );
     }
-    return Column(
-      children: [
-        TabBar(
-          controller: _tabCtrl,
-          isScrollable: true,
-          labelColor: AppColors.navy,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.gold,
-          indicatorWeight: 3,
-          labelStyle: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700),
-          tabs: _days
-              .map((d) => Tab(text: d.substring(0, 3)))
-              .toList(),
-        ),
-        const Divider(height: 1),
-        const SizedBox(height: 8),
-        Expanded(
-          child: TabBarView(
-            controller: _tabCtrl,
-            children: _days.map((day) {
-              final entry = _getDay(day);
-              if (entry == null) {
-                return _buildEmptyDay(day);
-              }
-              return _buildPeriodsTable(entry);
-            }).toList(),
-          ),
-        ),
-      ],
-    );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final wide = constraints.maxWidth > 900;
+      if (!wide) {
+        return Column(children: [
+          _daySelector(horizontal: true),
+          const SizedBox(height: 12),
+          Expanded(child: _dayDetails(_selectedDay)),
+        ]);
+      }
+      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(width: 240, child: _daySelector(horizontal: false)),
+        const SizedBox(width: 14),
+        Expanded(child: _dayDetails(_selectedDay)),
+      ]);
+    });
   }
 
-  Widget _buildEmptyDay(String day) => Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.event_busy_outlined,
-              size: 52, color: AppColors.textLight.withOpacity(0.4)),
-          const SizedBox(height: 12),
-          Text('No schedule for $day',
-              style: GoogleFonts.cormorantGaramond(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy)),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: () => _openAddEditDialog(),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add Schedule'),
-            style:
-                TextButton.styleFrom(foregroundColor: AppColors.navy),
+  Widget _daySelector({required bool horizontal}) {
+    final children = _days.map((day) {
+      final entry = _entryFor(day);
+      final selected = _selectedDay == day;
+      return Padding(
+        padding: EdgeInsets.only(
+          right: horizontal ? 8 : 0,
+          bottom: horizontal ? 0 : 8,
+        ),
+        child: InkWell(
+          onTap: () => setState(() => _selectedDay = day),
+          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: selected
+                  ? context.palette.brand.withValues(alpha: 0.1)
+                  : context.palette.surface,
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+              border: Border.all(
+                color:
+                    selected ? context.palette.brand : context.palette.border,
+              ),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(
+                entry == null
+                    ? Icons.event_busy_outlined
+                    : Icons.event_available_outlined,
+                size: 18,
+                color: entry == null ? AppColors.textLight : AppColors.success,
+              ),
+              const SizedBox(width: 8),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  _shortDay(day),
+                  style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w900,
+                    color: selected
+                        ? context.palette.brand
+                        : AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  entry == null
+                      ? 'No periods'
+                      : '${entry.periods.length} periods',
+                  style: GoogleFonts.nunitoSans(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ]),
+            ]),
           ),
-        ]),
+        ),
       );
+    }).toList();
 
-  Widget _buildPeriodsTable(TimetableModel entry) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Text(entry.dayOfWeek,
-                style: GoogleFonts.nunitoSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: AppColors.navy)),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: () => _openAddEditDialog(entry),
-              icon: const Icon(Icons.edit_rounded, size: 14),
+    if (horizontal) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: children),
+      );
+    }
+    return ListView(children: children);
+  }
+
+  Widget _dayDetails(String day) {
+    final entry = _entryFor(day);
+    if (entry == null) {
+      return _emptyState(
+        icon: Icons.event_busy_outlined,
+        title: 'No schedule for ${_shortDay(day)}',
+        subtitle: 'Add periods for this day to complete the weekly timetable.',
+        action: ElevatedButton.icon(
+          onPressed: () => _openEditor(),
+          icon: const Icon(Icons.add_rounded, size: 17),
+          label: const Text('Add Day Schedule'),
+        ),
+      );
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_shortDay(day)} Schedule',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '${entry.className} - ${entry.academicYear}',
+                      style: GoogleFonts.nunitoSans(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ]),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _openEditor(entry),
+              icon: const Icon(Icons.edit_outlined, size: 16),
               label: const Text('Edit'),
-              style:
-                  TextButton.styleFrom(foregroundColor: AppColors.navy),
             ),
           ]),
-          const SizedBox(height: 8),
-          ...entry.periods.map((p) => _PeriodCard(period: p)),
-        ],
+        ),
       ),
-    );
+      const SizedBox(height: 10),
+      Expanded(
+        child: ListView.separated(
+          itemCount: entry.periods.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, index) => _periodCard(entry.periods[index]),
+        ),
+      ),
+    ]);
   }
 
-  Widget _buildShimmer() => Shimmer.fromColors(
-        baseColor: Colors.grey.shade200,
-        highlightColor: Colors.grey.shade100,
-        child: ListView.builder(
-          itemCount: 5,
-          itemBuilder: (_, __) => Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            height: 70,
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
-          ),
-        ),
-      );
-
-  Widget _buildError() => Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.wifi_off_rounded,
-              color: AppColors.error, size: 52),
-          const SizedBox(height: 12),
-          Text('Failed to load timetable',
-              style: GoogleFonts.nunitoSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.error)),
-          const SizedBox(height: 6),
-          Text(_error!,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary, fontSize: 12)),
-          const SizedBox(height: 16),
-          ElevatedButton(
-              onPressed: _loadTimetable, child: const Text('Retry')),
-        ]),
-      );
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Period Card
-// ──────────────────────────────────────────────────────────────────────────────
-class _PeriodCard extends StatelessWidget {
-  final PeriodModel period;
-
-  const _PeriodCard({required this.period});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _periodCard(PeriodModel period) {
     return Card(
-      elevation: 1,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.all(13),
         child: Row(children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-                color: AppColors.navy.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8)),
-            alignment: Alignment.center,
-            child: Text('${period.periodNumber}',
-                style: GoogleFonts.cormorantGaramond(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navy)),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(period.subject,
-                    style: GoogleFonts.nunitoSans(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: AppColors.textPrimary)),
-                Text(period.teacherName,
-                    style: GoogleFonts.nunitoSans(
-                        color: AppColors.textSecondary, fontSize: 12)),
-              ],
+              color: context.palette.brand.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+            ),
+            child: Center(
+              child: Text(
+                '${period.periodNumber}',
+                style: GoogleFonts.nunitoSans(
+                  color: context.palette.brand,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(period.startTime,
+          const SizedBox(width: 12),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                period.subject,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.nunitoSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: AppColors.navy)),
-            Text(period.endTime,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                period.teacherName.isEmpty
+                    ? 'Teacher not assigned'
+                    : period.teacherName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.nunitoSans(
-                    color: AppColors.textSecondary, fontSize: 12)),
-          ]),
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: context.palette.canvas,
+              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+            ),
+            child: Text(
+              '${period.startTime} - ${period.endTime}',
+              style: GoogleFonts.nunitoSans(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
         ]),
       ),
     );
   }
+
+  Widget _emptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? action,
+  }) {
+    return Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 54, color: AppColors.textLight.withValues(alpha: 0.5)),
+        const SizedBox(height: 12),
+        Text(
+          title,
+          style: GoogleFonts.nunitoSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunitoSans(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ),
+        if (action != null) ...[const SizedBox(height: 16), action],
+      ]),
+    );
+  }
+
+  Widget _errorState() {
+    return Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.wifi_off_rounded, color: AppColors.error, size: 48),
+        const SizedBox(height: 12),
+        Text(
+          'Could not load timetable',
+          style: GoogleFonts.nunitoSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _error ?? '',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.nunitoSans(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton.icon(
+          onPressed: _loadTimetable,
+          icon: const Icon(Icons.refresh_rounded, size: 17),
+          label: const Text('Retry'),
+        ),
+      ]),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 18),
+      isDense: true,
+      fillColor: context.palette.canvas,
+    );
+  }
+
+  String _shortDay(String day) {
+    return day.substring(0, 1) + day.substring(1).toLowerCase();
+  }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Add / Edit Day Dialog
-// ──────────────────────────────────────────────────────────────────────────────
-class _AddDayDialog extends StatefulWidget {
+class _TimetableDayDialog extends StatefulWidget {
   final String className;
   final String academicYear;
+  final String initialDay;
   final TimetableModel? existing;
-  final VoidCallback onSaved;
 
-  const _AddDayDialog({
+  const _TimetableDayDialog({
     required this.className,
     required this.academicYear,
-    required this.onSaved,
+    required this.initialDay,
     this.existing,
   });
 
   @override
-  State<_AddDayDialog> createState() => _AddDayDialogState();
+  State<_TimetableDayDialog> createState() => _TimetableDayDialogState();
 }
 
-class _AddDayDialogState extends State<_AddDayDialog> {
+class _TimetableDayDialogState extends State<_TimetableDayDialog> {
+  late String _day;
+  late final List<_PeriodDraft> _periods;
+  bool _saving = false;
+
   static const _days = [
     'MONDAY',
     'TUESDAY',
     'WEDNESDAY',
     'THURSDAY',
     'FRIDAY',
-    'SATURDAY'
+    'SATURDAY',
   ];
-
-  String _selectedDay = 'MONDAY';
-  final List<_PeriodFormRow> _rows = [];
-  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.existing != null) {
-      _selectedDay = widget.existing!.dayOfWeek;
-      for (final p in widget.existing!.periods) {
-        _rows.add(_PeriodFormRow(
-          periodNo: p.periodNumber.toString(),
-          subject: p.subject,
-          teacher: p.teacherName,
-          start: p.startTime,
-          end: p.endTime,
-        ));
-      }
-    } else {
-      _rows.add(_PeriodFormRow());
+    _day = widget.initialDay;
+    _periods = widget.existing?.periods
+            .map((period) => _PeriodDraft.fromPeriod(period))
+            .toList() ??
+        [_PeriodDraft(periodNumber: 1)];
+  }
+
+  @override
+  void dispose() {
+    for (final draft in _periods) {
+      draft.dispose();
     }
+    super.dispose();
   }
 
   Future<void> _save() async {
-    final periods = _rows
-        .asMap()
-        .entries
-        .map((e) => PeriodModel(
-              periodNumber: int.tryParse(e.value.periodCtrl.text) ?? (e.key + 1),
-              subject: e.value.subjectCtrl.text.trim(),
-              teacherName: e.value.teacherCtrl.text.trim(),
-              startTime: e.value.startCtrl.text.trim(),
-              endTime: e.value.endCtrl.text.trim(),
-            ))
-        .where((p) => p.subject.isNotEmpty)
+    final validPeriods = _periods
+        .where((draft) =>
+            draft.subject.text.trim().isNotEmpty &&
+            draft.start.text.trim().isNotEmpty &&
+            draft.end.text.trim().isNotEmpty)
         .toList();
-
-    if (periods.isEmpty) return;
-
+    if (validPeriods.isEmpty) {
+      _snack('Add at least one valid period.', isError: true);
+      return;
+    }
     setState(() => _saving = true);
     try {
-      await TimetableApiService.saveOrUpdateTimetable(TimetableModel(
-        id: widget.existing?.id,
-        className: widget.className,
-        academicYear: widget.academicYear,
-        dayOfWeek: _selectedDay,
-        periods: periods,
-      ));
-      widget.onSaved();
+      await TimetableApiService.saveOrUpdateTimetable(
+        TimetableModel(
+          id: widget.existing?.id,
+          className: widget.className,
+          academicYear: widget.academicYear,
+          dayOfWeek: _day,
+          periods: validPeriods
+              .map((draft) => PeriodModel(
+                    periodNumber: int.tryParse(draft.number.text.trim()) ?? 1,
+                    subject: draft.subject.text.trim(),
+                    teacherName: draft.teacher.text.trim(),
+                    startTime: draft.start.text.trim(),
+                    endTime: draft.end.text.trim(),
+                  ))
+              .toList()
+            ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber)),
+        ),
+      );
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: $e'),
-        backgroundColor: AppColors.error,
-      ));
+      _snack('Save failed: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _addPeriod() {
+    setState(
+        () => _periods.add(_PeriodDraft(periodNumber: _periods.length + 1)));
+  }
+
+  void _removePeriod(_PeriodDraft draft) {
+    if (_periods.length == 1) return;
+    setState(() {
+      _periods.remove(draft);
+      draft.dispose();
+    });
+  }
+
+  void _snack(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
-      title: Text('Schedule for ${widget.className}',
-          style: GoogleFonts.cormorantGaramond(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: AppColors.navy)),
+      title: Text(
+        widget.existing == null ? 'Add Day Schedule' : 'Edit Day Schedule',
+        style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w900),
+      ),
       content: SizedBox(
-        width: 600,
+        width: 720,
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DropdownButtonFormField<String>(
-                value: _selectedDay,
-                items: _days
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedDay = v!),
-                decoration: InputDecoration(
-                  labelText: 'Day of Week',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text('Periods',
-                  style: GoogleFonts.nunitoSans(
-                      fontWeight: FontWeight.w700, color: AppColors.navy)),
-              const SizedBox(height: 8),
-              ..._rows.asMap().entries.map((e) => _buildPeriodRow(e.key, e.value)),
-              TextButton.icon(
-                onPressed: () => setState(() => _rows.add(_PeriodFormRow(
-                      periodNo: (_rows.length + 1).toString(),
-                    ))),
-                icon: const Icon(Icons.add_rounded, size: 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            DropdownButtonFormField<String>(
+              initialValue: _day,
+              decoration: const InputDecoration(labelText: 'Day'),
+              items: _days
+                  .map((day) => DropdownMenuItem(value: day, child: Text(day)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) setState(() => _day = value);
+              },
+            ),
+            const SizedBox(height: 14),
+            ..._periods.map((draft) => _periodEditor(draft)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _addPeriod,
+                icon: const Icon(Icons.add_rounded, size: 17),
                 label: const Text('Add Period'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.navy),
               ),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
-        ElevatedButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
           onPressed: _saving ? null : _save,
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.navy,
-              foregroundColor: Colors.white),
-          child: _saving
+          icon: _saving
               ? const SizedBox(
-                  width: 18,
-                  height: 18,
+                  width: 16,
+                  height: 16,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white))
-              : const Text('Save'),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.save_rounded, size: 17),
+          label: Text(_saving ? 'Saving' : 'Save'),
         ),
       ],
     );
   }
 
-  Widget _buildPeriodRow(int index, _PeriodFormRow row) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cream,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
+  Widget _periodEditor(_PeriodDraft draft) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(children: [
           Row(children: [
-            Text('Period',
-                style: GoogleFonts.nunitoSans(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: AppColors.textSecondary)),
-            const Spacer(),
-            if (_rows.length > 1)
-              IconButton(
-                icon: const Icon(Icons.close_rounded,
-                    size: 16, color: AppColors.error),
-                onPressed: () => setState(() => _rows.removeAt(index)),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+            Expanded(
+              child: Text(
+                'Period ${draft.number.text}',
+                style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w900),
               ),
+            ),
+            IconButton(
+              onPressed:
+                  _periods.length == 1 ? null : () => _removePeriod(draft),
+              icon: const Icon(Icons.close_rounded, size: 18),
+            ),
           ]),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            _miniField(row.periodCtrl, '#', width: 60),
-            _miniField(row.subjectCtrl, 'Subject', width: 150),
-            _miniField(row.teacherCtrl, 'Teacher', width: 150),
-            _miniField(row.startCtrl, 'Start (HH:mm)', width: 110),
-            _miniField(row.endCtrl, 'End (HH:mm)', width: 110),
+          Wrap(spacing: 10, runSpacing: 10, children: [
+            SizedBox(
+              width: 88,
+              child: TextField(
+                controller: draft.number,
+                decoration: const InputDecoration(labelText: 'No.'),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            SizedBox(
+              width: 170,
+              child: TextField(
+                controller: draft.subject,
+                decoration: const InputDecoration(labelText: 'Subject *'),
+              ),
+            ),
+            SizedBox(
+              width: 170,
+              child: TextField(
+                controller: draft.teacher,
+                decoration: const InputDecoration(labelText: 'Teacher'),
+              ),
+            ),
+            SizedBox(
+              width: 120,
+              child: TextField(
+                controller: draft.start,
+                decoration: const InputDecoration(labelText: 'Start *'),
+              ),
+            ),
+            SizedBox(
+              width: 120,
+              child: TextField(
+                controller: draft.end,
+                decoration: const InputDecoration(labelText: 'End *'),
+              ),
+            ),
           ]),
-        ],
-      ),
-    );
-  }
-
-  Widget _miniField(TextEditingController ctrl, String hint,
-      {double width = 120}) {
-    return SizedBox(
-      width: width,
-      child: TextField(
-        controller: ctrl,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: GoogleFonts.nunitoSans(
-              color: AppColors.textLight, fontSize: 12),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusSM)),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-          isDense: true,
-        ),
-        style: GoogleFonts.nunitoSans(fontSize: 13),
+        ]),
       ),
     );
   }
 }
 
-class _PeriodFormRow {
-  final TextEditingController periodCtrl;
-  final TextEditingController subjectCtrl;
-  final TextEditingController teacherCtrl;
-  final TextEditingController startCtrl;
-  final TextEditingController endCtrl;
+class _PeriodDraft {
+  final TextEditingController number;
+  final TextEditingController subject;
+  final TextEditingController teacher;
+  final TextEditingController start;
+  final TextEditingController end;
 
-  _PeriodFormRow({
-    String periodNo = '',
-    String subject = '',
-    String teacher = '',
-    String start = '',
-    String end = '',
-  })  : periodCtrl = TextEditingController(text: periodNo),
-        subjectCtrl = TextEditingController(text: subject),
-        teacherCtrl = TextEditingController(text: teacher),
-        startCtrl = TextEditingController(text: start),
-        endCtrl = TextEditingController(text: end);
+  _PeriodDraft({required int periodNumber})
+      : number = TextEditingController(text: '$periodNumber'),
+        subject = TextEditingController(),
+        teacher = TextEditingController(),
+        start = TextEditingController(),
+        end = TextEditingController();
+
+  _PeriodDraft.fromPeriod(PeriodModel period)
+      : number = TextEditingController(text: '${period.periodNumber}'),
+        subject = TextEditingController(text: period.subject),
+        teacher = TextEditingController(text: period.teacherName),
+        start = TextEditingController(text: period.startTime),
+        end = TextEditingController(text: period.endTime);
+
+  void dispose() {
+    number.dispose();
+    subject.dispose();
+    teacher.dispose();
+    start.dispose();
+    end.dispose();
+  }
 }

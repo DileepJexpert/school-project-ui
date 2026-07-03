@@ -5,7 +5,6 @@ import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/app_shell.dart';
 import '../../core/widgets/shared_widgets.dart';
-import '../../core/widgets/responsive.dart';
 import '../../services/dio_client.dart';
 
 class ResultsPage extends StatefulWidget {
@@ -38,7 +37,12 @@ class _ResultsPageState extends State<ResultsPage> {
     if (_selectedSession == null ||
         _selectedClass == null ||
         _rollController.text.isEmpty) return;
-    setState(() { _loading = true; _error = null; _resultItems = []; _searched = false; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _resultItems = [];
+      _searched = false;
+    });
     try {
       final response = await DioClient.get('/results', queryParams: {
         'rollNumber': _rollController.text.trim(),
@@ -66,7 +70,9 @@ class _ResultsPageState extends State<ResultsPage> {
       currentRoute: AppRouter.results,
       child: Column(
         children: [
-          const PageHeader(title: 'Student Results', subtitle: 'View board examination results'),
+          const PageHeader(
+              title: 'Student Results',
+              subtitle: 'View board examination results'),
           SectionWrapper(
             backgroundColor: AppColors.white,
             child: Column(
@@ -76,7 +82,8 @@ class _ResultsPageState extends State<ResultsPage> {
                 Text(
                   'Enter your details to view your board examination results.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 14),
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.textSecondary, fontSize: 14),
                 ),
                 const SizedBox(height: 32),
 
@@ -94,19 +101,29 @@ class _ResultsPageState extends State<ResultsPage> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedSession,
-                              decoration: const InputDecoration(hintText: 'Academic Session'),
-                              items: sessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                              onChanged: (v) => setState(() => _selectedSession = v),
+                              initialValue: _selectedSession,
+                              decoration: const InputDecoration(
+                                  hintText: 'Academic Session'),
+                              items: sessions
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) =>
+                                  setState(() => _selectedSession = v),
                             ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedClass,
-                              decoration: const InputDecoration(hintText: 'Class'),
-                              items: classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                              onChanged: (v) => setState(() => _selectedClass = v),
+                              initialValue: _selectedClass,
+                              decoration:
+                                  const InputDecoration(hintText: 'Class'),
+                              items: classes
+                                  .map((c) => DropdownMenuItem(
+                                      value: c, child: Text(c)))
+                                  .toList(),
+                              onChanged: (v) =>
+                                  setState(() => _selectedClass = v),
                             ),
                           ),
                         ],
@@ -117,7 +134,8 @@ class _ResultsPageState extends State<ResultsPage> {
                           Expanded(
                             child: TextFormField(
                               controller: _rollController,
-                              decoration: const InputDecoration(hintText: 'Roll Number'),
+                              decoration: const InputDecoration(
+                                  hintText: 'Roll Number'),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -126,7 +144,8 @@ class _ResultsPageState extends State<ResultsPage> {
                             icon: const Icon(Icons.search, size: 18),
                             label: const Text('Search'),
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 28, vertical: 16),
                             ),
                           ),
                         ],
@@ -144,14 +163,17 @@ class _ResultsPageState extends State<ResultsPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.07),
-                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                      color: AppColors.error.withValues(alpha: 0.07),
+                      border: Border.all(
+                          color: AppColors.error.withValues(alpha: 0.3)),
                     ),
                     child: Row(children: [
                       const Icon(Icons.error_outline, color: AppColors.error),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(_error!,
-                          style: GoogleFonts.nunitoSans(color: AppColors.error))),
+                      Expanded(
+                          child: Text(_error!,
+                              style: GoogleFonts.nunitoSans(
+                                  color: AppColors.error))),
                     ]),
                   ),
                 ] else if (_searched) ...[
@@ -181,7 +203,8 @@ class _ResultsPageState extends State<ResultsPage> {
           ? (r['maxMarks'] as num).toDouble()
           : 100;
     }
-    final pct = maxTotal > 0 ? (total / maxTotal * 100).toStringAsFixed(1) : '0';
+    final pct =
+        maxTotal > 0 ? (total / maxTotal * 100).toStringAsFixed(1) : '0';
     final pass = maxTotal > 0 && (total / maxTotal) >= 0.33;
 
     return Container(
@@ -201,8 +224,8 @@ class _ResultsPageState extends State<ResultsPage> {
             const SizedBox(height: 8),
             Text(
               'Student: $_studentName  |  Roll: ${_rollController.text}  |  Class: $_selectedClass',
-              style:
-                  GoogleFonts.nunitoSans(color: AppColors.goldLight, fontSize: 13),
+              style: GoogleFonts.nunitoSans(
+                  color: AppColors.goldLight, fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ]),
@@ -231,10 +254,8 @@ class _ResultsPageState extends State<ResultsPage> {
                 .map((r) => DataRow(cells: [
                       DataCell(Text(r['subject']?.toString() ?? '—')),
                       DataCell(Text(r['examType']?.toString() ?? '—')),
-                      DataCell(Text(
-                          '${r['marksObtained'] ?? '—'}',
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w600))),
+                      DataCell(Text('${r['marksObtained'] ?? '—'}',
+                          style: const TextStyle(fontWeight: FontWeight.w600))),
                       DataCell(Text('${r['maxMarks'] ?? 100}')),
                       DataCell(Text(r['grade']?.toString() ?? '—',
                           style: const TextStyle(

@@ -28,7 +28,9 @@ class _GalleryPageState extends State<GalleryPage> {
       currentRoute: AppRouter.gallery,
       child: Column(
         children: [
-          const PageHeader(title: 'Photo Gallery', subtitle: 'A glimpse into life at Springfield Academy'),
+          const PageHeader(
+              title: 'Photo Gallery',
+              subtitle: 'A glimpse into life at Springfield Academy'),
           SectionWrapper(
             backgroundColor: AppColors.white,
             child: Column(
@@ -36,22 +38,28 @@ class _GalleryPageState extends State<GalleryPage> {
                 // Filters
                 Wrap(
                   alignment: WrapAlignment.center,
-                  spacing: 8, runSpacing: 8,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: SchoolData.galleryCategories.map((cat) {
                     final isActive = _filter == cat;
                     return GestureDetector(
                       onTap: () => setState(() => _filter = cat),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 8),
                         decoration: BoxDecoration(
                           color: isActive ? AppColors.navy : AppColors.cream,
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Text(cat, style: GoogleFonts.nunitoSans(
-                          color: isActive ? Colors.white : AppColors.textPrimary,
-                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                          fontSize: 13,
-                        )),
+                        child: Text(cat,
+                            style: GoogleFonts.nunitoSans(
+                              color: isActive
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                              fontWeight:
+                                  isActive ? FontWeight.w600 : FontWeight.w400,
+                              fontSize: 13,
+                            )),
                       ),
                     );
                   }).toList(),
@@ -63,11 +71,16 @@ class _GalleryPageState extends State<GalleryPage> {
                   builder: (context, constraints) {
                     final columns = Responsive.gridColumns(context).clamp(1, 3);
                     return Wrap(
-                      spacing: 12, runSpacing: 12,
-                      children: images.map((img) => SizedBox(
-                        width: (constraints.maxWidth - (columns - 1) * 12) / columns,
-                        child: _GalleryTile(item: img),
-                      )).toList(),
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: images
+                          .map((img) => SizedBox(
+                                width: (constraints.maxWidth -
+                                        (columns - 1) * 12) /
+                                    columns,
+                                child: _GalleryTile(item: img),
+                              ))
+                          .toList(),
                     );
                   },
                 ),
@@ -95,11 +108,14 @@ class _GalleryTileState extends State<_GalleryTile> {
   Widget _placeholder() => Container(
         color: Color(widget.item.color),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.image_outlined, color: Colors.white.withOpacity(0.4), size: 36),
+          Icon(Icons.image_outlined,
+              color: Colors.white.withValues(alpha: 0.4), size: 36),
           const SizedBox(height: 8),
           Text(widget.item.label,
               style: GoogleFonts.nunitoSans(
-                  color: Colors.white.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w500)),
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
         ]),
       );
 
@@ -128,11 +144,13 @@ class _GalleryTileState extends State<_GalleryTile> {
               opacity: _hovering ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 200),
               child: Container(
-                color: AppColors.navy.withOpacity(0.7),
+                color: AppColors.navy.withValues(alpha: 0.7),
                 alignment: Alignment.center,
                 child: Text(widget.item.label,
                     style: GoogleFonts.nunitoSans(
-                        color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14)),
               ),
             ),
           ],

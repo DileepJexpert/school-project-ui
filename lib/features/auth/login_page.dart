@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
-import '../../models/auth_models.dart';
+import '../../core/theme/app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/dio_client.dart';
 
@@ -131,7 +131,8 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<Map<String, dynamic>> _validateSchoolCode(String code) async {
     final serverRoot = DioClient.baseUrl.replaceAll('/api', '');
-    final response = await Dio().get('$serverRoot/platform/schools/$code/validate');
+    final response =
+        await Dio().get('$serverRoot/platform/schools/$code/validate');
     return response.data as Map<String, dynamic>;
   }
 
@@ -151,70 +152,155 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.navy,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Card(
-              elevation: 8,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(36),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildHeader(),
-                      const SizedBox(height: 28),
-                      _buildPlatformToggle(),
-                      const SizedBox(height: 20),
-                      if (!_isPlatformAdmin) ...[
-                        _buildSchoolCodeField(),
-                        const SizedBox(height: 16),
-                      ],
-                      _buildEmailField(),
-                      const SizedBox(height: 16),
-                      _buildPasswordField(),
-                      if (_error != null) ...[
-                        const SizedBox(height: 12),
-                        _buildError(),
-                      ],
-                      const SizedBox(height: 24),
-                      _buildLoginButton(),
-                      const SizedBox(height: 12),
-                      _buildBackToSite(),
-                    ],
+      backgroundColor: AppColors.cream,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final showBrandPanel = constraints.maxWidth >= 900;
+            return Row(
+              children: [
+                if (showBrandPanel)
+                  Expanded(flex: 5, child: _buildBrandPanel()),
+                Expanded(
+                  flex: showBrandPanel ? 4 : 1,
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: _buildLoginCard(showBrandPanel),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildHeader() => Column(children: [
-        const Icon(Icons.school, size: 48, color: AppColors.navy),
-        const SizedBox(height: 12),
+  Widget _buildLoginCard(bool showBrandPanel) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(showBrandPanel),
+                const SizedBox(height: 22),
+                _buildPlatformToggle(),
+                const SizedBox(height: 16),
+                if (!_isPlatformAdmin) ...[
+                  _buildSchoolCodeField(),
+                  const SizedBox(height: 14),
+                ],
+                _buildEmailField(),
+                const SizedBox(height: 14),
+                _buildPasswordField(),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  _buildError(),
+                ],
+                const SizedBox(height: 20),
+                _buildLoginButton(),
+                const SizedBox(height: 8),
+                _buildBackToSite(),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _buildBrandPanel() => Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(52),
+        decoration: BoxDecoration(
+          gradient: context.palette.heroGradient,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              ),
+              child: const Icon(Icons.school_rounded,
+                  color: Colors.white, size: 26),
+            ),
+            const Spacer(),
+            Text(
+              'One workspace for your entire school.',
+              style: GoogleFonts.nunitoSans(
+                color: Colors.white,
+                fontSize: 36,
+                height: 1.18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Manage academics, attendance, finance, staff, and communication from a single secure platform.',
+              style: GoogleFonts.nunitoSans(
+                color: Colors.white.withValues(alpha: 0.72),
+                fontSize: 15,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 28),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: const [
+                _FeaturePill(
+                    icon: Icons.verified_user_outlined, label: 'Secure access'),
+                _FeaturePill(
+                    icon: Icons.insights_outlined, label: 'Live insights'),
+                _FeaturePill(
+                    icon: Icons.devices_outlined, label: 'Works everywhere'),
+              ],
+            ),
+          ],
+        ),
+      );
+
+  Widget _buildHeader(bool showBrandPanel) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (!showBrandPanel) ...[
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.navy,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child:
+                const Icon(Icons.school_rounded, size: 22, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+        ],
         Text('School Management',
-            style: GoogleFonts.poppins(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navy)),
-        const SizedBox(height: 4),
-        Text('Sign in to your account',
-            style: GoogleFonts.poppins(
-                fontSize: 13, color: Colors.grey[600])),
+            style: GoogleFonts.nunitoSans(
+                fontSize: 23,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary)),
+        const SizedBox(height: 5),
+        Text('Sign in with your school account to continue.',
+            style: GoogleFonts.nunitoSans(
+                fontSize: 13, color: AppColors.textSecondary)),
       ]);
 
   Widget _buildPlatformToggle() => Row(
         children: [
-          Switch(
+          Switch.adaptive(
             value: _isPlatformAdmin,
             activeColor: AppColors.navy,
             onChanged: (v) => setState(() {
@@ -225,8 +311,9 @@ class _LoginPageState extends State<LoginPage> {
             }),
           ),
           const SizedBox(width: 8),
-          Text('Platform Admin login',
-              style: GoogleFonts.poppins(fontSize: 13)),
+          Text('Platform administrator',
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 13, fontWeight: FontWeight.w600)),
         ],
       );
 
@@ -239,8 +326,8 @@ class _LoginPageState extends State<LoginPage> {
               labelText: 'School Code',
               hintText: 'e.g. springfield',
               prefixIcon: const Icon(Icons.business),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               suffixIcon: _schoolValidated
                   ? const Icon(Icons.check_circle, color: Colors.green)
                   : TextButton(
@@ -277,8 +364,7 @@ class _LoginPageState extends State<LoginPage> {
         decoration: InputDecoration(
           labelText: 'Email',
           prefixIcon: const Icon(Icons.email_outlined),
-          border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
         validator: (v) {
           if (v == null || v.trim().isEmpty) return 'Enter your email';
@@ -294,18 +380,15 @@ class _LoginPageState extends State<LoginPage> {
         decoration: InputDecoration(
           labelText: 'Password',
           prefixIcon: const Icon(Icons.lock_outline),
-          border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           suffixIcon: IconButton(
-            icon: Icon(_passwordVisible
-                ? Icons.visibility_off
-                : Icons.visibility),
+            icon: Icon(
+                _passwordVisible ? Icons.visibility_off : Icons.visibility),
             onPressed: () =>
                 setState(() => _passwordVisible = !_passwordVisible),
           ),
         ),
-        validator: (v) =>
-            v == null || v.isEmpty ? 'Enter your password' : null,
+        validator: (v) => v == null || v.isEmpty ? 'Enter your password' : null,
         textInputAction: TextInputAction.done,
         onFieldSubmitted: (_) => _submit(),
       );
@@ -329,13 +412,13 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildLoginButton() => SizedBox(
         width: double.infinity,
-        height: 48,
+        height: 44,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.navy,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
           ),
           onPressed: _loading ? null : _submit,
           child: _loading
@@ -353,8 +436,39 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildBackToSite() => TextButton(
         onPressed: () =>
             Navigator.of(context).pushReplacementNamed(AppRouter.home),
-        child: Text('<- Back to school website',
-            style: GoogleFonts.poppins(
-                color: Colors.grey[600], fontSize: 13)),
+        child: Text('Back to school website',
+            style: GoogleFonts.nunitoSans(
+                color: AppColors.textSecondary, fontSize: 13)),
       );
+}
+
+class _FeaturePill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _FeaturePill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.goldLight),
+          const SizedBox(width: 7),
+          Text(label,
+              style: GoogleFonts.nunitoSans(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
 }

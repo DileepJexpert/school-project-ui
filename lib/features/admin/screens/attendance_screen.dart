@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../models/attendance_model.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/shared_widgets.dart';
 import '../../../models/student_model.dart';
 import '../../../services/attendance_api_service.dart';
 import '../../../services/student_api_service.dart';
 
-// ── Per-student monthly summary (local only) ───────────────────────────────
 class _StudentSummary {
   final String studentId;
   final String studentName;
   int present = 0;
-  int absent  = 0;
-  int late    = 0;
+  int absent = 0;
+  int late = 0;
   int halfDay = 0;
 
   _StudentSummary({required this.studentId, required this.studentName});
 
-  int    get total      => present + absent + late + halfDay;
+  int get total => present + absent + late + halfDay;
+
   double get percentage => total == 0 ? 0 : (present + late) / total * 100;
 }
 
@@ -32,112 +34,167 @@ class AttendanceScreen extends StatefulWidget {
 
 class _AttendanceScreenState extends State<AttendanceScreen>
     with SingleTickerProviderStateMixin {
-
   late final TabController _tabController;
-
-  // ── Mark tab state ────────────────────────────────────────────────────
-  String? _markClass;
-  final _yearCtrl     = TextEditingController(text: '2024-25');
   late final TextEditingController _dateCtrl;
+  late final TextEditingController _yearCtrl;
+  late final TextEditingController _reportYearCtrl;
+
   final _markedByCtrl = TextEditingController(text: 'Admin');
+  final _monthFmt = DateFormat('MMM yyyy');
+
+  String? _markClass;
   DateTime _selectedDate = DateTime.now();
   List<StudentModel> _students = [];
   final Map<String, String> _statuses = {};
-  bool _loading   = false;
+  bool _loading = false;
   bool _submitting = false;
   String? _error;
   bool _loaded = false;
 
-  // ── Reports tab state ─────────────────────────────────────────────────
-  String? _rClass;
-  final _rYearCtrl = TextEditingController(text: '2024-25');
-  DateTime _rMonth = DateTime.now();
+  String? _reportClass;
+  DateTime _reportMonth = DateTime.now();
   List<_StudentSummary> _summaries = [];
-  bool _rLoading = false;
-  bool _rLoaded  = false;
-  String? _rError;
+  bool _reportLoading = false;
+  bool _reportLoaded = false;
+  String? _reportError;
 
-  // ─────────────────────────────────────────────────────────────────────
+  static const _statusColors = {
+    'PRESENT': AppColors.success,
+    'ABSENT': AppColors.error,
+    'LATE': AppColors.warning,
+    'HALF_DAY': AppColors.info,
+  };
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _dateCtrl = TextEditingController(text: _fmtDate(_selectedDate));
+    _yearCtrl = TextEditingController(text: _currentAcademicYear());
+    _reportYearCtrl = TextEditingController(text: _currentAcademicYear());
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _yearCtrl.dispose();
     _dateCtrl.dispose();
+    _yearCtrl.dispose();
+    _reportYearCtrl.dispose();
     _markedByCtrl.dispose();
-    _rYearCtrl.dispose();
     super.dispose();
   }
 
-  // ── Mark tab helpers ──────────────────────────────────────────────────
+  String _currentAcademicYear() {
+    final now = DateTime.now();
+    final start = now.month >= 4 ? now.year : now.year - 1;
+    final end = (start + 1).toString().substring(2);
+    return '$start-$end';
+  }
+
+  String _fmtDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final picked =
+        await _pickCalendarDate(_selectedDate, helpText: 'Select date');
+    if (picked == null) return;
+    setState(() {
+      _selectedDate = picked;
+      _dateCtrl.text = _fmtDate(picked);
+      _loaded = false;
+      _students = [];
+      _statuses.clear();
+    });
+  }
+
+  Future<void> _pickReportMonth() async {
+    final picked =
+        await _pickCalendarDate(_reportMonth, helpText: 'Select report month');
+    if (picked == null) return;
+    setState(() => _reportMonth = DateTime(picked.year, picked.month));
+  }
+
+  Future<DateTime?> _pickCalendarDate(DateTime initial,
+      {required String helpText}) {
+    return showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: initial.isAfter(DateTime.now()) ? DateTime.now() : initial,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
+      helpText: helpText,
       builder: (ctx, child) => Theme(
-        data: ThemeData.light().copyWith(
-          colorScheme: const ColorScheme.light(
-              primary: AppColors.navy, onPrimary: Colors.white),
+        data: Theme.of(ctx).copyWith(
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(
+                primary: context.palette.brand,
+                surface: context.palette.surface,
+              ),
         ),
-        child: child!,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460, maxHeight: 560),
+            child: child!,
+          ),
+        ),
       ),
     );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-        _dateCtrl.text = _fmtDate(picked);
-      });
-    }
   }
 
   Future<void> _loadAttendance() async {
     final className = _markClass;
     if (className == null || className.isEmpty) {
-      _showSnack('Please select a class.', isError: true);
+      _snack('Please select a class.', isError: true);
       return;
     }
     setState(() {
       _loading = true;
-      _error   = null;
-      _loaded  = false;
+      _error = null;
+      _loaded = false;
+      _students = [];
       _statuses.clear();
     });
+
     try {
       final allStudents = await StudentApiService.getAllStudents();
-      _students = allStudents
-          .where((s) =>
-              s.classForAdmission?.toLowerCase() == className!.toLowerCase())
-          .toList();
+      final students = allStudents
+          .where((student) =>
+              student.classForAdmission?.toLowerCase() ==
+              className.toLowerCase())
+          .toList()
+        ..sort((a, b) => a.fullName.compareTo(b.fullName));
 
-      final dateStr = _fmtDate(_selectedDate);
+      final statuses = <String, String>{};
       try {
-        final existing =
-            await AttendanceApiService.getClassAttendance(className!, dateStr);
-        for (final rec in existing) {
-          _statuses[rec.studentId] = rec.status;
+        final existing = await AttendanceApiService.getClassAttendance(
+          className,
+          _fmtDate(_selectedDate),
+        );
+        for (final record in existing) {
+          statuses[record.studentId] = record.status;
         }
-      } catch (_) {}
+      } catch (_) {
+        // Existing attendance may not exist yet for the selected date.
+      }
 
-      for (final s in _students) {
-        if (s.id != null && !_statuses.containsKey(s.id)) {
-          _statuses[s.id!] = 'PRESENT';
+      for (final student in students) {
+        final id = student.id;
+        if (id != null && !statuses.containsKey(id)) {
+          statuses[id] = 'PRESENT';
         }
       }
-      setState(() => _loaded = true);
+
+      if (!mounted) return;
+      setState(() {
+        _students = students;
+        _statuses
+          ..clear()
+          ..addAll(statuses);
+        _loaded = true;
+      });
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -146,719 +203,816 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     setState(() => _submitting = true);
     try {
       final entries = _students
-          .where((s) => s.id != null)
-          .map((s) => {
-                'studentId':   s.id!,
-                'studentName': s.fullName,
-                'status':      _statuses[s.id] ?? 'PRESENT',
-                'remarks':     '',
+          .where((student) => student.id != null)
+          .map((student) => {
+                'studentId': student.id!,
+                'studentName': student.fullName,
+                'status': _statuses[student.id] ?? 'PRESENT',
+                'remarks': '',
               })
           .toList();
 
       await AttendanceApiService.markBulkAttendance(
-        className:    _markClass ?? '',
+        className: _markClass ?? '',
         academicYear: _yearCtrl.text.trim(),
-        date:         _fmtDate(_selectedDate),
-        markedBy:     _markedByCtrl.text.trim(),
-        entries:      entries,
+        date: _fmtDate(_selectedDate),
+        markedBy: _markedByCtrl.text.trim(),
+        entries: entries,
       );
-      _showSnack('Attendance saved successfully!');
+      _snack('Attendance saved.');
     } catch (e) {
-      _showSnack('Failed: $e', isError: true);
+      _snack('Failed to save attendance: $e', isError: true);
     } finally {
-      setState(() => _submitting = false);
-    }
-  }
-
-  // ── Reports tab helpers ───────────────────────────────────────────────
-
-  Future<void> _pickMonth() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _rMonth,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      helpText: 'Select any day in the target month',
-      builder: (ctx, child) => Theme(
-        data: ThemeData.light().copyWith(
-          colorScheme: const ColorScheme.light(
-              primary: AppColors.navy, onPrimary: Colors.white),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() => _rMonth = DateTime(picked.year, picked.month));
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   Future<void> _loadReport() async {
-    if (_rClass == null) {
-      _showSnack('Please select a class.', isError: true);
+    final className = _reportClass;
+    if (className == null || className.isEmpty) {
+      _snack('Please select a class.', isError: true);
       return;
     }
     setState(() {
-      _rLoading = true;
-      _rError   = null;
-      _rLoaded  = false;
+      _reportLoading = true;
+      _reportError = null;
+      _reportLoaded = false;
       _summaries.clear();
     });
     try {
-      final from = DateTime(_rMonth.year, _rMonth.month, 1);
-      // last day of month: month+1, day 0 rolls back to last day of month
-      final to   = DateTime(_rMonth.year, _rMonth.month + 1, 0);
-
+      final from = DateTime(_reportMonth.year, _reportMonth.month, 1);
+      final to = DateTime(_reportMonth.year, _reportMonth.month + 1, 0);
       final records = await AttendanceApiService.getClassAttendanceRange(
-        _rClass!,
-        _rYearCtrl.text.trim(),
+        className,
+        _reportYearCtrl.text.trim(),
         _fmtDate(from),
         _fmtDate(to),
       );
 
-      final Map<String, _StudentSummary> map = {};
-      for (final r in records) {
-        final s = map.putIfAbsent(
-          r.studentId,
+      final byStudent = <String, _StudentSummary>{};
+      for (final record in records) {
+        final summary = byStudent.putIfAbsent(
+          record.studentId,
           () => _StudentSummary(
-              studentId: r.studentId, studentName: r.studentName),
+            studentId: record.studentId,
+            studentName: record.studentName,
+          ),
         );
-        switch (r.status) {
-          case 'PRESENT':  s.present++;  break;
-          case 'ABSENT':   s.absent++;   break;
-          case 'LATE':     s.late++;     break;
-          case 'HALF_DAY': s.halfDay++;  break;
+        switch (record.status) {
+          case 'PRESENT':
+            summary.present++;
+          case 'ABSENT':
+            summary.absent++;
+          case 'LATE':
+            summary.late++;
+          case 'HALF_DAY':
+            summary.halfDay++;
         }
       }
-      _summaries = map.values.toList()
+      final summaries = byStudent.values.toList()
         ..sort((a, b) => a.studentName.compareTo(b.studentName));
 
-      setState(() => _rLoaded = true);
+      if (!mounted) return;
+      setState(() {
+        _summaries = summaries;
+        _reportLoaded = true;
+      });
     } catch (e) {
-      setState(() => _rError = e.toString());
+      if (mounted) setState(() => _reportError = e.toString());
     } finally {
-      setState(() => _rLoading = false);
+      if (mounted) setState(() => _reportLoading = false);
     }
   }
 
-  // ── Shared helpers ────────────────────────────────────────────────────
-
-  String _fmtDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  String _monthLabel(DateTime d) {
-    const m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${m[d.month - 1]} ${d.year}';
+  void _setAll(String status) {
+    setState(() {
+      for (final student in _students) {
+        final id = student.id;
+        if (id != null) _statuses[id] = status;
+      }
+    });
   }
 
-  void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: GoogleFonts.nunitoSans()),
-      backgroundColor: isError ? AppColors.error : AppColors.success,
-    ));
-  }
+  int _countStatus(String status) =>
+      _statuses.values.where((value) => value == status).length;
 
-  // ── Build ─────────────────────────────────────────────────────────────
+  void _snack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Attendance',
-              style: GoogleFonts.cormorantGaramond(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy)),
-          Text('Mark and review daily class attendance',
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary, fontSize: 13)),
-          const SizedBox(height: 16),
-          // ── Tab bar ───────────────────────────────────────────────────
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.creamDark,
-              borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: AppColors.navy,
-                borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+      padding: EdgeInsets.all(
+        Responsive.isMobile(context) ? AppSizes.paddingMD : AppSizes.paddingLG,
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        AdminPageHeader(
+          title: 'Attendance',
+          subtitle:
+              'Mark daily attendance quickly and review class attendance health.',
+          icon: Icons.rule_folder_outlined,
+          actions: [
+            if (_loaded && _students.isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: () => _setAll('PRESENT'),
+                icon: const Icon(Icons.done_all_rounded, size: 17),
+                label: const Text('All Present'),
               ),
-              labelColor: Colors.white,
-              unselectedLabelColor: AppColors.textSecondary,
-              labelStyle: GoogleFonts.nunitoSans(
-                  fontWeight: FontWeight.w700, fontSize: 13),
-              unselectedLabelStyle: GoogleFonts.nunitoSans(fontSize: 13),
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(text: 'Mark Attendance'),
-                Tab(text: 'Monthly Report'),
-              ],
-            ),
+            if (_loaded && _students.isNotEmpty)
+              ElevatedButton.icon(
+                onPressed: _submitting ? null : _submitAttendance,
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.save_rounded, size: 17),
+                label: Text(_submitting ? 'Saving' : 'Save'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _tabBar(),
+        const SizedBox(height: 14),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [_markTab(), _reportTab()],
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildMarkTab(), _buildReportsTab()],
-            ),
-          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _tabBar() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        border: Border.all(color: context.palette.border),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicator: BoxDecoration(
+          color: context.palette.brand,
+          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+        ),
+        labelColor: Colors.white,
+        unselectedLabelColor: AppColors.textSecondary,
+        labelStyle: GoogleFonts.nunitoSans(
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+        ),
+        tabs: const [
+          Tab(text: 'Mark Attendance'),
+          Tab(text: 'Monthly Report'),
         ],
       ),
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════
-  // MARK ATTENDANCE TAB
-  // ══════════════════════════════════════════════════════════════════════
-
-  Widget _buildMarkTab() => Column(children: [
-        _buildMarkFilterBar(),
-        const SizedBox(height: 16),
-        Expanded(child: _buildMarkBody()),
-      ]);
-
-  Widget _buildMarkFilterBar() => Card(
-        elevation: 1,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: 200,
-                child: DropdownButtonFormField<String>(
-                  value: _markClass,
-                  decoration:
-                      _inputDecor('Select Class', Icons.school_outlined),
-                  isExpanded: true,
-                  items: SchoolConstants.allClasses
-                      .map((c) => DropdownMenuItem(
-                            value: c,
-                            child: Text(c,
-                                style: GoogleFonts.nunitoSans(fontSize: 13)),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => _markClass = v),
-                ),
-              ),
-              SizedBox(
-                width: 130,
-                child: TextField(
-                    controller: _yearCtrl,
-                    decoration: _inputDecor(
-                        'Academic Year', Icons.calendar_today_outlined)),
-              ),
-              SizedBox(
-                width: 160,
-                child: TextField(
-                    controller: _markedByCtrl,
-                    decoration:
-                        _inputDecor('Marked By', Icons.person_outline)),
-              ),
-              SizedBox(
-                width: 160,
-                child: TextField(
-                  readOnly: true,
-                  onTap: _pickDate,
-                  controller: _dateCtrl,
-                  decoration: _inputDecor(
-                      'Date', Icons.date_range_outlined),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: _loading ? null : _loadAttendance,
-                icon: _loading
-                    ? const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.download_rounded, size: 16),
-                label: Text(_loading ? 'Loading…' : 'Load Students'),
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.navy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12)),
-              ),
-            ],
-          ),
-        ),
-      );
-
-  Widget _buildMarkBody() {
-    if (_loading) return _buildShimmer();
-    if (_error != null) return _buildError(_error!, _loadAttendance);
-    if (!_loaded)
-      return _buildIdle('Enter a class and date, then tap Load');
-    if (_students.isEmpty) return _buildEmpty('"${_markClass ?? ''}"');
-    return _buildAttendanceList();
-  }
-
-  Widget _buildAttendanceList() => Column(children: [
-        Row(children: [
-          Text(
-              '${_students.length} students — ${_fmtDate(_selectedDate)}',
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: () => setState(() {
-              for (final s in _students) {
-                if (s.id != null) _statuses[s.id!] = 'PRESENT';
-              }
-            }),
-            icon: const Icon(Icons.select_all, size: 16),
-            label: const Text('All Present'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.success),
-          ),
-        ]),
-        const SizedBox(height: 8),
-        Expanded(
-          child: ListView.separated(
-            itemCount: _students.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
-            itemBuilder: (ctx, i) {
-              final s       = _students[i];
-              final current = _statuses[s.id] ?? 'PRESENT';
-              return Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppSizes.radiusLG)),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                  child: Row(children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: AppColors.navy.withOpacity(0.1),
-                      child: Text(
-                        s.fullName.isNotEmpty
-                            ? s.fullName[0].toUpperCase()
-                            : '?',
-                        style: GoogleFonts.cormorantGaramond(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navy),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: Text(s.fullName,
-                            style: GoogleFonts.nunitoSans(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: AppColors.textPrimary))),
-                    Wrap(
-                      spacing: 6,
-                      children: _kStatusColors.entries.map((e) {
-                        final active = current == e.key;
-                        return GestureDetector(
-                          onTap: () =>
-                              setState(() => _statuses[s.id!] = e.key),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? e.value
-                                  : e.value.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                  color: active
-                                      ? e.value
-                                      : e.value.withOpacity(0.3)),
-                            ),
-                            child: Text(e.key,
-                                style: GoogleFonts.nunitoSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: active
-                                        ? Colors.white
-                                        : e.value)),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ]),
-                ),
-              );
-            },
-          ),
-        ),
+  Widget _markTab() {
+    return Column(children: [
+      _markFilterBar(),
+      const SizedBox(height: 12),
+      if (_loaded) ...[
+        _statusSummary(),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _submitting ? null : _submitAttendance,
-            icon: _submitting
-                ? const SizedBox(
-                    width: 18, height: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.save_rounded, size: 18),
-            label: Text(_submitting ? 'Saving…' : 'Mark Attendance',
-                style: GoogleFonts.nunitoSans(
-                    fontWeight: FontWeight.w700, fontSize: 15)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.navy,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-            ),
-          ),
-        ),
-      ]);
-
-  // ══════════════════════════════════════════════════════════════════════
-  // MONTHLY REPORT TAB
-  // ══════════════════════════════════════════════════════════════════════
-
-  Widget _buildReportsTab() => Column(children: [
-        _buildReportFilterBar(),
-        const SizedBox(height: 16),
-        Expanded(child: _buildReportBody()),
-      ]);
-
-  Widget _buildReportFilterBar() => Card(
-        elevation: 1,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: 200,
-                child: DropdownButtonFormField<String>(
-                  value: _rClass,
-                  decoration:
-                      _inputDecor('Select Class', Icons.school_outlined),
-                  isExpanded: true,
-                  items: SchoolConstants.allClasses
-                      .map((c) => DropdownMenuItem(
-                            value: c,
-                            child: Text(c,
-                                style: GoogleFonts.nunitoSans(fontSize: 13)),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => _rClass = v),
-                ),
-              ),
-              SizedBox(
-                width: 130,
-                child: TextField(
-                    controller: _rYearCtrl,
-                    decoration: _inputDecor(
-                        'Academic Year', Icons.calendar_today_outlined)),
-              ),
-              InkWell(
-                onTap: _pickMonth,
-                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                    color: Colors.white,
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.calendar_month_outlined,
-                        size: 18, color: AppColors.navy),
-                    const SizedBox(width: 8),
-                    Text(_monthLabel(_rMonth),
-                        style: GoogleFonts.nunitoSans(
-                            fontSize: 14, color: AppColors.textPrimary)),
-                  ]),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: _rLoading ? null : _loadReport,
-                icon: _rLoading
-                    ? const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.bar_chart_rounded, size: 16),
-                label: Text(_rLoading ? 'Loading…' : 'Load Report'),
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.navy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12)),
-              ),
-            ],
-          ),
-        ),
-      );
-
-  Widget _buildReportBody() {
-    if (_rLoading) return _buildShimmer();
-    if (_rError != null) return _buildError(_rError!, _loadReport);
-    if (!_rLoaded) {
-      return _buildIdle('Select class and month, then tap Load Report');
-    }
-    if (_summaries.isEmpty) {
-      return _buildIdle(
-          'No attendance records found for $_rClass\nin ${_monthLabel(_rMonth)}');
-    }
-    return _buildSummaryTable();
+      ],
+      Expanded(child: _markBody()),
+    ]);
   }
 
-  Widget _buildSummaryTable() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Legend + count row
-          Row(children: [
-            Text('${_summaries.length} students — ${_monthLabel(_rMonth)}',
-                style: GoogleFonts.nunitoSans(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
-            const Spacer(),
-            _legendDot('≥75%', AppColors.success),
-            const SizedBox(width: 10),
-            _legendDot('60–74%', AppColors.warning),
-            const SizedBox(width: 10),
-            _legendDot('<60%', AppColors.error),
-          ]),
-          const SizedBox(height: 8),
-          // Header
+  Widget _markFilterBar() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SizedBox(
+              width: 220,
+              child: DropdownButtonFormField<String>(
+                initialValue: _markClass,
+                decoration: _inputDecoration('Class', Icons.school_outlined),
+                isExpanded: true,
+                items: SchoolConstants.allClasses
+                    .map((className) => DropdownMenuItem(
+                          value: className,
+                          child: Text(className),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _markClass = value;
+                    _loaded = false;
+                    _students = [];
+                    _statuses.clear();
+                  });
+                },
+              ),
+            ),
+            SizedBox(
+              width: 140,
+              child: TextField(
+                controller: _yearCtrl,
+                decoration:
+                    _inputDecoration('Academic year', Icons.event_outlined),
+              ),
+            ),
+            SizedBox(
+              width: 160,
+              child: TextField(
+                readOnly: true,
+                controller: _dateCtrl,
+                onTap: _pickDate,
+                decoration: _inputDecoration('Date', Icons.date_range_outlined),
+              ),
+            ),
+            SizedBox(
+              width: 150,
+              child: TextField(
+                controller: _markedByCtrl,
+                decoration: _inputDecoration('Marked by', Icons.person_outline),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _loading ? null : _loadAttendance,
+              icon: _loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.download_rounded, size: 17),
+              label: Text(_loading ? 'Loading' : 'Load Students'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusSummary() {
+    final total = _students.length;
+    final present = _countStatus('PRESENT');
+    final absent = _countStatus('ABSENT');
+    final late = _countStatus('LATE');
+    final halfDay = _countStatus('HALF_DAY');
+    final presentRate = total == 0 ? 0.0 : (present + late) / total;
+    final cards = [
+      _MiniStat(
+          'Students', '$total', Icons.groups_outlined, context.palette.brand),
+      _MiniStat(
+          'Present', '$present', Icons.check_circle_outline, AppColors.success),
+      _MiniStat('Absent', '$absent', Icons.cancel_outlined, AppColors.error),
+      _MiniStat('Late/Half', '${late + halfDay}', Icons.schedule_outlined,
+          AppColors.warning),
+      _MiniStat('Rate', '${(presentRate * 100).toStringAsFixed(0)}%',
+          Icons.trending_up_rounded, AppColors.info),
+    ];
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth > 900 ? 5 : 2;
+      final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
+      return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: cards
+            .map((card) => SizedBox(width: width, child: _miniStatCard(card)))
+            .toList(),
+      );
+    });
+  }
+
+  Widget _miniStatCard(_MiniStat stat) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
           Container(
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              color: AppColors.navy,
+              color: stat.color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(children: [
-              _hCell('Student Name', flex: 3),
-              _hCell('P',     flex: 1),
-              _hCell('A',     flex: 1),
-              _hCell('L',     flex: 1),
-              _hCell('HD',    flex: 1),
-              _hCell('Days',  flex: 1),
-              _hCell('Attendance %', flex: 2),
+            child: Icon(stat.icon, color: stat.color, size: 18),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                stat.value,
+                style: GoogleFonts.nunitoSans(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                stat.label,
+                style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+              ),
             ]),
           ),
-          const SizedBox(height: 4),
-          // Rows
-          Expanded(
-            child: ListView.builder(
-              itemCount: _summaries.length,
-              itemBuilder: (ctx, i) {
-                final s   = _summaries[i];
-                final pct = s.percentage;
-                final col = pct >= 75
-                    ? AppColors.success
-                    : pct >= 60
-                        ? AppColors.warning
-                        : AppColors.error;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  decoration: BoxDecoration(
-                    color: i.isEven ? Colors.white : AppColors.creamDark,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                    border: Border.all(
-                        color: AppColors.border.withOpacity(0.5)),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                  child: Row(children: [
-                    Expanded(
-                      flex: 3,
-                      child: Text(s.studentName,
-                          style: GoogleFonts.nunitoSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary)),
-                    ),
-                    _dCell('${s.present}', flex: 1, color: AppColors.success),
-                    _dCell('${s.absent}',  flex: 1, color: AppColors.error),
-                    _dCell('${s.late}',    flex: 1, color: AppColors.warning),
-                    _dCell('${s.halfDay}', flex: 1, color: AppColors.info),
-                    _dCell('${s.total}',   flex: 1),
-                    Expanded(
-                      flex: 2,
-                      child: Row(children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: pct / 100,
-                              minHeight: 6,
-                              backgroundColor: col.withOpacity(0.15),
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(col),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text('${pct.toStringAsFixed(1)}%',
-                            style: GoogleFonts.nunitoSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: col)),
-                      ]),
-                    ),
-                  ]),
-                );
-              },
+        ]),
+      ),
+    );
+  }
+
+  Widget _markBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return _errorState(_error!, _loadAttendance);
+    if (!_loaded) {
+      return _emptyState(
+        icon: Icons.rule_folder_outlined,
+        title: 'Load attendance list',
+        subtitle: 'Select class and date, then load students.',
+      );
+    }
+    if (_students.isEmpty) {
+      return _emptyState(
+        icon: Icons.person_search_outlined,
+        title: 'No students found',
+        subtitle:
+            'No active students were found for ${_markClass ?? 'this class'}.',
+      );
+    }
+    return Column(children: [
+      Row(children: [
+        Expanded(
+          child: Text(
+            '${_students.length} students - ${_fmtDate(_selectedDate)}',
+            style: GoogleFonts.nunitoSans(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
             ),
           ),
-        ],
-      );
+        ),
+        TextButton.icon(
+          onPressed: () => _setAll('PRESENT'),
+          icon: const Icon(Icons.done_all_rounded, size: 16),
+          label: const Text('All Present'),
+        ),
+      ]),
+      const SizedBox(height: 8),
+      Expanded(
+        child: ListView.separated(
+          itemCount: _students.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, index) => _studentAttendanceRow(_students[index]),
+        ),
+      ),
+      const SizedBox(height: 10),
+      SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _submitting ? null : _submitAttendance,
+          icon: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.save_rounded, size: 18),
+          label: Text(_submitting ? 'Saving Attendance' : 'Save Attendance'),
+        ),
+      ),
+    ]);
+  }
 
-  // ── Shared widgets ────────────────────────────────────────────────────
-
-  Widget _buildIdle(String message) => Center(
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.rule_folder_outlined,
-                  size: 60,
-                  color: AppColors.textLight.withOpacity(0.4)),
-              const SizedBox(height: 14),
-              Text(message,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 14)),
+  Widget _studentAttendanceRow(StudentModel student) {
+    final id = student.id;
+    final current = id == null ? 'PRESENT' : _statuses[id] ?? 'PRESENT';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: context.palette.brand.withValues(alpha: 0.1),
+            child: Text(
+              student.fullName.isNotEmpty
+                  ? student.fullName.substring(0, 1).toUpperCase()
+                  : '?',
+              style: GoogleFonts.nunitoSans(
+                color: context.palette.brand,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                student.fullName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunitoSans(
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                [
+                  if ((student.rollNumber ?? '').isNotEmpty)
+                    'Roll ${student.rollNumber}',
+                  student.classForAdmission ?? '',
+                ].where((item) => item.isNotEmpty).join(' - '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
             ]),
-      );
+          ),
+          const SizedBox(width: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _statusColors.entries.map((entry) {
+              final selected = current == entry.key;
+              return InkWell(
+                onTap: id == null
+                    ? null
+                    : () => setState(() => _statuses[id] = entry.key),
+                borderRadius: BorderRadius.circular(999),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? entry.value
+                        : entry.value.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: selected
+                          ? entry.value
+                          : entry.value.withValues(alpha: 0.28),
+                    ),
+                  ),
+                  child: Text(
+                    _statusLabel(entry.key),
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: selected ? Colors.white : entry.value,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ]),
+      ),
+    );
+  }
 
-  Widget _buildEmpty(String className) => Center(
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.person_search_outlined,
-                  size: 60,
-                  color: AppColors.textLight.withOpacity(0.4)),
-              const SizedBox(height: 14),
-              Text('No students in $className',
-                  style: GoogleFonts.cormorantGaramond(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.navy)),
-              const SizedBox(height: 6),
-              Text('Admit students with this class name first.',
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 13)),
-            ]),
-      );
+  Widget _reportTab() {
+    return Column(children: [
+      _reportFilterBar(),
+      const SizedBox(height: 12),
+      Expanded(child: _reportBody()),
+    ]);
+  }
 
-  Widget _buildShimmer() => Shimmer.fromColors(
-        baseColor: Colors.grey.shade200,
-        highlightColor: Colors.grey.shade100,
-        child: ListView.builder(
-          itemCount: 6,
-          itemBuilder: (_, __) => Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            height: 48,
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius:
-                    BorderRadius.circular(AppSizes.radiusLG)),
+  Widget _reportFilterBar() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SizedBox(
+              width: 220,
+              child: DropdownButtonFormField<String>(
+                initialValue: _reportClass,
+                decoration: _inputDecoration('Class', Icons.school_outlined),
+                isExpanded: true,
+                items: SchoolConstants.allClasses
+                    .map((className) => DropdownMenuItem(
+                          value: className,
+                          child: Text(className),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() => _reportClass = value),
+              ),
+            ),
+            SizedBox(
+              width: 140,
+              child: TextField(
+                controller: _reportYearCtrl,
+                decoration:
+                    _inputDecoration('Academic year', Icons.event_outlined),
+              ),
+            ),
+            InkWell(
+              onTap: _pickReportMonth,
+              borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                decoration: BoxDecoration(
+                  color: context.palette.canvas,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                  border: Border.all(color: context.palette.border),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.calendar_month_outlined,
+                      size: 17, color: context.palette.brand),
+                  const SizedBox(width: 7),
+                  Text(
+                    _monthFmt.format(_reportMonth),
+                    style: GoogleFonts.nunitoSans(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _reportLoading ? null : _loadReport,
+              icon: _reportLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.bar_chart_rounded, size: 17),
+              label: Text(_reportLoading ? 'Loading' : 'Load Report'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reportBody() {
+    if (_reportLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_reportError != null) {
+      return _errorState(_reportError!, _loadReport);
+    }
+    if (!_reportLoaded) {
+      return _emptyState(
+        icon: Icons.analytics_outlined,
+        title: 'Load monthly report',
+        subtitle: 'Select class and month to review attendance patterns.',
+      );
+    }
+    if (_summaries.isEmpty) {
+      return _emptyState(
+        icon: Icons.inbox_outlined,
+        title: 'No records found',
+        subtitle:
+            'No attendance records for ${_reportClass ?? 'this class'} in ${_monthFmt.format(_reportMonth)}.',
+      );
+    }
+
+    final avg = _summaries.fold<double>(
+          0,
+          (sum, item) => sum + item.percentage,
+        ) /
+        _summaries.length;
+    final atRisk = _summaries.where((item) => item.percentage < 75).length;
+
+    return Column(children: [
+      LayoutBuilder(builder: (context, constraints) {
+        final columns = constraints.maxWidth > 720 ? 3 : 1;
+        final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
+        final cards = [
+          _MiniStat('Students', '${_summaries.length}', Icons.groups_outlined,
+              context.palette.brand),
+          _MiniStat(
+              'Average',
+              '${avg.toStringAsFixed(1)}%',
+              Icons.trending_up_rounded,
+              avg >= 75 ? AppColors.success : AppColors.warning),
+          _MiniStat('Below 75%', '$atRisk', Icons.warning_amber_rounded,
+              atRisk == 0 ? AppColors.success : AppColors.error),
+        ];
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: cards
+              .map((card) => SizedBox(width: width, child: _miniStatCard(card)))
+              .toList(),
+        );
+      }),
+      const SizedBox(height: 12),
+      Expanded(
+        child: ListView.separated(
+          itemCount: _summaries.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, index) => _summaryRow(_summaries[index]),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _summaryRow(_StudentSummary summary) {
+    final percent = summary.percentage;
+    final color = percent >= 75
+        ? AppColors.success
+        : percent >= 60
+            ? AppColors.warning
+            : AppColors.error;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+              child: Text(
+                summary.studentName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunitoSans(
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Text(
+              '${percent.toStringAsFixed(1)}%',
+              style: GoogleFonts.nunitoSans(
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: (percent / 100).clamp(0, 1),
+              minHeight: 7,
+              backgroundColor: color.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+          const SizedBox(height: 9),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            _countChip('P', summary.present, AppColors.success),
+            _countChip('A', summary.absent, AppColors.error),
+            _countChip('L', summary.late, AppColors.warning),
+            _countChip('HD', summary.halfDay, AppColors.info),
+            _countChip('Days', summary.total, AppColors.textSecondary),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _countChip(String label, int value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+      ),
+      child: Text(
+        '$label $value',
+        style: GoogleFonts.nunitoSans(
+          color: color,
+          fontWeight: FontWeight.w900,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 52, color: AppColors.textLight.withValues(alpha: 0.5)),
+        const SizedBox(height: 12),
+        Text(
+          title,
+          style: GoogleFonts.nunitoSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary,
           ),
         ),
-      );
-
-  Widget _buildError(String error, VoidCallback retry) => Center(
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.wifi_off_rounded,
-                  color: AppColors.error, size: 52),
-              const SizedBox(height: 12),
-              Text('Failed to load',
-                  style: GoogleFonts.nunitoSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.error)),
-              const SizedBox(height: 6),
-              Text(error,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 12)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                  onPressed: retry, child: const Text('Retry')),
-            ]),
-      );
-
-  // ── Table cell helpers ────────────────────────────────────────────────
-
-  Widget _hCell(String text, {int flex = 1}) => Expanded(
-        flex: flex,
-        child: Text(text,
+        const SizedBox(height: 5),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            subtitle,
+            textAlign: TextAlign.center,
             style: GoogleFonts.nunitoSans(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700)),
-      );
-
-  Widget _dCell(String text, {int flex = 1, Color? color}) => Expanded(
-        flex: flex,
-        child: Text(text,
-            style: GoogleFonts.nunitoSans(
-                fontSize: 13, color: color ?? AppColors.textPrimary)),
-      );
-
-  Widget _legendDot(String label, Color color) =>
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-            width: 10,
-            height: 10,
-            decoration:
-                BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 4),
-        Text(label,
-            style: GoogleFonts.nunitoSans(
-                fontSize: 11, color: AppColors.textSecondary)),
-      ]);
-
-  InputDecoration _inputDecor(String hint, IconData icon) =>
-      InputDecoration(
-        hintText: hint,
-        hintStyle:
-            GoogleFonts.nunitoSans(color: AppColors.textLight, fontSize: 13),
-        prefixIcon: Icon(icon, size: 18, color: AppColors.navy),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-          borderSide: const BorderSide(color: AppColors.border),
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-          borderSide: const BorderSide(color: AppColors.navy, width: 2),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        isDense: true,
-      );
+      ]),
+    );
+  }
 
-  static const _kStatusColors = {
-    'PRESENT':  AppColors.success,
-    'ABSENT':   AppColors.error,
-    'LATE':     AppColors.warning,
-    'HALF_DAY': AppColors.info,
-  };
+  Widget _errorState(String error, VoidCallback retry) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.wifi_off_rounded, color: AppColors.error, size: 48),
+          const SizedBox(height: 12),
+          Text(
+            'Could not load attendance',
+            style: GoogleFonts.nunitoSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunitoSans(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: retry,
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+            label: const Text('Retry'),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 18),
+      isDense: true,
+      fillColor: context.palette.canvas,
+    );
+  }
+
+  String _statusLabel(String status) => switch (status) {
+        'PRESENT' => 'Present',
+        'ABSENT' => 'Absent',
+        'LATE' => 'Late',
+        'HALF_DAY' => 'Half',
+        _ => status,
+      };
+}
+
+class _MiniStat {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _MiniStat(this.label, this.value, this.icon, this.color);
 }

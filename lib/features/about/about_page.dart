@@ -24,7 +24,9 @@ class AboutPage extends StatelessWidget {
       currentRoute: AppRouter.about,
       child: Column(
         children: [
-          const PageHeader(title: 'About Us', subtitle: 'A legacy of excellence in education since 1987'),
+          const PageHeader(
+              title: 'About Us',
+              subtitle: 'A legacy of excellence in education since 1987'),
           _MissionVisionSection(),
           _ValuesSection(),
         ],
@@ -41,7 +43,11 @@ class _MissionVisionSection extends StatelessWidget {
     return SectionWrapper(
       backgroundColor: AppColors.white,
       child: isMobile
-          ? Column(children: [_missionVision(context), const SizedBox(height: 32), _timeline(context)])
+          ? Column(children: [
+              _missionVision(context),
+              const SizedBox(height: 32),
+              _timeline(context)
+            ])
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -77,45 +83,59 @@ class _MissionVisionSection extends StatelessWidget {
         children: [
           Text(
             'Our History',
-            style: GoogleFonts.cormorantGaramond(color: AppColors.gold, fontSize: 22, fontWeight: FontWeight.w600),
+            style: GoogleFonts.cormorantGaramond(
+                color: AppColors.gold,
+                fontSize: 22,
+                fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 24),
           ...SchoolData.timeline.map((event) => Padding(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 14, height: 14,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle, color: AppColors.gold,
-                        border: Border.all(color: AppColors.navyDark, width: 3),
+                    Column(
+                      children: [
+                        Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.gold,
+                            border:
+                                Border.all(color: AppColors.navyDark, width: 3),
+                          ),
+                        ),
+                        if (event != SchoolData.timeline.last)
+                          Container(
+                              width: 2,
+                              height: 40,
+                              color: AppColors.gold.withValues(alpha: 0.2)),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(event.year,
+                              style: GoogleFonts.nunitoSans(
+                                color: AppColors.goldLight,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              )),
+                          const SizedBox(height: 2),
+                          Text(event.text,
+                              style: GoogleFonts.nunitoSans(
+                                color: Colors.white.withValues(alpha: 0.75),
+                                fontSize: 14,
+                              )),
+                        ],
                       ),
                     ),
-                    if (event != SchoolData.timeline.last)
-                      Container(width: 2, height: 40, color: AppColors.gold.withOpacity(0.2)),
                   ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(event.year, style: GoogleFonts.nunitoSans(
-                        color: AppColors.goldLight, fontWeight: FontWeight.w700, fontSize: 13,
-                      )),
-                      const SizedBox(height: 2),
-                      Text(event.text, style: GoogleFonts.nunitoSans(
-                        color: Colors.white.withOpacity(0.75), fontSize: 14,
-                      )),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
@@ -137,30 +157,43 @@ class _ValuesSection extends StatelessWidget {
               return Wrap(
                 spacing: 16,
                 runSpacing: 16,
-                children: SchoolData.coreValues.map((v) => SizedBox(
-                  width: (constraints.maxWidth - (columns - 1) * 16) / columns,
-                  child: AccentCard(
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      children: [
-                        Icon(
-                          AboutPage._iconMap[v.icon] ?? Icons.star,
-                          color: AppColors.gold, size: 36,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(v.title, textAlign: TextAlign.center,
-                          style: GoogleFonts.cormorantGaramond(
-                            color: AppColors.navy, fontSize: 20, fontWeight: FontWeight.w600,
+                children: SchoolData.coreValues
+                    .map((v) => SizedBox(
+                          width: (constraints.maxWidth - (columns - 1) * 16) /
+                              columns,
+                          child: AccentCard(
+                            padding: const EdgeInsets.all(28),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  AboutPage._iconMap[v.icon] ?? Icons.star,
+                                  color: AppColors.gold,
+                                  size: 36,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  v.title,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.cormorantGaramond(
+                                    color: AppColors.navy,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  v.description,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.nunitoSans(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13,
+                                      height: 1.5),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(v.description, textAlign: TextAlign.center,
-                          style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-                        ),
-                      ],
-                    ),
-                  ),
-                )).toList(),
+                        ))
+                    .toList(),
               );
             },
           ),

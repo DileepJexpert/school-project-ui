@@ -22,8 +22,8 @@ class Responsive {
   }
 
   static double contentPadding(BuildContext context) {
-    if (isDesktop(context)) return AppSizes.paddingXXL;
-    if (isTablet(context)) return AppSizes.paddingLG;
+    if (isDesktop(context)) return AppSizes.paddingXL;
+    if (isTablet(context)) return AppSizes.paddingMD;
     return AppSizes.paddingMD;
   }
 }

@@ -54,6 +54,9 @@ class AuthService {
 
   /// Login for SUPER_ADMIN users (uses /platform/auth/login, platform_db).
   Future<AuthUser> loginPlatform(String email, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tenant_id');
+    await prefs.remove('school_name');
     // Platform login uses a different base URL prefix -- strip /api from baseUrl
     final dio = DioClient.instance;
     final response = await dio.post(
@@ -138,6 +141,8 @@ class AuthService {
   Future<void> _clearStorage(SharedPreferences prefs) async {
     await TokenStorage.clear();
     await prefs.remove(_userKey);
+    await prefs.remove('tenant_id');
+    await prefs.remove('school_name');
   }
 
   // -- Permission helpers
@@ -159,19 +164,31 @@ class AuthService {
     return switch (role) {
       UserRole.superAdmin || UserRole.schoolAdmin => true,
       UserRole.teacher => const {
-          'Overview', 'Students', 'Attendance', 'Timetable', 'Results',
-          'Notifications', 'Discipline', 'Chat', 'Homework', 'Video Tutorials'
+          'Overview',
+          'Students',
+          'Attendance',
+          'Timetable',
+          'Results',
+          'Notifications',
+          'Discipline',
+          'Chat',
+          'Homework',
+          'Video Tutorials'
         }.contains(menuLabel),
       UserRole.accountant => const {
-          'Overview', 'Students', 'Fees', 'Expenses', 'Reports',
-          'HR & Staff', 'Certificates'
+          'Overview',
+          'Students',
+          'Fees',
+          'Expenses',
+          'Reports',
+          'HR & Staff',
+          'Certificates'
         }.contains(menuLabel),
-      UserRole.transportManager => const {
-          'Overview', 'Students', 'Transport'
-        }.contains(menuLabel),
-      UserRole.student || UserRole.parent => const {
-          'Overview'
-        }.contains(menuLabel),
+      UserRole.transportManager =>
+        const {'Overview', 'Students', 'Transport'}.contains(menuLabel),
+      UserRole.student ||
+      UserRole.parent =>
+        const {'Overview'}.contains(menuLabel),
       _ => false,
     };
   }

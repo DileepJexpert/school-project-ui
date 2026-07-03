@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/responsive.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_api_service.dart';
 import 'chat_screen.dart';
@@ -14,103 +16,154 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
+  final _searchCtrl = TextEditingController();
+
   bool _loading = true;
-  List<dynamic> _rooms = [];
+  String? _error;
+  List<Map<String, dynamic>> _rooms = [];
 
   @override
   void initState() {
     super.initState();
+    _searchCtrl.addListener(() => setState(() {}));
     _loadRooms();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _visible {
+    final query = _searchCtrl.text.trim().toLowerCase();
+    return _rooms.where((room) {
+      final searchable = [
+        _otherName(room),
+        _text(room, 'studentName'),
+        _text(room, 'lastMessage'),
+      ].join(' ').toLowerCase();
+      return query.isEmpty || searchable.contains(query);
+    }).toList();
+  }
+
+  int get _unreadCount {
+    final userId = AuthService.instance.currentUser?.userId ?? '';
+    return _rooms.fold<int>(0, (sum, room) {
+      final counts = _map(room['unreadCounts']);
+      final unread = counts[userId];
+      return sum + (unread is num ? unread.toInt() : 0);
+    });
+  }
+
   Future<void> _loadRooms() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
       final userId = AuthService.instance.currentUser?.userId ?? '';
       final data = await ChatApiService.getMyRooms(userId);
-      if (mounted) setState(() => _rooms = data);
+      if (!mounted) return;
+      setState(() {
+        _rooms = data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load chats: $e')),
-        );
-      }
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _showNewChatDialog() async {
-    List<dynamic> contacts = [];
-    bool loadingContacts = true;
-
-    showDialog(
+    final selected = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            if (loadingContacts) {
-              ChatApiService.getContacts().then((data) {
-                final currentUserId =
-                    AuthService.instance.currentUser?.userId ?? '';
-                // Filter out current user
-                final filtered = data
-                    .where((u) =>
-                        (u['id'] as String? ?? '') != currentUserId)
-                    .toList();
-                setDialogState(() {
-                  contacts = filtered;
-                  loadingContacts = false;
-                });
-              }).catchError((e) {
-                setDialogState(() {
-                  loadingContacts = false;
-                });
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to load contacts: $e')),
-                );
-              });
-              // Prevent re-calling on rebuild
-              loadingContacts = false;
-              return AlertDialog(
-                title: Text('New Chat',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                content: const SizedBox(
-                    height: 100,
-                    child: Center(child: CircularProgressIndicator())),
-              );
-            }
-
-            return AlertDialog(
-              title: Text('New Chat',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-              content: SizedBox(
-                width: double.maxFinite,
-                height: 400,
-                child: contacts.isEmpty
-                    ? Center(
-                        child: Text('No contacts available.',
-                            style: GoogleFonts.poppins(
-                                color: AppColors.textSecondary)))
-                    : _ContactList(
-                        contacts: contacts,
-                        onSelect: (contact) {
-                          Navigator.pop(ctx);
-                          _startChat(contact);
-                        },
-                      ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
+        return AlertDialog(
+          titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
+          contentPadding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+          actionsPadding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
+          title: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: context.palette.brand.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-            );
-          },
+                child: Icon(Icons.chat_outlined, color: context.palette.brand),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Start a conversation',
+                  style: GoogleFonts.nunitoSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 560,
+            height: 460,
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _loadContacts(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return _InlineState(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Could not load contacts',
+                    subtitle: snapshot.error.toString(),
+                  );
+                }
+                final contacts = snapshot.data ?? [];
+                if (contacts.isEmpty) {
+                  return const _InlineState(
+                    icon: Icons.person_search_outlined,
+                    title: 'No contacts available',
+                    subtitle: 'Users will appear here after they are created.',
+                  );
+                }
+                return _ContactPicker(
+                  contacts: contacts,
+                  onSelect: (contact) => Navigator.pop(ctx, contact),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+          ],
         );
       },
     );
+
+    if (selected != null) await _startChat(selected);
+  }
+
+  Future<List<Map<String, dynamic>>> _loadContacts() async {
+    final currentUserId = AuthService.instance.currentUser?.userId ?? '';
+    final data = await ChatApiService.getContacts();
+    return data
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .where((user) => _text(user, 'id') != currentUserId)
+        .toList()
+      ..sort((a, b) => _text(a, 'fullName').compareTo(_text(b, 'fullName')));
   }
 
   Future<void> _startChat(Map<String, dynamic> contact) async {
@@ -118,9 +171,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final myId = user?.userId ?? '';
     final myName = user?.fullName ?? '';
     final myRole = user?.role ?? '';
-    final otherId = contact['id'] as String? ?? '';
-    final otherName = contact['fullName'] as String? ?? 'Unknown';
-    final otherRole = contact['role'] as String? ?? '';
+    final otherId = _text(contact, 'id');
+    final otherName = _text(contact, 'fullName').isEmpty
+        ? 'Unknown'
+        : _text(contact, 'fullName');
+    final otherRole = _text(contact, 'role');
 
     try {
       final room = await ChatApiService.getOrCreateRoom(
@@ -130,246 +185,673 @@ class _ChatListScreenState extends State<ChatListScreen> {
         names: {myId: myName, otherId: otherName},
         roles: {myId: myRole, otherId: otherRole},
       );
-      final roomId = room['id'] as String? ?? '';
-      if (mounted) {
-        Navigator.of(context).push(MaterialPageRoute(
+      final roomId = _text(room, 'id');
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
           builder: (_) => ChatScreen(roomId: roomId, otherName: otherName),
-        ));
-        // Refresh rooms list when coming back
-        _loadRooms();
-      }
+        ),
+      );
+      _loadRooms();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create chat: $e')),
-        );
-      }
+      _snack('Could not start chat: $e', isError: true);
     }
+  }
+
+  void _snack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    final padding = Responsive.contentPadding(context);
 
-    return Stack(
+    return Padding(
+      padding: EdgeInsets.all(padding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 14),
+          _buildMetrics(),
+          const SizedBox(height: 14),
+          _buildToolbar(),
+          const SizedBox(height: 12),
+          Expanded(child: _buildBody()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Messages',
-                  style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navy)),
-            ),
-            Expanded(
-              child: _rooms.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.chat_bubble_outline,
-                              size: 48, color: Colors.grey[300]),
-                          const SizedBox(height: 12),
-                          Text('No conversations yet.',
-                              style: GoogleFonts.poppins(
-                                  color: AppColors.textSecondary)),
-                          const SizedBox(height: 8),
-                          Text('Tap + to start a new chat.',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary)),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadRooms,
-                      child: ListView.separated(
-                        itemCount: _rooms.length,
-                        separatorBuilder: (_, __) =>
-                            const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final room =
-                              _rooms[index] as Map<String, dynamic>;
-                          return _buildRoomTile(room);
-                        },
-                      ),
-                    ),
-            ),
-          ],
-        ),
-        Positioned(
-          right: 16,
-          bottom: 16,
-          child: FloatingActionButton(
-            backgroundColor: AppColors.navy,
-            onPressed: _showNewChatDialog,
-            child: const Icon(Icons.add, color: Colors.white),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Chat',
+                style: GoogleFonts.nunitoSans(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'School conversations with staff, parents and linked students.',
+                style: GoogleFonts.nunitoSans(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
+        ),
+        OutlinedButton.icon(
+          onPressed: _loading ? null : _loadRooms,
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Refresh'),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton.icon(
+          onPressed: _showNewChatDialog,
+          icon: const Icon(Icons.add_comment_outlined, size: 18),
+          label: const Text('New chat'),
         ),
       ],
     );
   }
 
-  Widget _buildRoomTile(Map<String, dynamic> room) {
-    final userId = AuthService.instance.currentUser?.userId ?? '';
-    final participantNames =
-        (room['participantNames'] as Map<String, dynamic>?) ?? {};
-    final unreadCounts =
-        (room['unreadCounts'] as Map<String, dynamic>?) ?? {};
-    final lastMessage = room['lastMessage'] as String? ?? '';
-    final roomId = room['id'] as String? ?? '';
-    final studentName = room['studentName'] as String? ?? '';
-
-    // Get the other participant's name
-    String otherName = 'Unknown';
-    for (final entry in participantNames.entries) {
-      if (entry.key != userId) {
-        otherName = entry.value as String;
-        break;
-      }
-    }
-
-    final unread = (unreadCounts[userId] as num?)?.toInt() ?? 0;
-
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: AppColors.navy.withOpacity(0.1),
-        child: Text(otherName.isNotEmpty ? otherName[0] : '?',
-            style: const TextStyle(
-                color: AppColors.navy, fontWeight: FontWeight.w600)),
-      ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(otherName,
-                style: GoogleFonts.poppins(
-                    fontWeight:
-                        unread > 0 ? FontWeight.w700 : FontWeight.w500,
-                    fontSize: 14)),
-          ),
-          if (unread > 0)
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.navy,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text('$unread',
-                  style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600)),
+  Widget _buildMetrics() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 720;
+        final width = compact
+            ? (constraints.maxWidth - 10) / 2
+            : (constraints.maxWidth - 20) / 3;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _MetricCard(
+              width: width,
+              label: 'Conversations',
+              value: _rooms.length.toString(),
+              icon: Icons.forum_outlined,
+              color: context.palette.brand,
             ),
-        ],
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (studentName.isNotEmpty)
-            Text('Re: $studentName',
-                style: GoogleFonts.poppins(
-                    fontSize: 11, color: AppColors.gold)),
-          Text(lastMessage,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.poppins(
-                  fontSize: 12, color: AppColors.textSecondary)),
-        ],
-      ),
-      onTap: () async {
-        await Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ChatScreen(roomId: roomId, otherName: otherName),
-        ));
-        _loadRooms();
+            _MetricCard(
+              width: width,
+              label: 'Unread',
+              value: _unreadCount.toString(),
+              icon: Icons.mark_chat_unread_outlined,
+              color: AppColors.warning,
+            ),
+            _MetricCard(
+              width: width,
+              label: 'Visible now',
+              value: _visible.length.toString(),
+              icon: Icons.filter_alt_outlined,
+              color: AppColors.info,
+            ),
+          ],
+        );
       },
     );
   }
+
+  Widget _buildToolbar() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        border: Border.all(color: context.palette.border),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Search conversations...',
+                prefixIcon: Icon(Icons.search_rounded, size: 20),
+              ),
+            ),
+          ),
+          if (_searchCtrl.text.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            TextButton.icon(
+              onPressed: _searchCtrl.clear,
+              icon: const Icon(Icons.close_rounded, size: 17),
+              label: const Text('Clear'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_error != null) {
+      return _StateCard(
+        icon: Icons.cloud_off_outlined,
+        title: 'Could not load chats',
+        subtitle: _error!,
+        actionLabel: 'Retry',
+        onAction: _loadRooms,
+      );
+    }
+
+    final visible = _visible;
+    if (visible.isEmpty) {
+      return _StateCard(
+        icon: Icons.chat_bubble_outline,
+        title: 'No conversations found',
+        subtitle: 'Start a new chat or change the search text.',
+        actionLabel: 'New chat',
+        onAction: _showNewChatDialog,
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadRooms,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: visible.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final room = visible[index];
+          return _RoomRow(
+            room: room,
+            otherName: _otherName(room),
+            unread: _roomUnread(room),
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(
+                    roomId: _text(room, 'id'),
+                    otherName: _otherName(room),
+                  ),
+                ),
+              );
+              _loadRooms();
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  String _otherName(Map<String, dynamic> room) {
+    final userId = AuthService.instance.currentUser?.userId ?? '';
+    final participantNames = _map(room['participantNames']);
+    for (final entry in participantNames.entries) {
+      if (entry.key != userId) return entry.value?.toString() ?? 'Unknown';
+    }
+    return 'Unknown';
+  }
+
+  int _roomUnread(Map<String, dynamic> room) {
+    final userId = AuthService.instance.currentUser?.userId ?? '';
+    final unread = _map(room['unreadCounts'])[userId];
+    return unread is num ? unread.toInt() : 0;
+  }
+
+  static Map<String, dynamic> _map(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return {};
+  }
+
+  static String _text(Map<String, dynamic> item, String key) {
+    final value = item[key];
+    return value == null ? '' : value.toString();
+  }
 }
 
-/// Filterable contact list widget used in the New Chat dialog
-class _ContactList extends StatefulWidget {
-  final List<dynamic> contacts;
-  final void Function(Map<String, dynamic>) onSelect;
+class _RoomRow extends StatelessWidget {
+  final Map<String, dynamic> room;
+  final String otherName;
+  final int unread;
+  final VoidCallback onTap;
 
-  const _ContactList({required this.contacts, required this.onSelect});
+  const _RoomRow({
+    required this.room,
+    required this.otherName,
+    required this.unread,
+    required this.onTap,
+  });
 
   @override
-  State<_ContactList> createState() => _ContactListState();
+  Widget build(BuildContext context) {
+    final lastMessage = _text('lastMessage');
+    final studentName = _text('studentName');
+    final initial = otherName.isNotEmpty ? otherName[0].toUpperCase() : '?';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.palette.surface,
+          border: Border.all(
+            color: unread > 0
+                ? context.palette.brand.withValues(alpha: 0.32)
+                : context.palette.border,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x080F172A),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: context.palette.brand.withValues(alpha: 0.1),
+              child: Text(
+                initial,
+                style: GoogleFonts.nunitoSans(
+                  color: context.palette.brand,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          otherName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.nunitoSans(
+                            fontSize: 15,
+                            fontWeight:
+                                unread > 0 ? FontWeight.w900 : FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (unread > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: context.palette.brand,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            unread.toString(),
+                            style: GoogleFonts.nunitoSans(
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (studentName.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      'Regarding $studentName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: context.palette.accent,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 3),
+                  Text(
+                    lastMessage.isEmpty ? 'No messages yet' : lastMessage,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _text(String key) {
+    final value = room[key];
+    return value == null ? '' : value.toString();
+  }
 }
 
-class _ContactListState extends State<_ContactList> {
-  String _search = '';
+class _ContactPicker extends StatefulWidget {
+  final List<Map<String, dynamic>> contacts;
+  final ValueChanged<Map<String, dynamic>> onSelect;
 
-  List<dynamic> get _filtered {
-    if (_search.isEmpty) return widget.contacts;
-    final q = _search.toLowerCase();
-    return widget.contacts.where((c) {
-      final name = (c['fullName'] as String? ?? '').toLowerCase();
-      final email = (c['email'] as String? ?? '').toLowerCase();
-      final role = (c['role'] as String? ?? '').toLowerCase();
-      return name.contains(q) || email.contains(q) || role.contains(q);
+  const _ContactPicker({required this.contacts, required this.onSelect});
+
+  @override
+  State<_ContactPicker> createState() => _ContactPickerState();
+}
+
+class _ContactPickerState extends State<_ContactPicker> {
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _filtered {
+    final query = _searchCtrl.text.trim().toLowerCase();
+    if (query.isEmpty) return widget.contacts;
+    return widget.contacts.where((contact) {
+      final searchable = [
+        _text(contact, 'fullName'),
+        _text(contact, 'email'),
+        _text(contact, 'role'),
+      ].join(' ').toLowerCase();
+      return searchable.contains(query);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filtered;
+    final contacts = _filtered;
+
     return Column(
       children: [
         TextField(
-          decoration: InputDecoration(
-            hintText: 'Search by name, email, or role...',
-            prefixIcon: const Icon(Icons.search),
-            border:
-                OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          controller: _searchCtrl,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            hintText: 'Search name, email, role...',
+            prefixIcon: Icon(Icons.search_rounded, size: 20),
           ),
-          onChanged: (v) => setState(() => _search = v),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Text('No matching contacts.',
-                      style: GoogleFonts.poppins(
-                          color: AppColors.textSecondary)))
-              : ListView.builder(
-                  itemCount: filtered.length,
+          child: contacts.isEmpty
+              ? const _InlineState(
+                  icon: Icons.person_search_outlined,
+                  title: 'No matching contacts',
+                  subtitle: 'Try a different name or role.',
+                )
+              : ListView.separated(
+                  itemCount: contacts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final c = filtered[index] as Map<String, dynamic>;
-                    final name = c['fullName'] as String? ?? 'Unknown';
-                    final email = c['email'] as String? ?? '';
-                    final role = c['role'] as String? ?? '';
-                    final displayRole = role
-                        .replaceAll('ROLE_', '')
-                        .replaceAll('_', ' ');
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.navy.withOpacity(0.1),
-                        child: Text(
-                            name.isNotEmpty ? name[0].toUpperCase() : '?',
-                            style: const TextStyle(
-                                color: AppColors.navy,
-                                fontWeight: FontWeight.w600)),
+                    final contact = contacts[index];
+                    final name = _text(contact, 'fullName').isEmpty
+                        ? 'Unknown'
+                        : _text(contact, 'fullName');
+                    final email = _text(contact, 'email');
+                    final role = _prettyRole(_text(contact, 'role'));
+                    return InkWell(
+                      onTap: () => widget.onSelect(contact),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: context.palette.canvas,
+                          border: Border.all(color: context.palette.border),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor:
+                                  context.palette.brand.withValues(alpha: 0.1),
+                              child: Text(
+                                name[0].toUpperCase(),
+                                style: GoogleFonts.nunitoSans(
+                                  color: context.palette.brand,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.nunitoSans(
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    [role, email]
+                                        .where((item) => item.isNotEmpty)
+                                        .join(' | '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.nunitoSans(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        ),
                       ),
-                      title: Text(name,
-                          style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w500, fontSize: 14)),
-                      subtitle: Text('$displayRole  |  $email',
-                          style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: AppColors.textSecondary)),
-                      onTap: () => widget.onSelect(c),
                     );
                   },
                 ),
         ),
       ],
+    );
+  }
+
+  static String _text(Map<String, dynamic> item, String key) {
+    final value = item[key];
+    return value == null ? '' : value.toString();
+  }
+
+  static String _prettyRole(String role) {
+    return role.replaceAll('ROLE_', '').replaceAll('_', ' ');
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final double width;
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _MetricCard({
+    required this.width,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.palette.surface,
+          border: Border.all(color: context.palette.border),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, size: 20, color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StateCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  const _StateCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 420,
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: context.palette.surface,
+          border: Border.all(color: context.palette.border),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 42, color: AppColors.textLight),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunitoSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunitoSans(
+                color: AppColors.textSecondary,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: onAction, child: Text(actionLabel)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _InlineState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 38, color: AppColors.textLight),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunitoSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunitoSans(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 }

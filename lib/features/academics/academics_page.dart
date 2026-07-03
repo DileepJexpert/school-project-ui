@@ -29,8 +29,10 @@ class _AcademicsPageState extends State<AcademicsPage> {
       currentRoute: AppRouter.academics,
       child: Column(
         children: [
-          const PageHeader(title: 'Academics', subtitle: 'A comprehensive curriculum for every stage of learning'),
-
+          const PageHeader(
+              title: 'Academics',
+              subtitle:
+                  'A comprehensive curriculum for every stage of learning'),
           SectionWrapper(
             backgroundColor: AppColors.white,
             child: Column(
@@ -40,13 +42,15 @@ class _AcademicsPageState extends State<AcademicsPage> {
                 Wrap(
                   spacing: 4,
                   runSpacing: 8,
-                  children: List.generate(SchoolData.academicLevels.length, (i) {
+                  children:
+                      List.generate(SchoolData.academicLevels.length, (i) {
                     final l = SchoolData.academicLevels[i];
                     final isActive = i == _selectedTab;
                     return GestureDetector(
                       onTap: () => setState(() => _selectedTab = i),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
                         decoration: BoxDecoration(
                           color: isActive ? AppColors.navy : AppColors.cream,
                           border: Border.all(color: AppColors.border),
@@ -54,12 +58,18 @@ class _AcademicsPageState extends State<AcademicsPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(_tabIcons[i], size: 18, color: isActive ? Colors.white : AppColors.navy),
+                            Icon(_tabIcons[i],
+                                size: 18,
+                                color:
+                                    isActive ? Colors.white : AppColors.navy),
                             const SizedBox(width: 8),
-                            Text(l.title, style: GoogleFonts.nunitoSans(
-                              color: isActive ? Colors.white : AppColors.navy,
-                              fontWeight: FontWeight.w600, fontSize: 14,
-                            )),
+                            Text(l.title,
+                                style: GoogleFonts.nunitoSans(
+                                  color:
+                                      isActive ? Colors.white : AppColors.navy,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                )),
                           ],
                         ),
                       ),
@@ -70,7 +80,11 @@ class _AcademicsPageState extends State<AcademicsPage> {
 
                 // Content
                 isMobile
-                    ? Column(children: [_levelContent(level), const SizedBox(height: 32), _coCurriculars()])
+                    ? Column(children: [
+                        _levelContent(level),
+                        const SizedBox(height: 32),
+                        _coCurriculars()
+                      ])
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -95,21 +109,28 @@ class _AcademicsPageState extends State<AcademicsPage> {
         const SizedBox(height: 16),
         Text(level.focus, style: Theme.of(context).textTheme.bodyLarge),
         const SizedBox(height: 24),
-        Text('Program Highlights', style: GoogleFonts.nunitoSans(
-          color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 16,
-        )),
+        Text('Program Highlights',
+            style: GoogleFonts.nunitoSans(
+              color: AppColors.navy,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            )),
         const SizedBox(height: 12),
         ...level.highlights.map((h) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.check_circle, color: AppColors.gold, size: 18),
-              const SizedBox(width: 10),
-              Expanded(child: Text(h, style: GoogleFonts.nunitoSans(fontSize: 14, height: 1.5))),
-            ],
-          ),
-        )),
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.check_circle,
+                      color: AppColors.gold, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: Text(h,
+                          style: GoogleFonts.nunitoSans(
+                              fontSize: 14, height: 1.5))),
+                ],
+              ),
+            )),
       ],
     );
   }
@@ -133,28 +154,37 @@ class _AcademicsPageState extends State<AcademicsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Co-Curricular Activities', style: GoogleFonts.cormorantGaramond(
-            color: AppColors.navy, fontSize: 22, fontWeight: FontWeight.w600,
-          )),
+          Text('Co-Curricular Activities',
+              style: GoogleFonts.cormorantGaramond(
+                color: AppColors.navy,
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              )),
           const SizedBox(height: 20),
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: SchoolData.coCurriculars.map((c) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(_coIconMap[c.icon] ?? Icons.star, color: AppColors.gold, size: 18),
-                  const SizedBox(width: 8),
-                  Text(c.name, style: GoogleFonts.nunitoSans(fontSize: 13, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            )).toList(),
+            children: SchoolData.coCurriculars
+                .map((c) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_coIconMap[c.icon] ?? Icons.star,
+                              color: AppColors.gold, size: 18),
+                          const SizedBox(width: 8),
+                          Text(c.name,
+                              style: GoogleFonts.nunitoSans(
+                                  fontSize: 13, fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ))
+                .toList(),
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/shared_widgets.dart';
 import '../../../models/student_model.dart';
 import '../../../services/admission_api_service.dart';
 import '../../../services/csv_export_service.dart';
@@ -62,7 +63,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
   final _searchCtrl = TextEditingController();
 
   // Filter + sort state
-  String? _filterClass;          // null = all classes
+  String? _filterClass; // null = all classes
   String _filterStatus = 'ALL'; // 'ALL' | 'ACTIVE' | 'INACTIVE'
   _SortBy _sortBy = _SortBy.nameAZ;
 
@@ -86,7 +87,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
     try {
       final list = await StudentApiService.getAllStudents();
       // Exclude enquiries — those belong to the Enquiry Management screen
-      setState(() => _students = list.where((s) => s.status.toUpperCase() != 'ENQUIRY').toList());
+      setState(() => _students =
+          list.where((s) => s.status.toUpperCase() != 'ENQUIRY').toList());
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -105,7 +107,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
     });
     try {
       final list = await StudentApiService.searchStudents(query.trim());
-      setState(() => _students = list.where((s) => s.status.toUpperCase() != 'ENQUIRY').toList());
+      setState(() => _students =
+          list.where((s) => s.status.toUpperCase() != 'ENQUIRY').toList());
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -132,7 +135,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
   List<StudentModel> get _filtered {
     var list = _students.where((s) {
       if (_filterClass != null) {
-        final base = SchoolConstants.parseClassName(s.classForAdmission ?? '').$1;
+        final base =
+            SchoolConstants.parseClassName(s.classForAdmission ?? '').$1;
         if (base != _filterClass) return false;
       }
       if (_filterStatus != 'ALL' && s.status != _filterStatus) return false;
@@ -156,8 +160,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     return list;
   }
 
-  bool get _hasActiveFilters =>
-      _filterClass != null || _filterStatus != 'ALL';
+  bool get _hasActiveFilters => _filterClass != null || _filterStatus != 'ALL';
 
   /// All unique full class strings (e.g. "Class 5 - A") present in loaded data.
   List<String> get _availableFullClasses {
@@ -187,8 +190,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return AdminPageScaffold(
+      scrollable: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -297,49 +300,44 @@ class _StudentsScreenState extends State<StudentsScreen> {
     final total = _students.length;
     final active = _students.where((s) => s.status == 'ACTIVE').length;
     final inactive = total - active;
-    return Row(
-      children: [
-        _statCard('Total', total, AppColors.navy, Icons.people_rounded),
-        const SizedBox(width: 10),
-        _statCard('Active', active, AppColors.success, Icons.check_circle_outline_rounded),
-        const SizedBox(width: 10),
-        _statCard('Inactive', inactive, AppColors.error, Icons.highlight_off_rounded),
-      ],
-    );
-  }
-
-  Widget _statCard(String label, int count, Color color, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.07),
-          border: Border.all(color: color.withOpacity(0.22)),
-          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-        ),
-        child: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth > 760 ? 3 : 1;
+        final cardWidth = (constraints.maxWidth - (columns - 1) * 10) / columns;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
           children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('$count',
-                    style: GoogleFonts.cormorantGaramond(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: color,
-                        height: 1.1)),
-                Text(label,
-                    style: GoogleFonts.nunitoSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: color.withOpacity(0.75))),
-              ],
+            SizedBox(
+              width: cardWidth,
+              child: AdminMetricCard(
+                title: 'Total Students',
+                value: '$total',
+                icon: Icons.people_rounded,
+                color: AppColors.navy,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: AdminMetricCard(
+                title: 'Active',
+                value: '$active',
+                icon: Icons.check_circle_outline_rounded,
+                color: AppColors.success,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: AdminMetricCard(
+                title: 'Inactive',
+                value: '$inactive',
+                icon: Icons.highlight_off_rounded,
+                color: AppColors.error,
+              ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -394,8 +392,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
           const SizedBox(width: 6),
           ...classes.map((cls) => Padding(
                 padding: const EdgeInsets.only(right: 6),
-                child: _classChip(
-                    cls, _filterClass == cls, () => setState(() => _filterClass = cls)),
+                child: _classChip(cls, _filterClass == cls,
+                    () => setState(() => _filterClass = cls)),
               )),
         ],
       ),
@@ -410,7 +408,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? AppColors.navy : Colors.white,
-          border: Border.all(color: selected ? AppColors.navy : AppColors.border),
+          border:
+              Border.all(color: selected ? AppColors.navy : AppColors.border),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label,
@@ -459,7 +458,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.12) : Colors.transparent,
+          color: selected ? color.withValues(alpha: 0.12) : Colors.transparent,
           border: Border.all(color: selected ? color : AppColors.border),
           borderRadius: BorderRadius.circular(20),
         ),
@@ -568,8 +567,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
               style: GoogleFonts.nunitoSans(
                   color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 16),
-          ElevatedButton(
-              onPressed: _loadStudents, child: const Text('Retry')),
+          ElevatedButton(onPressed: _loadStudents, child: const Text('Retry')),
         ],
       ),
     );
@@ -581,7 +579,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.people_outline,
-              size: 60, color: AppColors.textLight.withOpacity(0.5)),
+              size: 60, color: AppColors.textLight.withValues(alpha: 0.5)),
           const SizedBox(height: 14),
           Text('No students found',
               style: GoogleFonts.cormorantGaramond(
@@ -603,7 +601,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.filter_list_off_rounded,
-              size: 52, color: AppColors.textLight.withOpacity(0.5)),
+              size: 52, color: AppColors.textLight.withValues(alpha: 0.5)),
           const SizedBox(height: 14),
           Text('No students match filters',
               style: GoogleFonts.cormorantGaramond(
@@ -625,8 +623,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     if (s.id == null) return;
     final saved = await Navigator.push<bool>(
       ctx,
-      MaterialPageRoute(
-          builder: (_) => NewAdmissionScreen(studentId: s.id!)),
+      MaterialPageRoute(builder: (_) => NewAdmissionScreen(studentId: s.id!)),
     );
     if (saved == true) _loadStudents();
   }
@@ -726,10 +723,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           color: AppColors.textSecondary)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: selectedClass,
+                    initialValue: selectedClass,
                     hint: Text('Select class…',
-                        style: GoogleFonts.nunitoSans(
-                            color: AppColors.textLight)),
+                        style:
+                            GoogleFonts.nunitoSans(color: AppColors.textLight)),
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                           borderRadius:
@@ -740,8 +737,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     items: _availableFullClasses
                         .map((c) => DropdownMenuItem(
                             value: c,
-                            child: Text(c,
-                                style: GoogleFonts.nunitoSans())))
+                            child: Text(c, style: GoogleFonts.nunitoSans())))
                         .toList(),
                     onChanged: promoting
                         ? null
@@ -801,14 +797,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: affectedCount == 0
-                            ? AppColors.error.withOpacity(0.07)
-                            : AppColors.gold.withOpacity(0.08),
+                            ? AppColors.error.withValues(alpha: 0.07)
+                            : AppColors.gold.withValues(alpha: 0.08),
                         border: Border.all(
                             color: affectedCount == 0
-                                ? AppColors.error.withOpacity(0.3)
-                                : AppColors.gold.withOpacity(0.4)),
-                        borderRadius:
-                            BorderRadius.circular(AppSizes.radiusMD),
+                                ? AppColors.error.withValues(alpha: 0.3)
+                                : AppColors.gold.withValues(alpha: 0.4)),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
                       ),
                       child: Row(children: [
                         Icon(
@@ -842,11 +837,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ),
             actions: [
               TextButton(
-                onPressed:
-                    promoting ? null : () => Navigator.pop(ctx),
+                onPressed: promoting ? null : () => Navigator.pop(ctx),
                 child: Text('Cancel',
-                    style: GoogleFonts.nunitoSans(
-                        color: AppColors.textSecondary)),
+                    style:
+                        GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
               ),
               ElevatedButton(
                 onPressed: selectedClass == null ||
@@ -856,9 +850,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     : () async {
                         dialogSetState(() => promoting = true);
                         try {
-                          final count =
-                              await AdmissionApiService.promoteClass(
-                                  selectedClass!, nextCls, targetYear);
+                          final count = await AdmissionApiService.promoteClass(
+                              selectedClass!, nextCls, targetYear);
                           if (ctx.mounted) Navigator.pop(ctx);
                           _loadStudents();
                           if (mounted) {
@@ -936,11 +929,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
           final classStudents = selectedClass == null
               ? <StudentModel>[]
               : (_students
-                    .where((s) =>
-                        s.status == 'ACTIVE' &&
-                        s.classForAdmission == selectedClass)
-                    .toList()
-                  ..sort((a, b) => a.fullName.compareTo(b.fullName)));
+                  .where((s) =>
+                      s.status == 'ACTIVE' &&
+                      s.classForAdmission == selectedClass)
+                  .toList()
+                ..sort((a, b) => a.fullName.compareTo(b.fullName)));
 
           // Initialise controllers for newly visible students
           for (final s in classStudents) {
@@ -982,10 +975,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 14),
                     ),
-                    value: selectedClass,
+                    initialValue: selectedClass,
                     items: classesWithActive
-                        .map((c) =>
-                            DropdownMenuItem(value: c, child: Text(c)))
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                         .toList(),
                     onChanged: (v) => setSt(() => selectedClass = v),
                   ),
@@ -1035,11 +1027,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                     labelText: 'Roll No.',
                                     isDense: true,
                                     border: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8)),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 10),
+                                        borderRadius: BorderRadius.circular(8)),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 10),
                                   ),
                                 ),
                               ),
@@ -1082,8 +1072,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                       controllers[s.id!]?.text ?? '';
                                 }
                               }
-                              final count = await AdmissionApiService
-                                  .assignRollNumbers(assignments);
+                              final count =
+                                  await AdmissionApiService.assignRollNumbers(
+                                      assignments);
                               for (final c in controllers.values) {
                                 c.dispose();
                               }
@@ -1152,7 +1143,7 @@ class _StudentCard extends StatelessWidget {
           child: Row(children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: AppColors.navy.withOpacity(0.1),
+              backgroundColor: AppColors.navy.withValues(alpha: 0.1),
               child: Text(
                 student.fullName.isNotEmpty
                     ? student.fullName[0].toUpperCase()
@@ -1269,7 +1260,7 @@ class _StudentCard extends StatelessWidget {
   Widget _chip(String text, Color color) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20)),
         child: Text(text,
             style: GoogleFonts.nunitoSans(
@@ -1295,7 +1286,7 @@ class _StudentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(_badgeLabel(status),
