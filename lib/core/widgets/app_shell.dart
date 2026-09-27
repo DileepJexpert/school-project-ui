@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
+import '../constants/public_colors.dart';
 import '../router/app_router.dart';
+import '../theme/app_theme.dart';
 import 'responsive.dart';
 
 /// Wraps every public-facing page with consistent Navbar + Footer + Marquee.
@@ -17,28 +19,64 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.cream,
-      endDrawer: Responsive.isMobile(context) || Responsive.isTablet(context)
-          ? _MobileDrawer(currentRoute: currentRoute)
-          : null,
-      body: Column(
-        children: [
-          const _MarqueeBanner(),
-          _DesktopNavbar(currentRoute: currentRoute),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  child,
-                  const _Footer(),
-                ],
-              ),
+    final baseTheme = Theme.of(context);
+    const publicPalette = AppThemePalette(
+      brand: PublicColors.navy,
+      brandDark: PublicColors.navyDark,
+      accent: PublicColors.gold,
+      canvas: PublicColors.cream,
+      surface: PublicColors.white,
+      border: PublicColors.border,
+      heroGradient: PublicColors.heroGradient,
+    );
+    return Theme(
+        data: baseTheme.copyWith(
+          colorScheme: baseTheme.colorScheme.copyWith(
+            primary: PublicColors.navy,
+            secondary: PublicColors.gold,
+            surface: PublicColors.white,
+            outline: PublicColors.border,
+          ),
+          scaffoldBackgroundColor: PublicColors.cream,
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: PublicColors.gold,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 42),
             ),
           ),
-        ],
-      ),
-    );
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: PublicColors.navy,
+              side: const BorderSide(color: PublicColors.navy),
+            ),
+          ),
+          extensions: [publicPalette],
+        ),
+        child: Builder(
+            builder: (context) => Scaffold(
+                  backgroundColor: context.palette.canvas,
+                  endDrawer: Responsive.isMobile(context) ||
+                          Responsive.isTablet(context)
+                      ? _MobileDrawer(currentRoute: currentRoute)
+                      : null,
+                  body: Column(
+                    children: [
+                      const _MarqueeBanner(),
+                      _DesktopNavbar(currentRoute: currentRoute),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              child,
+                              const _Footer(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )));
   }
 }
 
@@ -85,26 +123,23 @@ class _MarqueeBannerState extends State<_MarqueeBanner>
 
   @override
   Widget build(BuildContext context) {
+    if (AppStrings.announcement.isEmpty) return const SizedBox.shrink();
     return Container(
-      height: 32,
-      color: AppColors.navyDark,
+      height: 28,
+      color: context.palette.brandDark,
       child: SingleChildScrollView(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
         physics: const NeverScrollableScrollPhysics(),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7),
+          padding: const EdgeInsets.symmetric(vertical: 5),
           child: Row(
             children: [
               const SizedBox(width: 100),
               Text(
-                '📢  Admissions Open for 2026-27   |   '
-                '🏆  National Science Olympiad — 3 Gold Medals   |   '
-                '📅  Annual Science Exhibition — March 15, 2026   |   '
-                '📞  Contact: ${AppStrings.phone}   |   '
-                '✉️  ${AppStrings.email}',
+                AppStrings.announcement,
                 style: GoogleFonts.nunitoSans(
-                  color: AppColors.goldLight,
+                  color: PublicColors.goldLight,
                   fontSize: 12,
                   letterSpacing: 0.3,
                 ),
@@ -130,9 +165,9 @@ class _DesktopNavbar extends StatelessWidget {
     final isCompact = !Responsive.isDesktop(context);
 
     return Container(
-      color: AppColors.navy,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      height: 64,
+      color: context.palette.brand,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      height: 58,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
@@ -145,16 +180,19 @@ class _DesktopNavbar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 38,
-                      height: 38,
-                      decoration: const BoxDecoration(color: AppColors.gold),
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: context.palette.accent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       alignment: Alignment.center,
                       child: Text(
                         'S',
                         style: GoogleFonts.cormorantGaramond(
-                          color: AppColors.navyDark,
+                          color: context.palette.brandDark,
                           fontWeight: FontWeight.w700,
-                          fontSize: 22,
+                          fontSize: 20,
                         ),
                       ),
                     ),
@@ -172,15 +210,16 @@ class _DesktopNavbar extends StatelessWidget {
                             height: 1,
                           ),
                         ),
-                        Text(
-                          'Est. ${AppStrings.founded}',
-                          style: GoogleFonts.nunitoSans(
-                            color: AppColors.goldLight,
-                            fontSize: 9,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.w600,
+                        if (AppStrings.founded.isNotEmpty)
+                          Text(
+                            'Est. ${AppStrings.founded}',
+                            style: GoogleFonts.nunitoSans(
+                              color: PublicColors.goldLight,
+                              fontSize: 9,
+                              letterSpacing: 1.5,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ],
@@ -201,7 +240,8 @@ class _DesktopNavbar extends StatelessWidget {
 
               // Staff Login
               if (!isCompact)
-                _StaffLoginButton(onTap: () => _navigate(context, AppRouter.login)),
+                _StaffLoginButton(
+                    onTap: () => _navigate(context, AppRouter.login)),
 
               // Mobile hamburger
               if (isCompact)
@@ -227,7 +267,8 @@ class _NavButton extends StatefulWidget {
   final String label;
   final bool isActive;
   final VoidCallback onTap;
-  const _NavButton({required this.label, required this.isActive, required this.onTap});
+  const _NavButton(
+      {required this.label, required this.isActive, required this.onTap});
 
   @override
   State<_NavButton> createState() => _NavButtonState();
@@ -247,7 +288,7 @@ class _NavButtonState extends State<_NavButton> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: widget.isActive
-                ? AppColors.gold.withOpacity(0.15)
+                ? PublicColors.gold.withOpacity(0.15)
                 : _hovering
                     ? Colors.white.withOpacity(0.05)
                     : Colors.transparent,
@@ -256,7 +297,9 @@ class _NavButtonState extends State<_NavButton> {
           child: Text(
             widget.label,
             style: GoogleFonts.nunitoSans(
-              color: widget.isActive ? AppColors.gold : Colors.white.withOpacity(0.85),
+              color: widget.isActive
+                  ? PublicColors.goldLight
+                  : Colors.white.withOpacity(0.85),
               fontSize: 13,
               fontWeight: widget.isActive ? FontWeight.w700 : FontWeight.w400,
               letterSpacing: 0.3,
@@ -289,14 +332,14 @@ class _StaffLoginButtonState extends State<_StaffLoginButton> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: _hovering ? AppColors.gold : Colors.transparent,
-            border: Border.all(color: AppColors.gold.withOpacity(0.5)),
+            color: _hovering ? PublicColors.gold : Colors.transparent,
+            border: Border.all(color: PublicColors.gold.withOpacity(0.5)),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
             'Staff Login',
             style: GoogleFonts.nunitoSans(
-              color: _hovering ? Colors.white : AppColors.goldLight,
+              color: _hovering ? Colors.white : PublicColors.goldLight,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
@@ -318,7 +361,7 @@ class _MobileDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      backgroundColor: AppColors.navyDark,
+      backgroundColor: PublicColors.navyDark,
       child: SafeArea(
         child: Column(
           children: [
@@ -327,19 +370,25 @@ class _MobileDrawer extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 38, height: 38,
-                    color: AppColors.gold,
+                    width: 38,
+                    height: 38,
+                    color: PublicColors.gold,
                     alignment: Alignment.center,
-                    child: Text('S', style: GoogleFonts.cormorantGaramond(
-                      color: AppColors.navyDark, fontWeight: FontWeight.w700, fontSize: 22,
-                    )),
+                    child: Text('S',
+                        style: GoogleFonts.cormorantGaramond(
+                          color: PublicColors.navyDark,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 22,
+                        )),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       AppStrings.schoolName,
                       style: GoogleFonts.cormorantGaramond(
-                        color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                     ),
                   ),
@@ -350,23 +399,28 @@ class _MobileDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(color: AppColors.navyLight, height: 1),
+            const Divider(color: PublicColors.navyLight, height: 1),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: AppRouter.publicNavItems.map((item) {
                   final isActive = currentRoute == item.route;
                   return ListTile(
-                    leading: Icon(item.icon, color: isActive ? AppColors.gold : Colors.white70, size: 22),
+                    leading: Icon(item.icon,
+                        color:
+                            isActive ? PublicColors.goldLight : Colors.white70,
+                        size: 22),
                     title: Text(
                       item.label,
                       style: GoogleFonts.nunitoSans(
-                        color: isActive ? AppColors.gold : Colors.white,
-                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                        color: isActive ? PublicColors.goldLight : Colors.white,
+                        fontWeight:
+                            isActive ? FontWeight.w700 : FontWeight.w400,
                         fontSize: 15,
                       ),
                     ),
-                    tileColor: isActive ? AppColors.gold.withOpacity(0.1) : null,
+                    tileColor:
+                        isActive ? PublicColors.gold.withOpacity(0.1) : null,
                     onTap: () {
                       Navigator.pop(context);
                       if (item.route != currentRoute) {
@@ -377,10 +431,14 @@ class _MobileDrawer extends StatelessWidget {
                 }).toList(),
               ),
             ),
-            const Divider(color: AppColors.navyLight, height: 1),
+            const Divider(color: PublicColors.navyLight, height: 1),
             ListTile(
-              leading: const Icon(Icons.admin_panel_settings_outlined, color: AppColors.goldLight, size: 22),
-              title: Text('Staff Login', style: GoogleFonts.nunitoSans(color: AppColors.goldLight, fontWeight: FontWeight.w600)),
+              leading: const Icon(Icons.admin_panel_settings_outlined,
+                  color: PublicColors.goldLight, size: 22),
+              title: Text('Staff Login',
+                  style: GoogleFonts.nunitoSans(
+                      color: PublicColors.goldLight,
+                      fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushReplacementNamed(context, AppRouter.login);
@@ -405,7 +463,7 @@ class _Footer extends StatelessWidget {
     final isDesktop = Responsive.isDesktop(context);
 
     return Container(
-      color: AppColors.navyDark,
+      color: PublicColors.navy,
       padding: const EdgeInsets.only(top: 48),
       child: Column(
         children: [
@@ -413,8 +471,11 @@ class _Footer extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
-                child: isDesktop ? _buildDesktopFooter(context) : _buildMobileFooter(context),
+                constraints:
+                    const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
+                child: isDesktop
+                    ? _buildDesktopFooter(context)
+                    : _buildMobileFooter(context),
               ),
             ),
           ),
@@ -423,12 +484,14 @@ class _Footer extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.navyLight, width: 0.5)),
+              border: Border(
+                  top: BorderSide(color: PublicColors.navyLight, width: 0.5)),
             ),
             child: Text(
               '© ${DateTime.now().year} ${AppStrings.schoolName}. All rights reserved.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.nunitoSans(color: Colors.white24, fontSize: 12),
+              style:
+                  GoogleFonts.nunitoSans(color: Colors.white24, fontSize: 12),
             ),
           ),
         ],
@@ -442,8 +505,14 @@ class _Footer extends StatelessWidget {
       children: [
         Expanded(flex: 3, child: _buildAboutColumn()),
         const SizedBox(width: 32),
-        Expanded(flex: 2, child: _buildLinksColumn(context, 'Quick Links', ['Home', 'About', 'Academics', 'Admissions'])),
-        Expanded(flex: 2, child: _buildLinksColumn(context, 'Explore', ['Gallery', 'Events', 'Transport', 'Results', 'Contact'])),
+        Expanded(
+            flex: 2,
+            child: _buildLinksColumn(context, 'Quick Links',
+                ['Home', 'About', 'Academics', 'Admissions'])),
+        Expanded(
+            flex: 2,
+            child: _buildLinksColumn(context, 'Explore',
+                ['Gallery', 'Events', 'Transport', 'Results', 'Contact'])),
         Expanded(flex: 3, child: _buildContactColumn()),
       ],
     );
@@ -468,45 +537,63 @@ class _Footer extends StatelessWidget {
         Row(
           children: [
             Container(
-              width: 32, height: 32, color: AppColors.gold,
+              width: 32,
+              height: 32,
+              color: PublicColors.gold,
               alignment: Alignment.center,
-              child: Text('S', style: GoogleFonts.cormorantGaramond(
-                color: AppColors.navyDark, fontWeight: FontWeight.w700, fontSize: 18,
-              )),
+              child: Text('S',
+                  style: GoogleFonts.cormorantGaramond(
+                    color: PublicColors.navyDark,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  )),
             ),
             const SizedBox(width: 10),
-            Text(AppStrings.schoolName, style: GoogleFonts.cormorantGaramond(
-              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14,
-            )),
+            Text(AppStrings.schoolName,
+                style: GoogleFonts.cormorantGaramond(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                )),
           ],
         ),
         const SizedBox(height: 12),
         Text(
           AppStrings.tagline,
-          style: GoogleFonts.nunitoSans(color: Colors.white60, fontSize: 13, height: 1.6),
+          style: GoogleFonts.nunitoSans(
+              color: Colors.white60, fontSize: 13, height: 1.6),
         ),
       ],
     );
   }
 
-  Widget _buildLinksColumn(BuildContext context, String title, List<String> links) {
+  Widget _buildLinksColumn(
+      BuildContext context, String title, List<String> links) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: GoogleFonts.cormorantGaramond(
-          color: AppColors.gold, fontSize: 16, fontWeight: FontWeight.w600,
-        )),
+        Text(title,
+            style: GoogleFonts.cormorantGaramond(
+              color: PublicColors.goldLight,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            )),
         const SizedBox(height: 12),
         ...links.map((link) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: InkWell(
-            onTap: () => Navigator.pushReplacementNamed(context, '/${link.toLowerCase()}' == '/home' ? '/' : '/${link.toLowerCase()}'),
-            child: Text(
-              link,
-              style: GoogleFonts.nunitoSans(color: Colors.white60, fontSize: 13),
-            ),
-          ),
-        )),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: InkWell(
+                onTap: () => Navigator.pushReplacementNamed(
+                    context,
+                    '/${link.toLowerCase()}' == '/home'
+                        ? '/'
+                        : '/${link.toLowerCase()}'),
+                child: Text(
+                  link,
+                  style: GoogleFonts.nunitoSans(
+                      color: Colors.white60, fontSize: 13),
+                ),
+              ),
+            )),
       ],
     );
   }
@@ -515,9 +602,12 @@ class _Footer extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Contact Us', style: GoogleFonts.cormorantGaramond(
-          color: AppColors.gold, fontSize: 16, fontWeight: FontWeight.w600,
-        )),
+        Text('Contact Us',
+            style: GoogleFonts.cormorantGaramond(
+              color: PublicColors.goldLight,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            )),
         const SizedBox(height: 12),
         _contactRow(Icons.location_on_outlined, AppStrings.address),
         _contactRow(Icons.phone_outlined, AppStrings.phone),
@@ -532,9 +622,12 @@ class _Footer extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: AppColors.gold),
+          Icon(icon, size: 16, color: PublicColors.gold),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: GoogleFonts.nunitoSans(color: Colors.white60, fontSize: 13, height: 1.5))),
+          Expanded(
+              child: Text(text,
+                  style: GoogleFonts.nunitoSans(
+                      color: Colors.white60, fontSize: 13, height: 1.5))),
         ],
       ),
     );

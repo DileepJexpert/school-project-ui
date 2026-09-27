@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/auth_models.dart';
+import '../models/school_data.dart';
 import 'dio_client.dart';
 
 /// Manages authentication state: login, logout, token storage, role checks.
@@ -88,6 +89,7 @@ class AuthService {
     if (_currentUser!.tenantId != null) {
       await prefs.setString('tenant_id', _currentUser!.tenantId!);
     }
+    await SchoolData.load();
 
     return _currentUser!;
   }

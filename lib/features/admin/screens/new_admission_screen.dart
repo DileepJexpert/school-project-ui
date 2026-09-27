@@ -3,8 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/academic_year.dart';
 import '../../../models/admission_data.dart';
 import '../../../services/admission_api_service.dart';
+import '../../../services/fee_api_service.dart';
 // SchoolConstants is defined in app_constants.dart
 
 class NewAdmissionScreen extends StatefulWidget {
@@ -57,6 +59,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   String? _year;
   bool _sameAddr = false;
   String? _rollNumber;           // preserved from existing record on edit
+  String? _loadedClass;
+  String? _loadedYear;
   String _existingStatus = 'ACTIVE'; // preserved from existing record on edit
 
   // The value stored in DB: "Class 5 - A" or "Nursery"
@@ -65,11 +69,12 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       : SchoolConstants.buildClassName(_baseClass!, _section);
 
   final _genders = ['Male', 'Female', 'Other'];
-  final _years = ['2024-2025', '2025-2026', '2026-2027'];
+  List<String> get _years => AcademicYear.choices(include: _year);
 
   @override
   void initState() {
     super.initState();
+    if (!_isEdit) _year = AcademicYear.currentLong();
     if (_isEdit) _loadStudent();
   }
 
@@ -92,6 +97,8 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
         _baseClass = base;
         _section = sec;
         _year = s.academicYear;
+        _loadedClass = s.classForAdmission;
+        _loadedYear = s.academicYear;
         _doa = s.dateOfAdmission;
         _admNoCtrl.text = s.admissionNumber;
         _rollNumber = s.rollNumber;
@@ -142,6 +149,12 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       _showSnack('Please fill all required fields.', isError: true);
       return;
     }
+    if (_isEdit && !_isAdmitMode &&
+        (_classForAdmission != _loadedClass || _year != _loadedYear)) {
+      _showSnack('Use class promotion to change class or academic year; '
+          'a normal edit cannot update the fee profile safely.', isError: true);
+      return;
+    }
     setState(() => _loading = true);
     final student = Student(
       id: widget.studentId,
@@ -184,6 +197,15 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       ),
     );
     try {
+      if (!_isEdit || _isAdmitMode) {
+        final structures = await FeeApiService.getFeeStructures(year: _year!);
+        if (!structures.any((s) =>
+            s.className == _classForAdmission &&
+            s.academicYear == _year &&
+            s.components.isNotEmpty)) {
+          throw StateError('Set up fees for $_classForAdmission ($_year) before admitting this student.');
+        }
+      }
       if (_isEdit) {
         await AdmissionApiService.updateStudent(widget.studentId!, student);
         _showSnack(_isAdmitMode

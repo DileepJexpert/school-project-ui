@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/academic_year.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
 
@@ -41,9 +42,10 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
   List<FeeStructure> _structures = [];
   bool _loading = true;
   String _error = '';
-  String _selectedYear = '2025-2026';
+  String _selectedYear = AcademicYear.currentLong();
+  int _fetchGeneration = 0;
   final _fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
-  final _years = ['2024-2025', '2025-2026', '2026-2027'];
+  List<String> get _years => AcademicYear.choices(include: _selectedYear);
 
   static const _frequencies = ['YEARLY', 'MONTHLY', 'ONE_TIME'];
 
@@ -54,19 +56,28 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
   }
 
   Future<void> _fetch() async {
+    final generation = ++_fetchGeneration;
+    final year = _selectedYear;
     setState(() { _loading = true; _error = ''; });
     try {
-      final data = await FeeApiService.getFeeStructures(year: _selectedYear);
-      setState(() => _structures = data);
+      final data = await FeeApiService.getFeeStructures(year: year);
+      if (mounted && generation == _fetchGeneration && year == _selectedYear) {
+        setState(() => _structures = data);
+      }
     } catch (e) {
-      setState(() => _error = 'Failed to load fee structures: $e');
+      if (mounted && generation == _fetchGeneration) {
+        setState(() => _error = 'Failed to load fee structures: $e');
+      }
     } finally {
-      setState(() => _loading = false);
+      if (mounted && generation == _fetchGeneration) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   void _showAddOrEditDialog({FeeStructure? existing}) {
     final isEdit = existing != null;
+    bool saving = false;
 
     // Parse existing class + section using shared SchoolConstants
     var (selectedClass, selectedSection) = existing != null
@@ -237,7 +248,7 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.navy, foregroundColor: Colors.white),
-              onPressed: () async {
+              onPressed: saving ? null : () async {
                 // Validate
                 if (entries.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -253,9 +264,36 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                   );
                   return;
                 }
+                final amounts = entries
+                    .map((e) => double.tryParse(e.amtCtrl.text.trim()))
+                    .toList();
+                if (amounts.any((a) => a == null || !a.isFinite || a <= 0)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Fee amounts must be positive numbers.')),
+                  );
+                  return;
+                }
+                final names = entries
+                    .map((e) => e.nameCtrl.text.trim().toLowerCase())
+                    .toSet();
+                if (names.length != entries.length) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Fee component names must be unique.')),
+                  );
+                  return;
+                }
 
                 // Build stored class name via SchoolConstants helper
                 final fullClassName = SchoolConstants.buildClassName(selectedClass, selectedSection);
+
+                if (!isEdit && _structures.any((s) =>
+                    s.className == fullClassName &&
+                    s.academicYear == _selectedYear)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('A fee structure already exists for this class and year.')),
+                  );
+                  return;
+                }
 
                 final structure = FeeStructure(
                   id: existing?.id,
@@ -264,9 +302,11 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                   components: entries.map((e) => e.toComponent()).toList(),
                 );
 
+                setDlg(() => saving = true);
                 try {
-                  if (isEdit && existing!.id != null) {
-                    await FeeApiService.updateFeeStructure(existing.id!, structure);
+                  final existingId = existing?.id;
+                  if (existingId != null) {
+                    await FeeApiService.updateFeeStructure(existingId, structure);
                   } else {
                     await FeeApiService.saveFeeStructure(structure);
                   }
@@ -292,6 +332,8 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                       ),
                     );
                   }
+                } finally {
+                  if (ctx.mounted) setDlg(() => saving = false);
                 }
               },
               child: Text(isEdit ? 'Update' : 'Save'),

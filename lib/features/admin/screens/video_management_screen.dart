@@ -1,10 +1,11 @@
+import 'dart:async';
+import 'dart:html' as html;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../core/widgets/responsive.dart';
 import '../../../services/video_api_service.dart';
 
 class VideoManagementScreen extends StatefulWidget {
@@ -137,14 +138,12 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                           // Use HTML file picker for web
                           try {
                             final input = _createFileInput();
-                            if (input != null) {
-                              final result = await _pickFile(input);
-                              if (result != null) {
-                                setDialogState(() {
-                                  fileBytes = result.$1;
-                                  fileName = result.$2;
-                                });
-                              }
+                            final result = await _pickFile(input);
+                            if (result != null) {
+                              setDialogState(() {
+                                fileBytes = result.$1;
+                                fileName = result.$2;
+                              });
                             }
                           } catch (_) {
                             // Fallback: show message
@@ -236,9 +235,25 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     );
   }
 
-  // Stub methods for file picking — in a real web app these use dart:html
-  dynamic _createFileInput() => null;
-  Future<(Uint8List, String)?> _pickFile(dynamic input) async => null;
+  html.FileUploadInputElement _createFileInput() => html.FileUploadInputElement()
+    ..accept = 'video/mp4,video/webm';
+
+  Future<(Uint8List, String)?> _pickFile(html.FileUploadInputElement input) async {
+    final selection = input.onChange.first;
+    input.click();
+    await selection;
+    final files = input.files;
+    if (files == null || files.isEmpty) return null;
+    final file = files.first;
+    final reader = html.FileReader();
+    final finished = reader.onLoadEnd.first;
+    reader.readAsArrayBuffer(file);
+    await finished;
+    if (reader.error != null || reader.result is! ByteBuffer) {
+      throw StateError('Could not read the selected video');
+    }
+    return (Uint8List.view(reader.result as ByteBuffer), file.name);
+  }
 
   Future<void> _uploadVideo({
     required String title,

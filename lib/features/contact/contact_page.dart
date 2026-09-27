@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/public_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/app_shell.dart';
 import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/responsive.dart';
 import '../../services/dio_client.dart';
+import '../../models/school_data.dart';
 
 class ContactPage extends StatefulWidget {
   const ContactPage({super.key});
@@ -16,6 +19,8 @@ class ContactPage extends StatefulWidget {
 }
 
 class _ContactPageState extends State<ContactPage> {
+  static const _publicFormsEnabled =
+      bool.fromEnvironment('PUBLIC_FORMS_ENABLED', defaultValue: true);
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -49,7 +54,11 @@ class _ContactPageState extends State<ContactPage> {
       _emailController.clear();
       _phoneController.clear();
       _messageController.clear();
-      if (mounted) setState(() { _submitted = true; _selectedGrade = ''; });
+      if (mounted)
+        setState(() {
+          _submitted = true;
+          _selectedGrade = '';
+        });
       Future.delayed(const Duration(seconds: 4), () {
         if (mounted) setState(() => _submitted = false);
       });
@@ -57,7 +66,7 @@ class _ContactPageState extends State<ContactPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Failed to submit: $e'),
-            backgroundColor: AppColors.error));
+            backgroundColor: PublicColors.error));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -72,19 +81,26 @@ class _ContactPageState extends State<ContactPage> {
       currentRoute: AppRouter.contact,
       child: Column(
         children: [
-          const PageHeader(title: 'Contact Us', subtitle: "We'd love to hear from you"),
+          const PageHeader(
+              title: 'Contact Us', subtitle: "We'd love to hear from you"),
           SectionWrapper(
-            backgroundColor: AppColors.white,
-            child: isMobile
-                ? Column(children: [_form(context), const SizedBox(height: 32), _contactInfo(context)])
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 6, child: _form(context)),
-                      const SizedBox(width: 48),
-                      Expanded(flex: 4, child: _contactInfo(context)),
-                    ],
-                  ),
+            backgroundColor: PublicColors.white,
+            child: !_publicFormsEnabled
+                ? _contactInfo(context)
+                : isMobile
+                    ? Column(children: [
+                        _form(context),
+                        const SizedBox(height: 32),
+                        _contactInfo(context)
+                      ])
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 6, child: _form(context)),
+                          const SizedBox(width: 48),
+                          Expanded(flex: 4, child: _contactInfo(context)),
+                        ],
+                      ),
           ),
         ],
       ),
@@ -97,44 +113,49 @@ class _ContactPageState extends State<ContactPage> {
       children: [
         const SectionTitle(title: 'Send an Inquiry'),
         const SizedBox(height: 20),
-
         if (_submitted)
           Container(
             margin: const EdgeInsets.only(bottom: 20),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.08),
-              border: Border.all(color: AppColors.success.withOpacity(0.3)),
+              color: PublicColors.success.withOpacity(0.08),
+              border: Border.all(color: PublicColors.success.withOpacity(0.3)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                const Icon(Icons.check_circle,
+                    color: PublicColors.success, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     "Thank you! Your inquiry has been submitted. We'll respond within 24 hours.",
-                    style: GoogleFonts.nunitoSans(color: AppColors.success, fontWeight: FontWeight.w500, fontSize: 13),
+                    style: GoogleFonts.nunitoSans(
+                        color: PublicColors.success,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13),
                   ),
                 ),
               ],
             ),
           ),
-
         Form(
           key: _formKey,
           child: Column(
             children: [
               Row(
                 children: [
-                  Expanded(child: TextFormField(
+                  Expanded(
+                      child: TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(hintText: 'Full Name *'),
                     validator: (v) => (v?.isEmpty ?? true) ? 'Required' : null,
                   )),
                   const SizedBox(width: 16),
-                  Expanded(child: TextFormField(
+                  Expanded(
+                      child: TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(hintText: 'Email Address *'),
+                    decoration:
+                        const InputDecoration(hintText: 'Email Address *'),
                     validator: (v) {
                       if (v?.isEmpty ?? true) return 'Required';
                       if (!v!.contains('@')) return 'Invalid email';
@@ -146,7 +167,8 @@ class _ContactPageState extends State<ContactPage> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: TextFormField(
+                  Expanded(
+                      child: TextFormField(
                     controller: _phoneController,
                     decoration: const InputDecoration(hintText: 'Phone Number'),
                   )),
@@ -154,11 +176,20 @@ class _ContactPageState extends State<ContactPage> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _selectedGrade.isEmpty ? null : _selectedGrade,
-                      decoration: const InputDecoration(hintText: 'Select Grade'),
-                      items: ['Kindergarten', 'Grade 1–5', 'Grade 6–8', 'Grade 9–10', 'Grade 11–12']
-                          .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                      decoration:
+                          const InputDecoration(hintText: 'Select Grade'),
+                      items: [
+                        'Kindergarten',
+                        'Grade 1–5',
+                        'Grade 6–8',
+                        'Grade 9–10',
+                        'Grade 11–12'
+                      ]
+                          .map(
+                              (g) => DropdownMenuItem(value: g, child: Text(g)))
                           .toList(),
-                      onChanged: (v) => setState(() => _selectedGrade = v ?? ''),
+                      onChanged: (v) =>
+                          setState(() => _selectedGrade = v ?? ''),
                     ),
                   ),
                 ],
@@ -199,30 +230,42 @@ class _ContactPageState extends State<ContactPage> {
         const SectionTitle(title: 'Get in Touch'),
         const SizedBox(height: 20),
         ...[
-          _ContactRow(icon: Icons.location_on_outlined, label: 'Address', value: AppStrings.address),
-          _ContactRow(icon: Icons.phone_outlined, label: 'Phone', value: AppStrings.phone),
-          _ContactRow(icon: Icons.email_outlined, label: 'Email', value: AppStrings.email),
-          _ContactRow(icon: Icons.access_time_outlined, label: 'Office Hours', value: AppStrings.officeHours),
+          _ContactRow(
+              icon: Icons.location_on_outlined,
+              label: 'Address',
+              value: AppStrings.address),
+          _ContactRow(
+              icon: Icons.phone_outlined,
+              label: 'Phone',
+              value: AppStrings.phone),
+          _ContactRow(
+              icon: Icons.email_outlined,
+              label: 'Email',
+              value: AppStrings.email),
+          _ContactRow(
+              icon: Icons.access_time_outlined,
+              label: 'Office Hours',
+              value: AppStrings.officeHours),
+          if (SchoolData.facebookUrl.isNotEmpty)
+            _ContactRow(
+                icon: Icons.facebook,
+                label: 'Facebook',
+                value: SchoolData.facebookUrl),
+        ].where((row) => row.value.isNotEmpty),
+        if (SchoolData.mapUrl.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final url = Uri.tryParse(SchoolData.mapUrl);
+              if (url != null &&
+                  (url.scheme == 'https' || url.scheme == 'http')) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Open school map'),
+          ),
         ],
-        const SizedBox(height: 24),
-        // Map placeholder
-        Container(
-          width: double.infinity,
-          height: 180,
-          decoration: BoxDecoration(
-            color: AppColors.creamDark,
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.map_outlined, size: 32, color: AppColors.textLight.withOpacity(0.4)),
-              const SizedBox(height: 8),
-              Text('Interactive Map — Embed Google Maps here',
-                style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12)),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -232,7 +275,8 @@ class _ContactRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _ContactRow({required this.icon, required this.label, required this.value});
+  const _ContactRow(
+      {required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -240,23 +284,29 @@ class _ContactRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.cream,
-        border: Border.all(color: AppColors.border),
+        color: PublicColors.cream,
+        border: Border.all(color: PublicColors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.gold, size: 20),
+          Icon(icon, color: PublicColors.gold, size: 20),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: GoogleFonts.nunitoSans(
-                  color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 13)),
+                Text(label,
+                    style: GoogleFonts.nunitoSans(
+                        color: PublicColors.navy,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
                 const SizedBox(height: 2),
-                Text(value, style: GoogleFonts.nunitoSans(
-                  color: AppColors.textPrimary, fontSize: 13, height: 1.5)),
+                Text(value,
+                    style: GoogleFonts.nunitoSans(
+                        color: PublicColors.textPrimary,
+                        fontSize: 13,
+                        height: 1.5)),
               ],
             ),
           ),

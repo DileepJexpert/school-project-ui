@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/academic_year.dart';
 import '../../../models/admission_data.dart';
 import '../../../services/admission_api_service.dart';
 import '../../../services/csv_export_service.dart';
@@ -162,6 +163,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
     final parentCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     String? selectedClass;
+    String selectedYear = AcademicYear.currentLong();
     DateTime enquiryDate = DateTime.now();
     bool saving = false;
     final formKey = GlobalKey<FormState>();
@@ -171,89 +173,101 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
+          scrollable: true,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('New Enquiry',
               style: GoogleFonts.cormorantGaramond(
                   fontWeight: FontWeight.w700, fontSize: 22, color: AppColors.navy)),
           content: SizedBox(
             width: 420,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Capture basic details for a walk-in enquiry. Full admission details can be filled when converting to an admission.',
-                    style: GoogleFonts.nunitoSans(
-                        fontSize: 12, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: nameCtrl,
-                    decoration: _inputDec('Student Name *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    decoration: _inputDec('Class Interested In *'),
-                    value: selectedClass,
-                    items: SchoolConstants.baseClasses
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    onChanged: (v) => setSt(() => selectedClass = v),
-                    validator: (v) => v == null ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: parentCtrl,
-                    decoration: _inputDec('Parent / Guardian Name *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: phoneCtrl,
-                    decoration: _inputDec('Contact Number *'),
-                    keyboardType: TextInputType.phone,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Required';
-                      if (v.trim().length < 10) return 'Enter valid number';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  // Enquiry date picker
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: ctx,
-                        initialDate: enquiryDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now().add(const Duration(days: 1)),
-                      );
-                      if (picked != null) setSt(() => enquiryDate = picked);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                      ),
-                      child: Row(children: [
-                        const Icon(Icons.calendar_today_outlined,
-                            size: 18, color: AppColors.navy),
-                        const SizedBox(width: 8),
-                        Text('Enquiry Date: ${fmt.format(enquiryDate)}',
-                            style: GoogleFonts.nunitoSans(
-                                color: AppColors.textPrimary, fontSize: 14)),
-                        const Spacer(),
-                        Text('Change',
-                            style: GoogleFonts.nunitoSans(
-                                color: AppColors.navy, fontSize: 12)),
-                      ]),
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Capture basic details for a walk-in enquiry. Full admission details can be filled when converting to an admission.',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12, color: AppColors.textSecondary),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: _inputDec('Student Name *'),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: _inputDec('Class Interested In *'),
+                      value: selectedClass,
+                      items: SchoolConstants.baseClasses
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .toList(),
+                      onChanged: (v) => setSt(() => selectedClass = v),
+                      validator: (v) => v == null ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedYear,
+                      decoration: _inputDec('Academic Year *'),
+                      items: AcademicYear.choices()
+                          .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                          .toList(),
+                      onChanged: (v) => setSt(() => selectedYear = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: parentCtrl,
+                      decoration: _inputDec('Parent / Guardian Name *'),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      decoration: _inputDec('Contact Number *'),
+                      keyboardType: TextInputType.phone,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        if (v.trim().length < 10) return 'Enter valid number';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Enquiry date picker
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: enquiryDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (picked != null) setSt(() => enquiryDate = picked);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.calendar_today_outlined,
+                              size: 18, color: AppColors.navy),
+                          const SizedBox(width: 8),
+                          Text('Enquiry Date: ${fmt.format(enquiryDate)}',
+                              style: GoogleFonts.nunitoSans(
+                                  color: AppColors.textPrimary, fontSize: 14)),
+                          const Spacer(),
+                          Text('Change',
+                              style: GoogleFonts.nunitoSans(
+                                  color: AppColors.navy, fontSize: 12)),
+                        ]),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -287,7 +301,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                           motherTongue: '',
                           aadharNumber: '',
                           classForAdmission: selectedClass!,
-                          academicYear: '2025-2026',
+                          academicYear: selectedYear,
                           dateOfAdmission: enquiryDate,
                           admissionNumber: '',
                           status: 'ENQUIRY',
@@ -619,9 +633,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
   Widget _buildClassFilterRow() {
     final classes = _availableClasses;
     if (classes.isEmpty) {
-      return GestureDetector(
-        onTap: () {},
-        child: AnimatedContainer(
+      return AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
@@ -634,8 +646,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Colors.white)),
-        ),
-      );
+        );
     }
     return SizedBox(
       height: 34,

@@ -4,22 +4,22 @@ class AppColors {
   AppColors._();
 
   // Primary palette — Navy & Gold
-  static const Color navy = Color(0xFF1B3A5C);
-  static const Color navyLight = Color(0xFF264D73);
-  static const Color navyDark = Color(0xFF122840);
-  static const Color gold = Color(0xFFC8922A);
-  static const Color goldLight = Color(0xFFD4A84D);
-  static const Color goldPale = Color(0xFFF5ECD7);
+  static const Color navy = Color(0xFF17324D);
+  static const Color navyLight = Color(0xFF254D70);
+  static const Color navyDark = Color(0xFF0D2235);
+  static const Color gold = Color(0xFF2563EB);
+  static const Color goldLight = Color(0xFF60A5FA);
+  static const Color goldPale = Color(0xFFEFF6FF);
 
   // Neutrals
-  static const Color cream = Color(0xFFFDFBF7);
-  static const Color creamDark = Color(0xFFF5F0E8);
+  static const Color cream = Color(0xFFF6F8FB);
+  static const Color creamDark = Color(0xFFF1F5F9);
   static const Color white = Color(0xFFFFFFFF);
-  static const Color border = Color(0xFFE2D9C8);
+  static const Color border = Color(0xFFE2E8F0);
 
   // Text
-  static const Color textPrimary = Color(0xFF2D3748);
-  static const Color textSecondary = Color(0xFF64748B);
+  static const Color textPrimary = Color(0xFF172033);
+  static const Color textSecondary = Color(0xFF5F6B7A);
   static const Color textLight = Color(0xFF94A3B8);
 
   // Semantic
@@ -54,10 +54,10 @@ class AppSizes {
   static const double paddingXXL = 48.0;
 
   // Border radius
-  static const double radiusSM = 4.0;
+  static const double radiusSM = 6.0;
   static const double radiusMD = 8.0;
-  static const double radiusLG = 12.0;
-  static const double radiusXL = 16.0;
+  static const double radiusLG = 10.0;
+  static const double radiusXL = 12.0;
 
   // Breakpoints
   static const double mobile = 600.0;
@@ -65,7 +65,7 @@ class AppSizes {
   static const double desktop = 1200.0;
 
   // Max content width
-  static const double maxContentWidth = 1200.0;
+  static const double maxContentWidth = 1280.0;
 
   // Section padding
   static const EdgeInsets sectionPadding = EdgeInsets.symmetric(
@@ -86,9 +86,21 @@ class SchoolConstants {
 
   /// Base class labels (no section suffix).
   static const List<String> baseClasses = [
-    'Nursery', 'LKG', 'UKG',
-    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6',
-    'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12',
+    'Nursery',
+    'LKG',
+    'UKG',
+    'Class 1',
+    'Class 2',
+    'Class 3',
+    'Class 4',
+    'Class 5',
+    'Class 6',
+    'Class 7',
+    'Class 8',
+    'Class 9',
+    'Class 10',
+    'Class 11',
+    'Class 12',
   ];
 
   /// Classes that do NOT have sections (pre-primary).
@@ -99,9 +111,19 @@ class SchoolConstants {
 
   /// Common school subjects for dropdowns.
   static const List<String> commonSubjects = [
-    'English', 'Hindi', 'Mathematics', 'Science', 'Social Studies',
-    'Computer Science', 'Physical Education', 'Art', 'Music',
-    'Sanskrit', 'EVS', 'General Knowledge', 'Moral Science',
+    'English',
+    'Hindi',
+    'Mathematics',
+    'Science',
+    'Social Studies',
+    'Computer Science',
+    'Physical Education',
+    'Art',
+    'Music',
+    'Sanskrit',
+    'EVS',
+    'General Knowledge',
+    'Moral Science',
   ];
 
   /// Full flat list of all class+section combinations as stored in MongoDB.
@@ -136,7 +158,8 @@ class SchoolConstants {
       }
     }
     // Legacy or pre-primary value — return as-is with default section
-    final base = baseClasses.contains(className) ? className : baseClasses.first;
+    final base =
+        baseClasses.contains(className) ? className : baseClasses.first;
     return (base, sections.first);
   }
 }
@@ -144,13 +167,14 @@ class SchoolConstants {
 class AppStrings {
   AppStrings._();
 
-  static const String schoolName = 'Springfield International Academy';
-  static const String schoolShortName = 'SIA';
-  static const String tagline = 'Nurturing Minds, Building Futures';
-  static const String accreditation = 'CBSE Affiliated';
-  static const String founded = '1987';
-  static const String phone = '+1 (555) 234-5678';
-  static const String email = 'admissions@springfieldacademy.edu';
-  static const String address = '42 Heritage Lane, Springfield, IL 62704';
-  static const String officeHours = 'Mon – Fri: 8:00 AM – 4:00 PM\nSat: 9:00 AM – 1:00 PM';
+  static String schoolName = 'Springfield International Academy';
+  static String schoolShortName = 'SIA';
+  static String tagline = 'Nurturing Minds, Building Character, Inspiring Excellence';
+  static String accreditation = 'Affiliated to CBSE, New Delhi';
+  static String founded = '1987';
+  static String phone = '+91 11 2345 6789';
+  static String email = 'admissions@springfield.edu.in';
+  static String address = 'Plot 12, Sector 5, Knowledge Park, New Delhi - 110001';
+  static String officeHours = 'Mon - Sat: 8:00 AM - 4:00 PM';
+  static String announcement = 'Admissions open for Academic Year 2026-27 from Nursery to Grade 11';
 }

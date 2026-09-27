@@ -13,3 +13,7 @@ binding = "DB"
 database_name = "school-staging-d1"
 database_id = "e27122b3-e2ba-474f-b7b3-dc7cddd39a89"
 migrations_dir = "migrations"
+
+[[services]]
+binding = "FINANCE"
+service = "school-api-finance-staging"

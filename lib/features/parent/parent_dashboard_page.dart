@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/responsive.dart';
-import '../../models/auth_models.dart';
 import '../../services/auth_service.dart';
+import '../chat/chat_list_screen.dart';
 
 import 'screens/parent_overview_screen.dart';
 import 'screens/child_attendance_screen.dart';
@@ -79,9 +79,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
           studentName: _selectedChildName,
         );
       case 5:
-        return const Center(
-          child: Text('Chat - Coming Soon'),
-        );
+        return const ChatListScreen();
       default:
         return const SizedBox.shrink();
     }

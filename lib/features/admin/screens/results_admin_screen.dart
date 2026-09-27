@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/academic_year.dart';
 import '../../../models/result_models.dart';
 import '../../../models/student_model.dart';
 import '../../../services/result_api_service.dart';
@@ -28,7 +29,7 @@ const _kExamLabels = {
   'PRE_BOARD': 'Pre-Board',
 };
 
-const _kYears = ['2024-25', '2025-26', '2026-27'];
+final _kYears = AcademicYear.choices(short: true);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Root screen
@@ -195,6 +196,30 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
 
   bool _loading = false;
   bool _submitting = false;
+  String? _loadedClass;
+  String? _loadedYear;
+  int _rosterGeneration = 0;
+
+  bool get _hasCurrentRoster =>
+      !_loading &&
+      !_submitting &&
+      _students.isNotEmpty &&
+      _loadedClass == _className &&
+      _loadedYear == _year;
+
+  void _invalidateRoster() {
+    _rosterGeneration++;
+    _students = [];
+    _loadedClass = null;
+    _loadedYear = null;
+    _loading = false;
+    for (final controller in _marksCtrls.values) {
+      controller.clear();
+    }
+    for (final controller in _remarksCtrls.values) {
+      controller.clear();
+    }
+  }
 
   @override
   void dispose() {
@@ -210,23 +235,40 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
   }
 
   Future<void> _loadStudents() async {
-    if (_year == null || _className == null) {
+    final year = _year;
+    final className = _className;
+    if (year == null || className == null) {
       _snack('Select academic year and class first.', AppColors.warning);
       return;
     }
-    setState(() => _loading = true);
+    final generation = ++_rosterGeneration;
+    setState(() {
+      _loading = true;
+      _students = [];
+      _loadedClass = null;
+      _loadedYear = null;
+    });
     try {
       final students =
-          await ResultApiService.getStudentsByClass(_className!, _year!);
+          await ResultApiService.getStudentsByClass(className, year);
+      if (!mounted || generation != _rosterGeneration) return;
       for (final s in students) {
         _marksCtrls[s.id!] ??= TextEditingController();
         _remarksCtrls[s.id!] ??= TextEditingController();
       }
-      setState(() => _students = students);
+      setState(() {
+        _students = students;
+        _loadedClass = className;
+        _loadedYear = year;
+      });
     } catch (e) {
-      _snack('Failed to load students: $e', AppColors.error);
+      if (mounted && generation == _rosterGeneration) {
+        _snack('Failed to load students: $e', AppColors.error);
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && generation == _rosterGeneration) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -236,10 +278,13 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
       _snack('Fill all required fields above.', AppColors.warning);
       return;
     }
-    if (_students.isEmpty) {
-      _snack('Load students first.', AppColors.warning);
+    if (!_hasCurrentRoster) {
+      _snack('Load students for the selected class and year first.', AppColors.warning);
       return;
     }
+    final className = _loadedClass!;
+    final year = _loadedYear!;
+    final generation = _rosterGeneration;
 
     final double maxM =
         double.tryParse(_maxMarksCtrl.text) ?? 100;
@@ -264,9 +309,9 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
     setState(() => _submitting = true);
     try {
       await ResultApiService.bulkSubmitResults(
-        className: _className!,
+        className: className,
         examType: _examType!,
-        academicYear: _year!,
+        academicYear: year,
         subject: _subjectCtrl.text.trim(),
         maxMarks: maxM,
         enteredBy: 'Admin',
@@ -274,12 +319,14 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
       );
       _snack('Marks submitted for ${entries.length} students!',
           AppColors.success);
-      // Clear mark fields
-      for (final c in _marksCtrls.values) {
-        c.clear();
-      }
-      for (final c in _remarksCtrls.values) {
-        c.clear();
+      // A different roster may have been loaded while the request was in flight.
+      if (mounted && generation == _rosterGeneration) {
+        for (final c in _marksCtrls.values) {
+          c.clear();
+        }
+        for (final c in _remarksCtrls.values) {
+          c.clear();
+        }
       }
     } catch (e) {
       _snack('Submit failed: $e', AppColors.error);
@@ -319,7 +366,10 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                   items: _kYears
                       .map((y) => DropdownMenuItem(value: y, child: Text(y)))
                       .toList(),
-                  onChanged: (v) => setState(() => _year = v),
+                  onChanged: (v) => setState(() {
+                    _year = v;
+                    _invalidateRoster();
+                  }),
                 ),
               ),
               SizedBox(
@@ -330,7 +380,10 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                   items: SchoolConstants.allClasses
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
-                  onChanged: (v) => setState(() => _className = v),
+                  onChanged: (v) => setState(() {
+                    _className = v;
+                    _invalidateRoster();
+                  }),
                 ),
               ),
               SizedBox(
@@ -510,7 +563,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                           : 'Submit Marks for All Students',
                       style: GoogleFonts.nunitoSans(
                           fontWeight: FontWeight.w700, fontSize: 16)),
-                  onPressed: _submitting ? null : _submitAll,
+                  onPressed: _hasCurrentRoster ? _submitAll : null,
                 ),
               ),
             ],

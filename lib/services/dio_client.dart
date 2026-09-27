@@ -6,17 +6,30 @@ class DioClient {
 
   // Set at build time via: flutter build web --dart-define=API_BASE_URL=https://your-app.koyeb.app/api
   // Falls back to localhost for local development.
-  static const String _baseUrl = String.fromEnvironment(
+  static const String _buildBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:8080/api',
+    defaultValue: 'http://localhost:8000/api',
   );
+  static const String _publicTenantId = String.fromEnvironment(
+    'PUBLIC_TENANT_ID', defaultValue: 'default',
+  );
+  static String _baseUrl = _buildBaseUrl;
 
   /// Expose the base URL so AuthService can derive the platform URL from it.
   static String get baseUrl => _baseUrl;
 
   DioClient._();
 
-  static void initialize() {
+  static Future<void> initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('api_base_url');
+    if (saved != null && saved != 'http://localhost:8080/api') {
+      try {
+        _baseUrl = _validatedBaseUrl(saved);
+      } on FormatException {
+        await prefs.remove('api_base_url');
+      }
+    }
     _dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
@@ -36,7 +49,7 @@ class DioClient {
           final prefs = await SharedPreferences.getInstance();
 
           // Tenant header (always set)
-          final tenantId = prefs.getString('tenant_id') ?? 'default';
+          final tenantId = prefs.getString('tenant_id') ?? _publicTenantId;
           options.headers['X-Tenant-ID'] = tenantId;
 
           // Bearer token (when logged in)
@@ -52,13 +65,17 @@ class DioClient {
         },
         onError: (error, handler) async {
           // Auto-refresh on 401 Unauthorized
-          if (error.response?.statusCode == 401) {
+          if (error.response?.statusCode == 401 &&
+              error.requestOptions.extra['retriedAfterRefresh'] != true &&
+              !error.requestOptions.path.endsWith('/auth/refresh') &&
+              !error.requestOptions.path.endsWith('/auth/login')) {
             final refreshed = await _tryRefreshToken();
             if (refreshed) {
               // Retry the original request with the new token
               final prefs = await SharedPreferences.getInstance();
               final newToken = prefs.getString('auth_token');
               error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+              error.requestOptions.extra['retriedAfterRefresh'] = true;
               try {
                 final response = await _dio.fetch(error.requestOptions);
                 return handler.resolve(response);
@@ -73,12 +90,25 @@ class DioClient {
       ),
     );
 
-    // Logging interceptor (disable in production builds)
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (obj) => print('[DIO] $obj'),
-    ));
+  }
+
+  static String _validatedBaseUrl(String value) {
+    final normalized = value.trim().replaceAll(RegExp(r'/+$'), '');
+    final url = Uri.tryParse(normalized);
+    if (url == null || !url.hasAuthority ||
+        (url.scheme != 'http' && url.scheme != 'https') ||
+        !url.path.endsWith('/api') || url.hasQuery || url.hasFragment) {
+      throw FormatException('Enter a full http(s) URL ending in /api');
+    }
+    return normalized;
+  }
+
+  static Future<void> setBaseUrl(String value) async {
+    final url = _validatedBaseUrl(value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('api_base_url', url);
+    _baseUrl = url;
+    _dio.options.baseUrl = url;
   }
 
   static Future<bool> _tryRefreshToken() async {

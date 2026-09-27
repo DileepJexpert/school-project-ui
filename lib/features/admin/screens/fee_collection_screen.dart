@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
 
@@ -33,8 +34,8 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   Timer? _debounce;
   // Sequence counter to discard stale async search responses
   int _searchSeq = 0;
+  int _profileGeneration = 0;
   double _discount = 0.0;
-  DateTime _payDate = DateTime.now();
   String? _payMode;
   final _fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
   final _dateFmt = DateFormat('dd MMM yyyy');
@@ -55,25 +56,59 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   Future<void> _preSelectStudent() async {
+    final generation = _profileGeneration;
     try {
       final profile = await FeeApiService.getStudentFeeProfile(widget.preSelectedStudentId!);
-      setState(() => _selected = profile);
+      if (mounted && generation == _profileGeneration) {
+        setState(() => _selected = profile);
+      }
     } catch (_) {} // silently fall through — admin can search manually
+  }
+
+  void _resetPaymentDetails() {
+    _discountCtrl.text = '0.00';
+    _remarksCtrl.clear();
+    _chequeCtrl.clear();
+    _txnCtrl.clear();
+    _discount = 0.0;
+    _payMode = null;
+  }
+
+  void _clearSelection() {
+    _profileGeneration++;
+    _resetPaymentDetails();
+    setState(() => _selected = null);
   }
 
   /// Called when the admin taps a student from the search results.
   /// Fetches the full fee profile (auto-generating it from fee_structures if it
   /// doesn't exist yet) instead of using the zero-fee stub returned by search.
   Future<void> _selectStudent(StudentFeeProfile stub) async {
-    setState(() { _results = []; _searchCtrl.clear(); _loadingProfile = true; });
+    if (_processing) return;
+    final generation = ++_profileGeneration;
+    _searchSeq++;
+    _resetPaymentDetails();
+    setState(() {
+      _selected = null;
+      _results = [];
+      _searching = false;
+      _searchCtrl.clear();
+      _loadingProfile = true;
+    });
     try {
       final full = await FeeApiService.getStudentFeeProfile(stub.id);
-      setState(() => _selected = full);
+      if (mounted && generation == _profileGeneration) {
+        setState(() => _selected = full);
+      }
     } catch (_) {
       // Fallback to the search stub so the screen at least shows the student
-      setState(() => _selected = stub);
+      if (mounted && generation == _profileGeneration) {
+        setState(() => _selected = stub);
+      }
     } finally {
-      setState(() => _loadingProfile = false);
+      if (mounted && generation == _profileGeneration) {
+        setState(() => _loadingProfile = false);
+      }
     }
   }
 
@@ -85,7 +120,12 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   Future<void> _search() async {
     final q = _searchCtrl.text.trim();
     if (q.isEmpty && _classFilter == null) {
-      setState(() { _results = []; _error = null; }); // keep _selected intact
+      _searchSeq++;
+      setState(() {
+        _results = [];
+        _searching = false;
+        _error = null;
+      }); // keep _selected intact
       return;
     }
     // Capture sequence BEFORE the async gap so stale responses are ignored.
@@ -127,21 +167,39 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
       );
       return;
     }
+    final discount = double.tryParse(_discountCtrl.text.trim());
+    if (discount == null || !discount.isFinite ||
+        discount < 0 || discount > _selectedTotal) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter a valid discount no greater than the selected total.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
     setState(() => _processing = true);
     try {
       final req = FeePaymentRequest(
         studentId: _selected!.id,
-        amount: _netAmount,
-        discount: _discount,
+        amount: _selectedTotal - discount,
+        discount: discount,
         installmentNames: installments.map((f) => f.installmentName).toList(),
         paymentMode: _payMode!,
         remarks: _remarksCtrl.text.trim().isEmpty ? null : _remarksCtrl.text.trim(),
-        chequeDetails: _chequeCtrl.text.trim().isEmpty ? null : _chequeCtrl.text.trim(),
-        transactionId: _txnCtrl.text.trim().isEmpty ? null : _txnCtrl.text.trim(),
+        chequeDetails: _payMode == 'CHEQUE' && _chequeCtrl.text.trim().isNotEmpty
+            ? _chequeCtrl.text.trim()
+            : null,
+        transactionId: _payMode == 'DIGITAL_PAYMENT' && _txnCtrl.text.trim().isNotEmpty
+            ? _txnCtrl.text.trim()
+            : null,
       );
       final record = await FeeApiService.collectFee(req);
       if (mounted) {
         _showSuccessDialog(record);
+        _profileGeneration++;
+        _searchSeq++;
+        _resetPaymentDetails();
         setState(() {
           _selected = null;
           _results = [];
@@ -179,7 +237,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
         ]),
         actions: [
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: context.palette.brand, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(context),
             child: const Text('Done'),
           ),
@@ -215,88 +273,132 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: palette.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.navy,
+        backgroundColor: palette.brand,
         foregroundColor: Colors.white,
         title: Text('Collect Fees',
-            style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700, fontSize: 20)),
+            style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700, fontSize: 20, color: Colors.white)),
       ),
       body: LayoutBuilder(builder: (context, constraints) {
         final wide = constraints.maxWidth > 900;
         if (wide) {
           return Row(children: [
-            Expanded(flex: 2, child: _buildSearchPanel()),
-            const VerticalDivider(width: 1),
-            Expanded(flex: 3, child: _buildPaymentPanel()),
+            Expanded(flex: 2, child: _buildSearchPanel(context, isDesktop: true)),
+            VerticalDivider(width: 1, color: palette.border),
+            Expanded(flex: 3, child: _buildPaymentPanel(context)),
           ]);
         }
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(children: [
-            _buildSearchPanel(),
+            _buildSearchPanel(context, isDesktop: false),
             const SizedBox(height: 16),
-            _buildPaymentPanel(),
+            _buildPaymentPanel(context),
           ]),
         );
       }),
     );
   }
 
-  Widget _buildSearchPanel() {
+  Widget _buildSearchPanel(BuildContext context, {required bool isDesktop}) {
+    final palette = context.palette;
+    final resultsList = _results.isEmpty && !_searching
+        ? (_searchCtrl.text.isNotEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Text('No students found matching "${_searchCtrl.text}".',
+                      style: GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
+                ),
+              )
+            : Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Text('Search by student name or roll number.',
+                      style: GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
+                ),
+              ))
+        : ListView.separated(
+            shrinkWrap: !isDesktop,
+            physics: isDesktop ? null : const NeverScrollableScrollPhysics(),
+            itemCount: _results.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            itemBuilder: (context, i) {
+              final s = _results[i];
+              final isSelected = _selected?.id == s.id;
+              return ListTile(
+                title: Text(s.name, style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+                subtitle: Text('${s.className} · Roll: ${s.rollNumber}',
+                    style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12)),
+                trailing: Text(_fmt.format(s.dueFees),
+                    style: GoogleFonts.nunitoSans(
+                        color: s.dueFees > 0 ? AppColors.error : AppColors.success,
+                        fontWeight: FontWeight.w700)),
+                onTap: _processing ? null : () => _selectStudent(s),
+                tileColor: isSelected ? palette.brand.withOpacity(0.1) : palette.canvas,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                  side: isSelected ? BorderSide(color: palette.brand) : BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              );
+            },
+          );
+
     return Container(
-      color: AppColors.white,
+      color: palette.surface,
       padding: const EdgeInsets.all(20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Find Student',
-            style: GoogleFonts.cormorantGaramond(
-                fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.navy)),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _searchCtrl,
-          decoration: InputDecoration(
-            hintText: 'Name or roll number…',
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Find Student',
+              style: GoogleFonts.cormorantGaramond(
+                  fontSize: 20, fontWeight: FontWeight.w700, color: palette.brand)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _searchCtrl,
+            decoration: InputDecoration(
+              hintText: 'Name or roll number…',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            labelText: 'Filter by Class',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Filter by Class',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            value: _classFilter,
+            items: [
+              const DropdownMenuItem(value: null, child: Text('All Classes')),
+              ..._classes.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+            ],
+            onChanged: (v) { setState(() => _classFilter = v); _search(); },
           ),
-          value: _classFilter,
-          items: [
-            const DropdownMenuItem(value: null, child: Text('All Classes')),
-            ..._classes.map((c) => DropdownMenuItem(value: c, child: Text(c))),
-          ],
-          onChanged: (v) { setState(() => _classFilter = v); _search(); },
-        ),
-        const SizedBox(height: 12),
-        if (_searching) const LinearProgressIndicator(),
-        if (_error != null)
-          Text(_error!, style: GoogleFonts.nunitoSans(color: AppColors.error)),
-        ..._results.map((s) => ListTile(
-              title: Text(s.name, style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
-              subtitle: Text('${s.className} · Roll: ${s.rollNumber}',
-                  style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12)),
-              trailing: Text(_fmt.format(s.dueFees),
-                  style: GoogleFonts.nunitoSans(
-                      color: s.dueFees > 0 ? AppColors.error : AppColors.success,
-                      fontWeight: FontWeight.w700)),
-              onTap: () => _selectStudent(s),
-              tileColor: AppColors.cream,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            )),
-      ]),
+          const SizedBox(height: 12),
+          if (_searching) const LinearProgressIndicator(),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_error!, style: GoogleFonts.nunitoSans(color: AppColors.error)),
+            ),
+          const SizedBox(height: 10),
+          if (isDesktop)
+            Expanded(child: resultsList)
+          else
+            resultsList,
+        ],
+      ),
     );
   }
 
-  Widget _buildPaymentPanel() {
+  Widget _buildPaymentPanel(BuildContext context) {
+    final palette = context.palette;
     if (_loadingProfile) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -318,9 +420,9 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
         // Student info
         Row(children: [
           CircleAvatar(
-            backgroundColor: AppColors.navy.withOpacity(0.1),
+            backgroundColor: palette.brand.withOpacity(0.1),
             child: Text(s.name.substring(0, 1).toUpperCase(),
-                style: GoogleFonts.cormorantGaramond(color: AppColors.navy, fontWeight: FontWeight.w700)),
+                style: GoogleFonts.cormorantGaramond(color: palette.brand, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -332,7 +434,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () => setState(() => _selected = null),
+            onPressed: _processing ? null : _clearSelection,
           ),
         ]),
         const SizedBox(height: 12),
@@ -346,7 +448,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
         ]),
         const SizedBox(height: 16),
         Text('Select Installments',
-            style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
+            style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: palette.brand)),
         const SizedBox(height: 8),
         if (s.feeInstallments.isEmpty) ...[
           Container(
@@ -397,14 +499,14 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                 ? null
                 : (v) => setState(() => f.isSelectedForPayment = v ?? false),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-            tileColor: AppColors.white,
+            tileColor: palette.surface,
             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
           );
         }),
         const SizedBox(height: 16),
         // Payment details
         Text('Payment Details',
-            style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
+            style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: palette.brand)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value: _payMode,
@@ -456,18 +558,18 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
         const SizedBox(height: 16),
         // Amount summary
         Card(
-          color: AppColors.navy.withOpacity(0.04),
+          color: palette.brand.withOpacity(0.04),
           elevation: 0,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-              side: const BorderSide(color: AppColors.border)),
+              side: BorderSide(color: palette.border)),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(children: [
               _amtRow('Selected Total', _fmt.format(_selectedTotal), AppColors.textPrimary),
               _amtRow('Discount', '- ${_fmt.format(_discount)}', AppColors.warning),
               const Divider(),
-              _amtRow('Net Payable', _fmt.format(_netAmount), AppColors.navy, bold: true),
+              _amtRow('Net Payable', _fmt.format(_netAmount), palette.brand, bold: true),
             ]),
           ),
         ),
@@ -476,7 +578,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
           width: double.infinity,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.navy,
+                backgroundColor: palette.brand,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16)),
             icon: _processing

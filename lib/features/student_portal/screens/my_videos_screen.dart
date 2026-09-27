@@ -1,8 +1,14 @@
+import 'dart:html' as html;
+import 'dart:typed_data';
+import 'dart:ui_web' as ui_web;
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../services/video_api_service.dart';
+import '../../../services/dio_client.dart';
 
 class MyVideosScreen extends StatefulWidget {
   const MyVideosScreen({super.key});
@@ -14,6 +20,7 @@ class MyVideosScreen extends StatefulWidget {
 class _MyVideosScreenState extends State<MyVideosScreen> {
   bool _loading = true;
   List<dynamic> _videos = [];
+  String? _openingVideoId;
 
   @override
   void initState() {
@@ -89,7 +96,7 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _playVideo(context, id, title),
+        onTap: _openingVideoId == null ? () => _playVideo(id, title) : null,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -136,7 +143,11 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.textLight),
+              if (_openingVideoId == id)
+                const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+              else
+                const Icon(Icons.chevron_right, color: AppColors.textLight),
             ],
           ),
         ),
@@ -144,62 +155,61 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
     );
   }
 
-  void _playVideo(BuildContext context, String videoId, String title) {
-    final streamUrl = VideoApiService.getStreamUrl(videoId);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title,
-            style: GoogleFonts.poppins(
-                fontSize: 16, fontWeight: FontWeight.w600)),
-        content: SizedBox(
-          width: 600,
-          height: 400,
-          child: Column(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.play_circle_outline,
-                            size: 64, color: Colors.white54),
-                        const SizedBox(height: 12),
-                        Text('Video Player',
-                            style: GoogleFonts.poppins(
-                                color: Colors.white70, fontSize: 14)),
-                        const SizedBox(height: 8),
-                        SelectableText(
-                          streamUrl,
-                          style: GoogleFonts.poppins(
-                              color: Colors.white38, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                  'Tip: Open the stream URL in a new tab for full video playback.',
-                  style: GoogleFonts.poppins(
-                      fontSize: 11, color: AppColors.textLight)),
-            ],
+  Future<void> _playVideo(String videoId, String title) async {
+    setState(() => _openingVideoId = videoId);
+    String? objectUrl;
+    html.VideoElement? player;
+    try {
+      final response = await DioClient.instance.get<List<int>>(
+        '/videos/$videoId/stream',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) {
+        throw StateError('Video file is empty');
+      }
+      final contentType = response.headers.value('content-type') ?? 'video/mp4';
+      objectUrl = html.Url.createObjectUrlFromBlob(
+          html.Blob([Uint8List.fromList(bytes)], contentType));
+      player = html.VideoElement()
+        ..src = objectUrl
+        ..controls = true
+        ..autoplay = true
+        ..style.width = '100%'
+        ..style.height = '100%';
+      final viewType = 'student-video-$videoId-${DateTime.now().microsecondsSinceEpoch}';
+      final videoElement = player;
+      ui_web.platformViewRegistry.registerViewFactory(
+          viewType, (int viewId) => videoElement);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: SizedBox(
+            width: 800,
+            height: 450,
+            child: HtmlElementView(viewType: viewType),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not play video: $error')));
+      }
+    } finally {
+      player?.pause();
+      player?.src = '';
+      if (objectUrl != null) html.Url.revokeObjectUrl(objectUrl);
+      if (mounted) setState(() => _openingVideoId = null);
+    }
   }
 
   Widget _chip(String label, Color color) {

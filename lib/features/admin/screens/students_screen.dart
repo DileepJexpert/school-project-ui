@@ -3,8 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/academic_year.dart';
+import '../../../models/admission_data.dart';
 import '../../../models/student_model.dart';
 import '../../../services/admission_api_service.dart';
+import '../../../services/fee_api_service.dart';
 import '../../../services/csv_export_service.dart';
 import '../../../services/student_api_service.dart';
 import 'new_admission_screen.dart';
@@ -29,23 +32,6 @@ String? _computeNextClass(String currentClass) {
   final nextBase = SchoolConstants.baseClasses[idx + 1];
   if (SchoolConstants.noSectionClasses.contains(nextBase)) return nextBase;
   return SchoolConstants.buildClassName(nextBase, section);
-}
-
-/// Increments an academic year string: "2025-26" → "2026-27", "2024-2025" → "2025-2026".
-String _nextAcademicYear(String year) {
-  final short = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(year);
-  if (short != null) {
-    final y1 = int.parse(short.group(1)!);
-    final y2 = int.parse(short.group(2)!);
-    return '${y1 + 1}-${((y2 + 1) % 100).toString().padLeft(2, '0')}';
-  }
-  final long = RegExp(r'^(\d{4})-(\d{4})$').firstMatch(year);
-  if (long != null) {
-    final y1 = int.parse(long.group(1)!);
-    final y2 = int.parse(long.group(2)!);
-    return '${y1 + 1}-${y2 + 1}';
-  }
-  return year;
 }
 
 class StudentsScreen extends StatefulWidget {
@@ -159,32 +145,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
   bool get _hasActiveFilters =>
       _filterClass != null || _filterStatus != 'ALL';
 
-  /// All unique full class strings (e.g. "Class 5 - A") present in loaded data.
-  List<String> get _availableFullClasses {
-    final seen = <String>{};
-    final result = <String>[];
-    for (final s in _students) {
-      if (s.classForAdmission != null && seen.add(s.classForAdmission!)) {
-        result.add(s.classForAdmission!);
-      }
-    }
-    result.sort((a, b) => SchoolConstants.allClasses
-        .indexOf(a)
-        .compareTo(SchoolConstants.allClasses.indexOf(b)));
-    return result;
-  }
-
-  /// Best-guess next academic year derived from loaded students.
-  String get _guessNextYear {
-    for (final s in _students) {
-      if (s.academicYear != null && s.academicYear!.isNotEmpty) {
-        return _nextAcademicYear(s.academicYear!);
-      }
-    }
-    final y = DateTime.now().year;
-    return '$y-${(y + 1).toString().substring(2)}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -242,8 +202,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
         const SizedBox(width: 8),
         OutlinedButton.icon(
-          onPressed:
-              _students.isEmpty ? null : () => _showPromoteDialog(context),
+          onPressed: _loading ? null : () => _showPromoteDialog(context),
           icon: const Icon(Icons.school_rounded, size: 16),
           label: const Text('Promote'),
           style: OutlinedButton.styleFrom(
@@ -673,11 +632,33 @@ class _StudentsScreenState extends State<StudentsScreen> {
     ));
   }
 
-  void _showPromoteDialog(BuildContext ctx) {
+  Future<void> _showPromoteDialog(BuildContext ctx) async {
+    // Search and class filters change _students. Preview the full server cohort.
+    late final List<Student> allStudents;
+    try {
+      allStudents = await AdmissionApiService.getStudents();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not load the full student cohort: $error'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+      return;
+    }
+    if (!ctx.mounted) return;
+    final classes = allStudents
+        .where((s) =>
+            s.status.toUpperCase() == 'ACTIVE' &&
+            SchoolConstants.baseClasses.contains(
+                SchoolConstants.parseClassName(s.classForAdmission).$1))
+        .map((s) => s.classForAdmission)
+        .toSet()
+        .toList()
+      ..sort();
     String? selectedClass;
-    String targetYear = _guessNextYear;
+    String? sourceYear;
     bool promoting = false;
-    final yearCtrl = TextEditingController(text: targetYear);
 
     showDialog(
       context: ctx,
@@ -687,12 +668,20 @@ class _StudentsScreenState extends State<StudentsScreen> {
           final nextCls =
               selectedClass != null ? _computeNextClass(selectedClass!) : null;
           final isGraduation = selectedClass != null && nextCls == null;
-          final affectedCount = selectedClass == null
+          final years = allStudents
+              .where((s) =>
+                  s.classForAdmission == selectedClass &&
+                  s.status.toUpperCase() == 'ACTIVE' &&
+                  AcademicYear.next(s.academicYear) != null)
+              .map((s) => s.academicYear)
+              .toSet()
+              .toList()
+            ..sort();
+          final targetYear = sourceYear == null ? null : AcademicYear.next(sourceYear!);
+          final affectedCount = selectedClass == null || sourceYear == null
               ? 0
-              : _students
-                  .where((s) =>
-                      s.classForAdmission == selectedClass &&
-                      s.status == 'ACTIVE')
+              : AdmissionApiService.promotionCandidates(
+                      allStudents, selectedClass!, sourceYear!)
                   .length;
 
           return AlertDialog(
@@ -709,10 +698,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ]),
             content: SizedBox(
               width: 420,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Text('Move an entire class to the next grade.',
                       style: GoogleFonts.nunitoSans(
                           color: AppColors.textSecondary, fontSize: 13)),
@@ -737,7 +727,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 12),
                     ),
-                    items: _availableFullClasses
+                    items: classes
                         .map((c) => DropdownMenuItem(
                             value: c,
                             child: Text(c,
@@ -745,8 +735,25 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         .toList(),
                     onChanged: promoting
                         ? null
-                        : (v) => dialogSetState(() => selectedClass = v),
+                        : (v) => dialogSetState(() {
+                            selectedClass = v;
+                            sourceYear = null;
+                          }),
                   ),
+
+                  if (selectedClass != null) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: sourceYear,
+                      decoration: const InputDecoration(labelText: 'Source Academic Year'),
+                      items: years
+                          .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                          .toList(),
+                      onChanged: promoting
+                          ? null
+                          : (v) => dialogSetState(() => sourceYear = v),
+                    ),
+                  ],
 
                   // Arrow → next class
                   if (selectedClass != null) ...[
@@ -769,33 +776,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     ]),
                   ],
 
-                  // Academic year (only for non-graduation)
-                  if (selectedClass != null && !isGraduation) ...[
+                  if (sourceYear != null && !isGraduation) ...[
                     const SizedBox(height: 16),
-                    Text('New Academic Year',
+                    Text('New Academic Year: $targetYear',
                         style: GoogleFonts.nunitoSans(
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
                             color: AppColors.textSecondary)),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: yearCtrl,
-                      enabled: !promoting,
-                      onChanged: (v) => targetYear = v,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppSizes.radiusMD)),
-                        hintText: 'e.g. 2026-27',
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                      ),
-                      style: GoogleFonts.nunitoSans(),
-                    ),
                   ],
 
                   // Info banner
-                  if (selectedClass != null) ...[
+                  if (sourceYear != null) ...[
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -824,8 +815,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         Expanded(
                           child: Text(
                             affectedCount == 0
-                                ? 'No active students in $selectedClass.'
-                                : '$affectedCount active student(s) in $selectedClass will be '
+                                ? 'No active students in $selectedClass ($sourceYear).'
+                                : '$affectedCount active student(s) in $selectedClass ($sourceYear) will be '
                                     '${isGraduation ? "graduated" : "promoted to $nextCls"}.',
                             style: GoogleFonts.nunitoSans(
                                 fontSize: 13,
@@ -840,6 +831,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ],
               ),
             ),
+          ),
             actions: [
               TextButton(
                 onPressed:
@@ -849,16 +841,27 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         color: AppColors.textSecondary)),
               ),
               ElevatedButton(
-                onPressed: selectedClass == null ||
+                onPressed: selectedClass == null || sourceYear == null ||
                         affectedCount == 0 ||
                         promoting
                     ? null
                     : () async {
                         dialogSetState(() => promoting = true);
                         try {
+                          if (!isGraduation) {
+                            final structures = await FeeApiService.getFeeStructures(
+                                year: targetYear!);
+                            if (!structures.any((s) =>
+                                s.className == nextCls &&
+                                s.academicYear == targetYear &&
+                                s.components.isNotEmpty)) {
+                              throw StateError('Create a fee structure for $nextCls '
+                                  'in $targetYear before promoting this class.');
+                            }
+                          }
                           final count =
                               await AdmissionApiService.promoteClass(
-                                  selectedClass!, nextCls, targetYear);
+                                  selectedClass!, sourceYear!, nextCls, targetYear!);
                           if (ctx.mounted) Navigator.pop(ctx);
                           _loadStudents();
                           if (mounted) {
@@ -873,7 +876,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                             );
                           }
                         } catch (e) {
-                          dialogSetState(() => promoting = false);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _loadStudents();
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(

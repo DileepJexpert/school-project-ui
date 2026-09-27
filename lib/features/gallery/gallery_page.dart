@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/widgets/school_image.dart';
 
-import '../../core/constants/app_constants.dart';
+import '../../core/constants/public_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/app_shell.dart';
 import '../../core/widgets/shared_widgets.dart';
@@ -28,30 +29,38 @@ class _GalleryPageState extends State<GalleryPage> {
       currentRoute: AppRouter.gallery,
       child: Column(
         children: [
-          const PageHeader(title: 'Photo Gallery', subtitle: 'A glimpse into life at Springfield Academy'),
+          const PageHeader(
+              title: 'Photo Gallery', subtitle: 'A glimpse into school life'),
           SectionWrapper(
-            backgroundColor: AppColors.white,
+            backgroundColor: PublicColors.white,
             child: Column(
               children: [
                 // Filters
                 Wrap(
                   alignment: WrapAlignment.center,
-                  spacing: 8, runSpacing: 8,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: SchoolData.galleryCategories.map((cat) {
                     final isActive = _filter == cat;
                     return GestureDetector(
                       onTap: () => setState(() => _filter = cat),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isActive ? AppColors.navy : AppColors.cream,
-                          border: Border.all(color: AppColors.border),
+                          color:
+                              isActive ? PublicColors.navy : PublicColors.cream,
+                          border: Border.all(color: PublicColors.border),
                         ),
-                        child: Text(cat, style: GoogleFonts.nunitoSans(
-                          color: isActive ? Colors.white : AppColors.textPrimary,
-                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                          fontSize: 13,
-                        )),
+                        child: Text(cat,
+                            style: GoogleFonts.nunitoSans(
+                              color: isActive
+                                  ? Colors.white
+                                  : PublicColors.textPrimary,
+                              fontWeight:
+                                  isActive ? FontWeight.w600 : FontWeight.w400,
+                              fontSize: 13,
+                            )),
                       ),
                     );
                   }).toList(),
@@ -63,11 +72,16 @@ class _GalleryPageState extends State<GalleryPage> {
                   builder: (context, constraints) {
                     final columns = Responsive.gridColumns(context).clamp(1, 3);
                     return Wrap(
-                      spacing: 12, runSpacing: 12,
-                      children: images.map((img) => SizedBox(
-                        width: (constraints.maxWidth - (columns - 1) * 12) / columns,
-                        child: _GalleryTile(item: img),
-                      )).toList(),
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: images
+                          .map((img) => SizedBox(
+                                width: (constraints.maxWidth -
+                                        (columns - 1) * 12) /
+                                    columns,
+                                child: _GalleryTile(item: img),
+                              ))
+                          .toList(),
                     );
                   },
                 ),
@@ -95,11 +109,14 @@ class _GalleryTileState extends State<_GalleryTile> {
   Widget _placeholder() => Container(
         color: Color(widget.item.color),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.image_outlined, color: Colors.white.withOpacity(0.4), size: 36),
+          Icon(Icons.image_outlined,
+              color: Colors.white.withOpacity(0.4), size: 36),
           const SizedBox(height: 8),
           Text(widget.item.label,
               style: GoogleFonts.nunitoSans(
-                  color: Colors.white.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w500)),
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
         ]),
       );
 
@@ -115,11 +132,9 @@ class _GalleryTileState extends State<_GalleryTile> {
           children: [
             // Show real image if the file has been added, else color placeholder
             if (widget.item.imagePath != null)
-              Image.asset(
-                widget.item.imagePath!,
-                fit: BoxFit.cover,
-                // Falls back to placeholder if the file isn't copied yet
-                errorBuilder: (_, __, ___) => _placeholder(),
+              SchoolImage(
+                path: widget.item.imagePath!,
+                fallback: _placeholder(),
               )
             else
               _placeholder(),
@@ -128,11 +143,13 @@ class _GalleryTileState extends State<_GalleryTile> {
               opacity: _hovering ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 200),
               child: Container(
-                color: AppColors.navy.withOpacity(0.7),
+                color: PublicColors.navy.withOpacity(0.7),
                 alignment: Alignment.center,
                 child: Text(widget.item.label,
                     style: GoogleFonts.nunitoSans(
-                        color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14)),
               ),
             ),
           ],

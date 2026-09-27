@@ -60,8 +60,4 @@ class VideoApiService {
     await DioClient.delete('$_base/$id');
   }
 
-  /// Get stream URL for a video
-  static String getStreamUrl(String videoId) {
-    return '${DioClient.baseUrl}/videos/$videoId/stream';
-  }
 }

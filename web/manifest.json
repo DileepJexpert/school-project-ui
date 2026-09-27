@@ -1,11 +1,11 @@
 {
-    "name": "Springfield International Academy",
+    "name": "Rising Star Public School",
     "short_name": "School App",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#f8f5ee",
     "theme_color": "#0f172a",
-    "description": "Springfield International Academy — School Management System",
+    "description": "Rising Star Public School — School Management System",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

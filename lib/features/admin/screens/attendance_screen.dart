@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../models/attendance_model.dart';
+import '../../../core/constants/academic_year.dart';
 import '../../../models/student_model.dart';
 import '../../../services/attendance_api_service.dart';
 import '../../../services/student_api_service.dart';
@@ -37,7 +37,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   // ── Mark tab state ────────────────────────────────────────────────────
   String? _markClass;
-  final _yearCtrl     = TextEditingController(text: '2024-25');
+  final _yearCtrl     = TextEditingController(text: AcademicYear.currentShort());
   late final TextEditingController _dateCtrl;
   final _markedByCtrl = TextEditingController(text: 'Admin');
   DateTime _selectedDate = DateTime.now();
@@ -47,10 +47,23 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   bool _submitting = false;
   String? _error;
   bool _loaded = false;
+  String? _loadedClass;
+  String? _loadedYear;
+  String? _loadedDate;
+  int _markLoadGeneration = 0;
+
+  bool get _canSubmitMark =>
+      _loaded &&
+      !_loading &&
+      !_submitting &&
+      _students.isNotEmpty &&
+      _loadedClass == _markClass &&
+      _loadedYear == _yearCtrl.text.trim() &&
+      _loadedDate == _fmtDate(_selectedDate);
 
   // ── Reports tab state ─────────────────────────────────────────────────
   String? _rClass;
-  final _rYearCtrl = TextEditingController(text: '2024-25');
+  final _rYearCtrl = TextEditingController(text: AcademicYear.currentShort());
   DateTime _rMonth = DateTime.now();
   List<_StudentSummary> _summaries = [];
   bool _rLoading = false;
@@ -64,11 +77,13 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _dateCtrl = TextEditingController(text: _fmtDate(_selectedDate));
+    _yearCtrl.addListener(_onMarkYearChanged);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _yearCtrl.removeListener(_onMarkYearChanged);
     _yearCtrl.dispose();
     _dateCtrl.dispose();
     _markedByCtrl.dispose();
@@ -77,6 +92,20 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   // ── Mark tab helpers ──────────────────────────────────────────────────
+
+  void _invalidateMarkData() {
+    _markLoadGeneration++;
+    _students = [];
+    _statuses.clear();
+    _loaded = false;
+    _loadedClass = null;
+    _loadedYear = null;
+    _loadedDate = null;
+    _loading = false;
+    _error = null;
+  }
+
+  void _onMarkYearChanged() => setState(_invalidateMarkData);
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -92,10 +121,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         child: child!,
       ),
     );
-    if (picked != null) {
+    if (!mounted) return;
+    if (picked != null && !DateUtils.isSameDay(picked, _selectedDate)) {
       setState(() {
         _selectedDate = picked;
         _dateCtrl.text = _fmtDate(picked);
+        _invalidateMarkData();
       });
     }
   }
@@ -106,43 +137,69 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       _showSnack('Please select a class.', isError: true);
       return;
     }
+    final academicYear = _yearCtrl.text.trim();
+    if (academicYear.isEmpty) {
+      _showSnack('Please enter an academic year.', isError: true);
+      return;
+    }
+    final dateStr = _fmtDate(_selectedDate);
+    final generation = ++_markLoadGeneration;
     setState(() {
       _loading = true;
       _error   = null;
       _loaded  = false;
+      _loadedClass = null;
+      _loadedYear = null;
+      _loadedDate = null;
+      _students = [];
       _statuses.clear();
     });
     try {
       final allStudents = await StudentApiService.getAllStudents();
-      _students = allStudents
+      final students = allStudents
           .where((s) =>
-              s.classForAdmission?.toLowerCase() == className!.toLowerCase())
+              s.classForAdmission?.toLowerCase() == className.toLowerCase())
           .toList();
+      // A failed read must not turn a previously marked class into all-present.
+      final existing =
+          await AttendanceApiService.getClassAttendance(className, dateStr);
+      if (!mounted || generation != _markLoadGeneration) return;
 
-      final dateStr = _fmtDate(_selectedDate);
-      try {
-        final existing =
-            await AttendanceApiService.getClassAttendance(className!, dateStr);
-        for (final rec in existing) {
-          _statuses[rec.studentId] = rec.status;
-        }
-      } catch (_) {}
-
-      for (final s in _students) {
-        if (s.id != null && !_statuses.containsKey(s.id)) {
-          _statuses[s.id!] = 'PRESENT';
+      final statuses = <String, String>{
+        for (final rec in existing) rec.studentId: rec.status,
+      };
+      for (final s in students) {
+        if (s.id != null && !statuses.containsKey(s.id)) {
+          statuses[s.id!] = 'PRESENT';
         }
       }
-      setState(() => _loaded = true);
+      setState(() {
+        _students = students;
+        _statuses.addAll(statuses);
+        _loadedClass = className;
+        _loadedYear = academicYear;
+        _loadedDate = dateStr;
+        _loaded = true;
+      });
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted && generation == _markLoadGeneration) {
+        setState(() => _error = 'Could not load attendance: $e');
+      }
     } finally {
-      setState(() => _loading = false);
+      if (mounted && generation == _markLoadGeneration) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   Future<void> _submitAttendance() async {
-    if (_students.isEmpty) return;
+    if (!_canSubmitMark) {
+      _showSnack('Load this class and date before saving.', isError: true);
+      return;
+    }
+    final className = _loadedClass!;
+    final academicYear = _loadedYear!;
+    final dateStr = _loadedDate!;
     setState(() => _submitting = true);
     try {
       final entries = _students
@@ -156,17 +213,17 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           .toList();
 
       await AttendanceApiService.markBulkAttendance(
-        className:    _markClass ?? '',
-        academicYear: _yearCtrl.text.trim(),
-        date:         _fmtDate(_selectedDate),
+        className:    className,
+        academicYear: academicYear,
+        date:         dateStr,
         markedBy:     _markedByCtrl.text.trim(),
         entries:      entries,
       );
-      _showSnack('Attendance saved successfully!');
+      if (mounted) _showSnack('Attendance saved successfully!');
     } catch (e) {
-      _showSnack('Failed: $e', isError: true);
+      if (mounted) _showSnack('Failed: $e', isError: true);
     } finally {
-      setState(() => _submitting = false);
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -349,7 +406,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                 style: GoogleFonts.nunitoSans(fontSize: 13)),
                           ))
                       .toList(),
-                  onChanged: (v) => setState(() => _markClass = v),
+                  onChanged: (v) => setState(() {
+                    _markClass = v;
+                    _invalidateMarkData();
+                  }),
                 ),
               ),
               SizedBox(
@@ -504,7 +564,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: _submitting ? null : _submitAttendance,
+            onPressed: _canSubmitMark ? _submitAttendance : null,
             icon: _submitting
                 ? const SizedBox(
                     width: 18, height: 18,

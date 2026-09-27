@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/academic_year.dart';
 import '../../../models/timetable_model.dart';
 import '../../../services/timetable_api_service.dart';
 
@@ -16,7 +17,7 @@ class TimetableScreen extends StatefulWidget {
 class _TimetableScreenState extends State<TimetableScreen>
     with SingleTickerProviderStateMixin {
   final _classCtrl = TextEditingController();
-  final _yearCtrl = TextEditingController(text: '2024-25');
+  final _yearCtrl = TextEditingController(text: AcademicYear.currentShort());
 
   List<TimetableModel> _timetable = [];
   bool _loading = false;

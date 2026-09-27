@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/public_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/app_shell.dart';
 import '../../core/widgets/shared_widgets.dart';
@@ -24,9 +25,21 @@ class AboutPage extends StatelessWidget {
       currentRoute: AppRouter.about,
       child: Column(
         children: [
-          const PageHeader(title: 'About Us', subtitle: 'A legacy of excellence in education since 1987'),
-          _MissionVisionSection(),
-          _ValuesSection(),
+          PageHeader(
+              title: 'About Us', subtitle: 'About ${AppStrings.schoolName}'),
+          if (SchoolData.mission.isNotEmpty ||
+              SchoolData.vision.isNotEmpty ||
+              SchoolData.timeline.isNotEmpty)
+            _MissionVisionSection()
+          else if (AppStrings.address.isNotEmpty)
+            SectionWrapper(
+              backgroundColor: PublicColors.white,
+              child: Text(
+                '${AppStrings.schoolName} is located at ${AppStrings.address}.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
+          if (SchoolData.coreValues.isNotEmpty) _ValuesSection(),
         ],
       ),
     );
@@ -39,9 +52,13 @@ class _MissionVisionSection extends StatelessWidget {
     final isMobile = Responsive.isMobile(context);
 
     return SectionWrapper(
-      backgroundColor: AppColors.white,
+      backgroundColor: PublicColors.white,
       child: isMobile
-          ? Column(children: [_missionVision(context), const SizedBox(height: 32), _timeline(context)])
+          ? Column(children: [
+              _missionVision(context),
+              const SizedBox(height: 32),
+              _timeline(context)
+            ])
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -70,52 +87,66 @@ class _MissionVisionSection extends StatelessWidget {
 
   Widget _timeline(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(gradient: AppColors.heroGradient),
+      decoration: const BoxDecoration(gradient: PublicColors.heroGradient),
       padding: const EdgeInsets.all(32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Our History',
-            style: GoogleFonts.cormorantGaramond(color: AppColors.gold, fontSize: 22, fontWeight: FontWeight.w600),
+            style: GoogleFonts.cormorantGaramond(
+                color: PublicColors.gold,
+                fontSize: 22,
+                fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 24),
           ...SchoolData.timeline.map((event) => Padding(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 14, height: 14,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle, color: AppColors.gold,
-                        border: Border.all(color: AppColors.navyDark, width: 3),
+                    Column(
+                      children: [
+                        Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: PublicColors.gold,
+                            border: Border.all(
+                                color: PublicColors.navyDark, width: 3),
+                          ),
+                        ),
+                        if (event != SchoolData.timeline.last)
+                          Container(
+                              width: 2,
+                              height: 40,
+                              color: PublicColors.gold.withOpacity(0.2)),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(event.year,
+                              style: GoogleFonts.nunitoSans(
+                                color: PublicColors.goldLight,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              )),
+                          const SizedBox(height: 2),
+                          Text(event.text,
+                              style: GoogleFonts.nunitoSans(
+                                color: Colors.white.withOpacity(0.75),
+                                fontSize: 14,
+                              )),
+                        ],
                       ),
                     ),
-                    if (event != SchoolData.timeline.last)
-                      Container(width: 2, height: 40, color: AppColors.gold.withOpacity(0.2)),
                   ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(event.year, style: GoogleFonts.nunitoSans(
-                        color: AppColors.goldLight, fontWeight: FontWeight.w700, fontSize: 13,
-                      )),
-                      const SizedBox(height: 2),
-                      Text(event.text, style: GoogleFonts.nunitoSans(
-                        color: Colors.white.withOpacity(0.75), fontSize: 14,
-                      )),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
@@ -126,7 +157,7 @@ class _ValuesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SectionWrapper(
-      backgroundColor: AppColors.creamDark,
+      backgroundColor: PublicColors.creamDark,
       child: Column(
         children: [
           const SectionTitle(title: 'Core Values', centered: true),
@@ -137,30 +168,43 @@ class _ValuesSection extends StatelessWidget {
               return Wrap(
                 spacing: 16,
                 runSpacing: 16,
-                children: SchoolData.coreValues.map((v) => SizedBox(
-                  width: (constraints.maxWidth - (columns - 1) * 16) / columns,
-                  child: AccentCard(
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      children: [
-                        Icon(
-                          AboutPage._iconMap[v.icon] ?? Icons.star,
-                          color: AppColors.gold, size: 36,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(v.title, textAlign: TextAlign.center,
-                          style: GoogleFonts.cormorantGaramond(
-                            color: AppColors.navy, fontSize: 20, fontWeight: FontWeight.w600,
+                children: SchoolData.coreValues
+                    .map((v) => SizedBox(
+                          width: (constraints.maxWidth - (columns - 1) * 16) /
+                              columns,
+                          child: AccentCard(
+                            padding: const EdgeInsets.all(28),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  AboutPage._iconMap[v.icon] ?? Icons.star,
+                                  color: PublicColors.gold,
+                                  size: 36,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  v.title,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.cormorantGaramond(
+                                    color: PublicColors.navy,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  v.description,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.nunitoSans(
+                                      color: PublicColors.textSecondary,
+                                      fontSize: 13,
+                                      height: 1.5),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(v.description, textAlign: TextAlign.center,
-                          style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-                        ),
-                      ],
-                    ),
-                  ),
-                )).toList(),
+                        ))
+                    .toList(),
               );
             },
           ),

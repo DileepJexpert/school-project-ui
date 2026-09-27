@@ -1,4 +1,5 @@
 import '../models/fee_models.dart';
+import '../core/constants/academic_year.dart';
 import 'dio_client.dart';
 
 class FeeApiService {
@@ -45,10 +46,10 @@ class FeeApiService {
 
   // ── Fee Structure ────────────────────────────────────────────────────────
   // Backend GET /api/feestructures requires year as a mandatory query param
-  static Future<List<FeeStructure>> getFeeStructures({String year = '2025-2026'}) async {
+  static Future<List<FeeStructure>> getFeeStructures({String? year}) async {
     final response = await DioClient.get(
       _structureBase,
-      queryParams: {'year': year},
+      queryParams: {'year': year ?? AcademicYear.currentLong()},
     );
     return (response.data as List)
         .map((e) => FeeStructure.fromJson(e as Map<String, dynamic>))

@@ -1,15 +1,15 @@
-import 'dart:html' as html;
-import 'dart:typed_data';
-
-import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_controller.dart';
 import '../../../services/dio_client.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/tenant_service.dart';
+import '../../../models/school_data.dart';
+import 'user_management_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -22,13 +22,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _apiUrlCtrl = TextEditingController();
   final _schoolNameCtrl = TextEditingController(text: AppStrings.schoolName);
   final _tenantIdCtrl = TextEditingController();
-  bool _darkMode = false;
-  bool _emailNotifications = true;
-  bool _smsAlerts = false;
   bool _savingApi = false;
-  bool _backingUp = false;
   bool _savingTenant = false;
   String _tenantValidationMsg = '';
+  String _academicYear = '';
+  String _board = '';
 
   @override
   void initState() {
@@ -37,13 +35,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
     final tenantId = await TenantService.getTenantId();
+    Map<String, dynamic>? profile;
+    Map<String, dynamic>? catalogue;
+    try {
+      profile = Map<String, dynamic>.from(
+          (await DioClient.get('/school/profile')).data as Map);
+      catalogue = Map<String, dynamic>.from(
+          (await DioClient.get('/master-data')).data as Map);
+    } catch (_) {
+      // The settings page still opens when the API is temporarily unavailable.
+    }
+    if (!mounted) return;
     setState(() {
-      _apiUrlCtrl.text = prefs.getString('api_base_url') ?? 'http://localhost:8080/api';
-      _emailNotifications = prefs.getBool('email_notifications') ?? true;
-      _smsAlerts = prefs.getBool('sms_alerts') ?? false;
+      _apiUrlCtrl.text = DioClient.baseUrl;
       _tenantIdCtrl.text = tenantId == 'default' ? '' : tenantId;
+      _schoolNameCtrl.text = profile?['name']?.toString() ?? AppStrings.schoolName;
+      _board = profile?['board']?.toString() ?? '';
+      _academicYear = catalogue?['academicYear']?.toString() ?? '';
     });
   }
 
@@ -53,77 +62,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _tenantValidationMsg = 'School code cannot be empty.');
       return;
     }
-    setState(() { _savingTenant = true; _tenantValidationMsg = ''; });
+    setState(() {
+      _savingTenant = true;
+      _tenantValidationMsg = '';
+    });
     try {
+      final previousTenant = await TenantService.getTenantId();
+      if (tenantId != previousTenant) {
+        await AuthService.instance.logout();
+      }
       await TenantService.setTenant(tenantId);
-      setState(() => _tenantValidationMsg = 'School code saved! All API requests will now use: $tenantId');
+      await SchoolData.load();
+      if (!mounted) return;
+      if (tenantId != previousTenant) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+            AppRouter.login, (route) => false);
+      } else {
+        setState(() => _tenantValidationMsg = 'School code saved: $tenantId');
+      }
     } catch (e) {
-      setState(() => _tenantValidationMsg = 'Failed to save: $e');
+      if (mounted) setState(() => _tenantValidationMsg = 'Failed to save: $e');
     } finally {
-      setState(() => _savingTenant = false);
+      if (mounted) setState(() => _savingTenant = false);
     }
   }
 
   Future<void> _saveApiUrl() async {
     setState(() => _savingApi = true);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('api_base_url', _apiUrlCtrl.text.trim());
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('API URL saved! Restart the app to apply.'),
-            backgroundColor: AppColors.success),
-      );
+    try {
+      await DioClient.setBaseUrl(_apiUrlCtrl.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('API URL saved and applied.'),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$error'), backgroundColor: AppColors.error,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _savingApi = false);
     }
-    setState(() => _savingApi = false);
   }
 
   Future<void> _saveSchoolName() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('school_name', _schoolNameCtrl.text.trim());
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('School name saved!'),
-            backgroundColor: AppColors.success),
-      );
-    }
-  }
-
-  Future<void> _downloadBackup() async {
-    setState(() => _backingUp = true);
     try {
-      final response = await DioClient.instance.get(
-        '/admin/backup',
-        options: Options(responseType: ResponseType.bytes),
-      );
-      final bytes = Uint8List.fromList(response.data as List<int>);
-      final blob = html.Blob([bytes], 'application/zip');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final now = DateTime.now();
-      final filename =
-          'school_backup_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}'
-          '_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}.zip';
-      html.AnchorElement(href: url)
-        ..setAttribute('download', filename)
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      final response = await DioClient.put('/school/profile',
+          data: {'name': _schoolNameCtrl.text.trim()});
+      AppStrings.schoolName = response.data['name'] as String;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Backup downloaded successfully!'),
-              backgroundColor: AppColors.success),
-        );
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('School name saved!'), backgroundColor: AppColors.success,
+        ));
       }
-    } catch (e) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Backup failed: $e'),
-              backgroundColor: AppColors.error),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not save school name: $error'),
+          backgroundColor: AppColors.error,
+        ));
       }
-    } finally {
-      setState(() => _backingUp = false);
     }
   }
 
@@ -138,8 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: AppColors.navy)),
-        content: Text(
-            'Are you sure you want to logout from the admin panel?',
+        content: Text('Are you sure you want to logout from the admin panel?',
             style: GoogleFonts.nunitoSans()),
         actions: [
           TextButton(
@@ -147,7 +148,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error, foregroundColor: Colors.white),
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Logout'),
           ),
@@ -155,10 +157,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('auth_token');
+      await AuthService.instance.logout();
       if (mounted) {
-        Navigator.pushReplacementNamed(context, AppRouter.home);
+        Navigator.of(context).pushNamedAndRemoveUntil(
+            AppRouter.home, (route) => false);
       }
     }
   }
@@ -211,8 +213,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
                   suffixIcon: IconButton(
-                    icon:
-                        Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
+                    icon: Icon(
+                        obscureNew ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setDlg(() => obscureNew = !obscureNew),
                   ),
                 ),
@@ -246,16 +248,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             backgroundColor: AppColors.error));
                         return;
                       }
-                      if (newCtrl.text.length < 6) {
+                      if (newCtrl.text.length < 8) {
                         ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                            content: Text(
-                                'Password must be at least 6 characters.'),
+                            content:
+                                Text('Password must be at least 8 characters.'),
                             backgroundColor: AppColors.error));
                         return;
                       }
                       setDlg(() => saving = true);
                       try {
-                        await DioClient.put('/admin/password', data: {
+                        await DioClient.post('/users/change-password', data: {
                           'currentPassword': currentCtrl.text,
                           'newPassword': newCtrl.text,
                         });
@@ -306,7 +308,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: AppColors.navy,
         foregroundColor: Colors.white,
         title: Text('Admin Settings',
-            style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700, fontSize: 20)),
+            style: GoogleFonts.cormorantGaramond(
+                fontWeight: FontWeight.w700, fontSize: 20)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -315,69 +318,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sectionTitle('Backend Configuration'),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Spring Boot API URL',
-                    style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
-                const SizedBox(height: 4),
-                Text('The base URL for your backend server.',
-                    style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12)),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _apiUrlCtrl,
-                      decoration: InputDecoration(
-                        hintText: 'http://localhost:8080/api',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        prefixIcon: const Icon(Icons.link, color: AppColors.textLight),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('FastAPI URL',
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy)),
+                    const SizedBox(height: 4),
+                    Text('The base URL for your backend server.',
+                        style: GoogleFonts.nunitoSans(
+                            color: AppColors.textSecondary, fontSize: 12)),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _apiUrlCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'http://localhost:8000/api',
+                            border: OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppSizes.radiusMD)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            prefixIcon: const Icon(Icons.link,
+                                color: AppColors.textLight),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.navy, foregroundColor: Colors.white),
-                    onPressed: _savingApi ? null : _saveApiUrl,
-                    child: _savingApi
-                        ? const SizedBox(
-                            width: 18, height: 18,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Save'),
-                  ),
-                ]),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                    border: Border.all(color: AppColors.info.withOpacity(0.2)),
-                  ),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Icon(Icons.info_outline, color: AppColors.info, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Deployment URLs',
-                            style: GoogleFonts.nunitoSans(
-                                fontWeight: FontWeight.w600, color: AppColors.info)),
-                        const SizedBox(height: 4),
-                        Text('• Local: http://localhost:8080/api\n'
-                            '• Docker: http://host.docker.internal:8080/api\n'
-                            '• Production: https://your-server.com/api',
-                            style: GoogleFonts.nunitoSans(
-                                color: AppColors.textSecondary, fontSize: 12)),
-                      ]),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.navy,
+                            foregroundColor: Colors.white),
+                        onPressed: _savingApi ? null : _saveApiUrl,
+                        child: _savingApi
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : const Text('Save'),
+                      ),
+                    ]),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.info.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                        border:
+                            Border.all(color: AppColors.info.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline,
+                                color: AppColors.info, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Deployment URLs',
+                                        style: GoogleFonts.nunitoSans(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.info)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                        '• Local: http://localhost:8000/api\n'
+                                        '• Docker: http://host.docker.internal:8000/api\n'
+                                        '• Production: https://your-server.com/api',
+                                        style: GoogleFonts.nunitoSans(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 12)),
+                                  ]),
+                            ),
+                          ]),
                     ),
                   ]),
-                ),
-              ]),
             ),
           ),
 
@@ -387,75 +410,94 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sectionTitle('School Identity (Multi-Tenant)'),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('School Code (Tenant ID)',
-                    style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
-                const SizedBox(height: 4),
-                Text(
-                  'Your unique school identifier. This determines which school\'s data is loaded. '
-                  'Contact your platform admin if you don\'t know your school code.',
-                  style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _tenantIdCtrl,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. springfield, dps_rohini',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        prefixIcon: const Icon(Icons.domain, color: AppColors.textLight),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.navy, foregroundColor: Colors.white),
-                    onPressed: _savingTenant ? null : _saveTenantId,
-                    child: _savingTenant
-                        ? const SizedBox(
-                            width: 18, height: 18,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Save'),
-                  ),
-                ]),
-                if (_tenantValidationMsg.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(_tenantValidationMsg,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('School Code (Tenant ID)',
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Your unique school identifier. This determines which school\'s data is loaded. '
+                      'Contact your platform admin if you don\'t know your school code.',
                       style: GoogleFonts.nunitoSans(
-                          fontSize: 12,
-                          color: _tenantValidationMsg.startsWith('School code saved')
-                              ? AppColors.success
-                              : AppColors.error)),
-                ],
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.gold.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                    border: Border.all(color: AppColors.gold.withOpacity(0.3)),
-                  ),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Icon(Icons.business_outlined, color: AppColors.gold, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Each school gets its own isolated database. '
-                        'Setting this code tells the app which school\'s data to show. '
-                        'The code is sent as X-Tenant-ID header with every API request.',
-                        style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12),
+                          color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _tenantIdCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. springfield, dps_rohini',
+                            border: OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppSizes.radiusMD)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            prefixIcon: const Icon(Icons.domain,
+                                color: AppColors.textLight),
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.navy,
+                            foregroundColor: Colors.white),
+                        onPressed: _savingTenant ? null : _saveTenantId,
+                        child: _savingTenant
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : const Text('Save'),
+                      ),
+                    ]),
+                    if (_tenantValidationMsg.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(_tenantValidationMsg,
+                          style: GoogleFonts.nunitoSans(
+                              fontSize: 12,
+                              color: _tenantValidationMsg
+                                      .startsWith('School code saved')
+                                  ? AppColors.success
+                                  : AppColors.error)),
+                    ],
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                        border:
+                            Border.all(color: AppColors.gold.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.business_outlined,
+                                color: AppColors.gold, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Each school gets its own isolated database. '
+                                'Setting this code tells the app which school\'s data to show. '
+                                'The code is sent as X-Tenant-ID header with every API request.',
+                                style: GoogleFonts.nunitoSans(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12),
+                              ),
+                            ),
+                          ]),
                     ),
                   ]),
-                ),
-              ]),
             ),
           ),
 
@@ -465,7 +507,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sectionTitle('School Information'),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(children: [
@@ -493,48 +536,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ]),
                 const SizedBox(height: 12),
-                _infoTile('Academic Year', '2025–2026', Icons.calendar_today_outlined),
-                _infoTile('Affiliation', 'CBSE', Icons.school_outlined),
-                _infoTile('Board Code', 'TBD', Icons.numbers_outlined),
+                _infoTile('Academic Year', _academicYear,
+                    Icons.calendar_today_outlined),
+                _infoTile('Affiliation', AppStrings.accreditation, Icons.school_outlined),
+                _infoTile('Board', _board, Icons.numbers_outlined),
               ]),
             ),
           ),
 
           const SizedBox(height: 20),
 
+          _sectionTitle('Appearance'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Interface theme',
+                    style: GoogleFonts.nunitoSans(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Applies across navigation, cards, forms, tables, and shared page components.',
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final itemWidth = constraints.maxWidth >= 680
+                          ? (constraints.maxWidth - 20) / 3
+                          : constraints.maxWidth;
+                      return AnimatedBuilder(
+                        animation: ThemeController.instance,
+                        builder: (context, _) => Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: AppThemePreset.values
+                              .map((preset) => SizedBox(
+                                    width: itemWidth,
+                                    child: _themeOption(preset),
+                                  ))
+                              .toList(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
           // Notifications
-          _sectionTitle('Notification Preferences'),
+          _sectionTitle('Notifications'),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
-            child: Column(children: [
-              SwitchListTile(
-                title: Text('Email Notifications',
-                    style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
-                subtitle: Text('Receive fee receipts and alerts via email',
-                    style: GoogleFonts.nunitoSans(fontSize: 13, color: AppColors.textSecondary)),
-                value: _emailNotifications,
-                activeColor: AppColors.navy,
-                onChanged: (v) async {
-                  setState(() => _emailNotifications = v);
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('email_notifications', v);
-                },
-              ),
-              const Divider(height: 1),
-              SwitchListTile(
-                title: Text('SMS Alerts', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
-                subtitle: Text('Send fee reminders via SMS to parents',
-                    style: GoogleFonts.nunitoSans(fontSize: 13, color: AppColors.textSecondary)),
-                value: _smsAlerts,
-                activeColor: AppColors.navy,
-                onChanged: (v) async {
-                  setState(() => _smsAlerts = v);
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('sms_alerts', v);
-                },
-              ),
-            ]),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            child: ListTile(
+              leading: const Icon(Icons.notifications_outlined, color: AppColors.navy),
+              title: Text('In-app notifications',
+                  style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+              subtitle: Text('School notifications are available in the app. Email and SMS delivery require a provider and are not enabled.',
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 13, color: AppColors.textSecondary)),
+            ),
           ),
 
           const SizedBox(height: 20),
@@ -543,30 +618,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sectionTitle('Security'),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
             child: Column(children: [
               ListTile(
                 leading: const Icon(Icons.lock_outline, color: AppColors.navy),
                 title: Text('Change Admin Password',
                     style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
                 subtitle: Text('Update your admin login credentials',
-                    style: GoogleFonts.nunitoSans(fontSize: 13, color: AppColors.textSecondary)),
+                    style: GoogleFonts.nunitoSans(
+                        fontSize: 13, color: AppColors.textSecondary)),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: _openChangePasswordDialog,
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.manage_accounts_outlined, color: AppColors.navy),
+                leading: const Icon(Icons.manage_accounts_outlined,
+                    color: AppColors.navy),
                 title: Text('Manage Admin Roles',
                     style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
                 subtitle: Text('Add or remove admin users',
-                    style: GoogleFonts.nunitoSans(fontSize: 13, color: AppColors.textSecondary)),
+                    style: GoogleFonts.nunitoSans(
+                        fontSize: 13, color: AppColors.textSecondary)),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Connect to Spring Security — GET /api/admin/users'),
-                      backgroundColor: AppColors.navy),
-                ),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const UserManagementScreen())),
               ),
             ]),
           ),
@@ -581,64 +657,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  'Download a full backup of all school data as a ZIP file containing JSON exports.',
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Includes: students, fees, expenses, attendance, results, timetable, transport.',
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.navy,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: _backingUp ? null : _downloadBackup,
-                    icon: _backingUp
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.download_outlined),
-                    label: Text(
-                      _backingUp ? 'Preparing backup...' : 'Backup Now',
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'The server operator backs up PostgreSQL and the video storage volume together.',
                       style: GoogleFonts.nunitoSans(
-                          fontWeight: FontWeight.w600, fontSize: 15),
+                          color: AppColors.textSecondary, fontSize: 13),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                    border: Border.all(color: AppColors.info.withOpacity(0.2)),
-                  ),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Icon(Icons.info_outline, color: AppColors.info, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'The ZIP file will be saved to your browser\'s default download folder. '
-                        'To always save backups to a specific folder, configure it in your browser\'s download settings.',
-                        style: GoogleFonts.nunitoSans(
-                            color: AppColors.textSecondary, fontSize: 12),
+                    const SizedBox(height: 8),
+                    Text(
+                      'A restore test is required before school records are entered.',
+                      style: GoogleFonts.nunitoSans(
+                          color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.info.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                        border:
+                            Border.all(color: AppColors.info.withOpacity(0.2)),
                       ),
+                      child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline,
+                                color: AppColors.info, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Contact the server operator for a dated backup and restore report. '
+                                'A browser download is not a complete database backup.',
+                                style: GoogleFonts.nunitoSans(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12),
+                              ),
+                            ),
+                          ]),
                     ),
                   ]),
-                ),
-              ]),
             ),
           ),
 
@@ -648,16 +707,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sectionTitle('About'),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _aboutRow('App Version', '1.0.0'),
-                _aboutRow('Built With', 'Flutter 3.x + Spring Boot 3.4.5'),
-                _aboutRow('Database', 'MongoDB'),
-                _aboutRow('UI Framework', 'Material 3 — Navy & Gold'),
-                _aboutRow('Backend Port', '8080'),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _aboutRow('App Version', '1.0.0'),
+                    _aboutRow('Built With', 'Flutter + FastAPI + PostgreSQL'),
+                    _aboutRow('Database', 'MongoDB'),
+                    _aboutRow('UI Framework', 'Material 3 — Navy & Gold'),
+                    _aboutRow('Backend Port', '8000'),
+                  ]),
             ),
           ),
 
@@ -673,7 +735,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               icon: const Icon(Icons.logout),
-              label: Text('Logout', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600, fontSize: 16)),
+              label: Text('Logout',
+                  style: GoogleFonts.nunitoSans(
+                      fontWeight: FontWeight.w600, fontSize: 16)),
               onPressed: _logout,
             ),
           ),
@@ -687,14 +751,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.only(bottom: 10),
         child: Text(title,
             style: GoogleFonts.cormorantGaramond(
-                fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.navy)),
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navy)),
       );
+
+  Widget _themeOption(AppThemePreset preset) {
+    final selected = ThemeController.instance.preset == preset;
+    final preview = AppTheme.forPreset(preset).extension<AppThemePalette>()!;
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+      onTap: () => ThemeController.instance.setPreset(preset),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color:
+              selected ? preview.brand.withValues(alpha: 0.06) : Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+          border: Border.all(
+            color: selected ? preview.brand : AppColors.border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                gradient: preview.heroGradient,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(
+                selected ? Icons.check_rounded : Icons.palette_outlined,
+                color: Colors.white,
+                size: 19,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    preset.label,
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    preset.description,
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _infoTile(String label, String value, IconData icon) => ListTile(
         dense: true,
         leading: Icon(icon, size: 18, color: AppColors.textLight),
-        title: Text(label, style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 13)),
-        trailing: Text(value, style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
+        title: Text(label,
+            style: GoogleFonts.nunitoSans(
+                color: AppColors.textSecondary, fontSize: 13)),
+        trailing: Text(value,
+            style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
       );
 
   Widget _aboutRow(String label, String value) => Padding(
@@ -703,11 +834,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SizedBox(
             width: 140,
             child: Text(label,
-                style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 13)),
+                style: GoogleFonts.nunitoSans(
+                    color: AppColors.textSecondary, fontSize: 13)),
           ),
           Expanded(
             child: Text(value,
-                style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           ),
         ]),
       );

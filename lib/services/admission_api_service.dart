@@ -1,4 +1,5 @@
 import '../models/admission_data.dart';
+import '../core/constants/academic_year.dart';
 import 'dio_client.dart';
 
 class AdmissionApiService {
@@ -34,15 +35,23 @@ class AdmissionApiService {
     await DioClient.delete('$_base/$id');
   }
 
-  /// Promotes all ACTIVE students in [fromClass] to [toClass] with [newYear].
-  /// Pass [toClass] = null to graduate Class-12 students (sets status → INACTIVE).
-  /// Returns the number of students updated.
+  /// A failed run can be retried: already moved students no longer match the
+  /// source class and year. The server still needs a transactional rollover API
+  /// for an atomic school-wide operation.
   static Future<int> promoteClass(
-      String fromClass, String? toClass, String newYear) async {
+      String fromClass, String fromYear, String? toClass, String newYear) async {
+    if (AcademicYear.next(fromYear) != newYear) {
+      throw ArgumentError('The target must be the year immediately after $fromYear.');
+    }
+    if (toClass != null && toClass == fromClass) {
+      throw ArgumentError('The target class must differ from the source class.');
+    }
     final all = await getStudents();
-    final toUpdate = all
-        .where((s) => s.classForAdmission == fromClass && s.status == 'ACTIVE')
-        .toList();
+    final toUpdate = promotionCandidates(all, fromClass, fromYear);
+    if (toUpdate.any((s) => s.id == null || s.id!.isEmpty)) {
+      throw StateError('A student has no ID; promotion was not started.');
+    }
+    var completed = 0;
     for (final s in toUpdate) {
       final updated = Student(
         id: s.id,
@@ -64,10 +73,27 @@ class AdmissionApiService {
         contactDetails: s.contactDetails,
         previousSchoolDetails: s.previousSchoolDetails,
       );
-      await updateStudent(s.id!, updated);
+      try {
+        await updateStudent(s.id!, updated);
+        completed++;
+      } catch (error) {
+        throw StateError(
+            '$completed of ${toUpdate.length} students updated. Refresh the list '
+            'and retry $fromClass ($fromYear); already moved students are skipped. '
+            'Last error: $error');
+      }
     }
-    return toUpdate.length;
+    return completed;
   }
+
+  static List<Student> promotionCandidates(
+          List<Student> students, String fromClass, String fromYear) =>
+      students
+          .where((s) =>
+              s.classForAdmission == fromClass &&
+              s.academicYear == fromYear &&
+              s.status.toUpperCase() == 'ACTIVE')
+          .toList();
 
   /// Fetches the full student record, sets [newStatus], then PUTs it back.
   static Future<void> toggleStatus(String id, String newStatus) async {

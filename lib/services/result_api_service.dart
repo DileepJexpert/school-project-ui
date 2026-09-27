@@ -106,7 +106,7 @@ class ResultApiService {
   static Future<Map<String, dynamic>> publishResults(
       String className, String examType, String year) async {
     final r = await DioClient.instance.put(
-      '/api/results/publish',
+      '$_base/publish',
       queryParameters: {
         'className': className,
         'examType': examType,

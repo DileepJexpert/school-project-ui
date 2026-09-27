@@ -14,19 +14,12 @@ class AiConfigScreen extends StatefulWidget {
 class _AiConfigScreenState extends State<AiConfigScreen> {
   bool _loading = true;
   bool _saving = false;
-  Map<String, dynamic> _config = {};
 
   // Form state
   bool _enabled = false;
   List<String> _enabledModes = ['TUTOR'];
-  String _primaryProvider = 'OLLAMA';
-  String? _fallbackProvider = 'GEMINI';
   String _ollamaBaseUrl = 'http://localhost:11434';
   String _ollamaModel = 'llama3';
-  String? _geminiApiKey;
-  String _geminiModel = 'gemini-2.0-flash';
-  String? _claudeApiKey;
-  String _claudeModel = 'claude-sonnet-4-20250514';
   int _dailyLimit = 20;
   int _maxTurns = 30;
 
@@ -42,20 +35,11 @@ class _AiConfigScreenState extends State<AiConfigScreen> {
       final data = await AiConfigApiService.getConfig();
       if (mounted) {
         setState(() {
-          _config = data;
           _enabled = data['enabled'] == true;
           _enabledModes = List<String>.from(data['enabledModes'] ?? ['TUTOR']);
-          _primaryProvider = data['primaryProvider'] as String? ?? 'OLLAMA';
-          _fallbackProvider = data['fallbackProvider'] as String?;
           _ollamaBaseUrl =
               data['ollamaBaseUrl'] as String? ?? 'http://localhost:11434';
           _ollamaModel = data['ollamaModel'] as String? ?? 'llama3';
-          _geminiApiKey = data['geminiApiKey'] as String?;
-          _geminiModel =
-              data['geminiModel'] as String? ?? 'gemini-2.0-flash';
-          _claudeApiKey = data['claudeApiKey'] as String?;
-          _claudeModel =
-              data['claudeModel'] as String? ?? 'claude-sonnet-4-20250514';
           _dailyLimit = (data['dailyLimitPerStudent'] as num?)?.toInt() ?? 20;
           _maxTurns =
               (data['maxConversationTurns'] as num?)?.toInt() ?? 30;
@@ -72,19 +56,23 @@ class _AiConfigScreenState extends State<AiConfigScreen> {
   }
 
   Future<void> _saveConfig() async {
+    if (_enabledModes.isEmpty || _dailyLimit < 1 || _dailyLimit > 100 ||
+        _maxTurns < 1 || _maxTurns > 100 ||
+        _ollamaBaseUrl.trim().isEmpty || _ollamaModel.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Select a mode, enter Ollama settings, and use limits from 1 to 100.'),
+      ));
+      return;
+    }
     setState(() => _saving = true);
     try {
       await AiConfigApiService.updateConfig({
         'enabled': _enabled,
         'enabledModes': _enabledModes,
-        'primaryProvider': _primaryProvider,
-        'fallbackProvider': _fallbackProvider,
-        'ollamaBaseUrl': _ollamaBaseUrl,
-        'ollamaModel': _ollamaModel,
-        'geminiApiKey': _geminiApiKey,
-        'geminiModel': _geminiModel,
-        'claudeApiKey': _claudeApiKey,
-        'claudeModel': _claudeModel,
+        'primaryProvider': 'OLLAMA',
+        'fallbackProvider': null,
+        'ollamaBaseUrl': _ollamaBaseUrl.trim(),
+        'ollamaModel': _ollamaModel.trim(),
         'dailyLimitPerStudent': _dailyLimit,
         'maxConversationTurns': _maxTurns,
       });
@@ -171,62 +159,7 @@ class _AiConfigScreenState extends State<AiConfigScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Provider settings
-          _sectionTitle('AI Provider'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Primary Provider',
-                      labelStyle: GoogleFonts.poppins(fontSize: 13),
-                      border: const OutlineInputBorder(),
-                    ),
-                    value: _primaryProvider,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'OLLAMA', child: Text('Ollama (Free Local)')),
-                      DropdownMenuItem(
-                          value: 'GEMINI',
-                          child: Text('Google Gemini (Cheapest)')),
-                      DropdownMenuItem(
-                          value: 'CLAUDE',
-                          child: Text('Claude (Best Quality)')),
-                    ],
-                    onChanged: (v) =>
-                        setState(() => _primaryProvider = v ?? 'OLLAMA'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Fallback Provider (optional)',
-                      labelStyle: GoogleFonts.poppins(fontSize: 13),
-                      border: const OutlineInputBorder(),
-                    ),
-                    value: _fallbackProvider,
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('None')),
-                      DropdownMenuItem(
-                          value: 'OLLAMA', child: Text('Ollama (Free Local)')),
-                      DropdownMenuItem(
-                          value: 'GEMINI',
-                          child: Text('Google Gemini')),
-                      DropdownMenuItem(
-                          value: 'CLAUDE', child: Text('Claude')),
-                    ],
-                    onChanged: (v) => setState(() => _fallbackProvider = v),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Ollama settings
-          _sectionTitle('Ollama Settings (Free)'),
+          _sectionTitle('Ollama Settings'),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -252,42 +185,6 @@ class _AiConfigScreenState extends State<AiConfigScreen> {
                       hintText: 'llama3, mistral, phi3...',
                     ),
                     onChanged: (v) => _ollamaModel = v,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // API Keys
-          _sectionTitle('API Keys (for paid providers)'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextFormField(
-                    initialValue: _geminiApiKey,
-                    decoration: InputDecoration(
-                      labelText: 'Gemini API Key',
-                      labelStyle: GoogleFonts.poppins(fontSize: 13),
-                      border: const OutlineInputBorder(),
-                    ),
-                    obscureText: true,
-                    onChanged: (v) =>
-                        _geminiApiKey = v.isEmpty ? null : v,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: _claudeApiKey,
-                    decoration: InputDecoration(
-                      labelText: 'Claude API Key',
-                      labelStyle: GoogleFonts.poppins(fontSize: 13),
-                      border: const OutlineInputBorder(),
-                    ),
-                    obscureText: true,
-                    onChanged: (v) =>
-                        _claudeApiKey = v.isEmpty ? null : v,
                   ),
                 ],
               ),
@@ -381,7 +278,7 @@ class _AiConfigScreenState extends State<AiConfigScreen> {
           if (v == true) {
             _enabledModes.add(mode);
           } else {
-            _enabledModes.remove(mode);
+            if (_enabledModes.length > 1) _enabledModes.remove(mode);
           }
         });
       },

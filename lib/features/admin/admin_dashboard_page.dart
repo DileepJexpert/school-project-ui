@@ -3,12 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/responsive.dart';
 import '../../models/auth_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/fee_api_service.dart';
 import '../../services/staff_api_service.dart';
 import '../../models/fee_models.dart';
+import '../../models/school_data.dart';
 
 // -- Existing live screens
 import 'screens/attendance_screen.dart';
@@ -38,7 +40,8 @@ class _MenuItem {
   final IconData icon;
   final String label;
   final bool isLive;
-  const _MenuItem({required this.icon, required this.label, this.isLive = false});
+  const _MenuItem(
+      {required this.icon, required this.label, this.isLive = false});
 }
 
 class _MenuGroup {
@@ -50,39 +53,82 @@ class _MenuGroup {
 // Flat list used for switch / index lookup (order must match _groups expansion)
 final _allItems = [
   // -- ACADEMICS --
-  const _MenuItem(icon: Icons.dashboard_outlined,        label: 'Overview',       isLive: true),  // 0
-  const _MenuItem(icon: Icons.people_alt_outlined,       label: 'Students',       isLive: true),  // 1
-  const _MenuItem(icon: Icons.person_add_alt_1_outlined, label: 'Admissions',     isLive: true),  // 2
-  const _MenuItem(icon: Icons.menu_book_outlined,        label: 'Homework',       isLive: true),  // 3
-  const _MenuItem(icon: Icons.video_library_outlined,   label: 'Video Tutorials', isLive: true),  // 4
+  const _MenuItem(
+      icon: Icons.dashboard_outlined, label: 'Overview', isLive: true), // 0
+  const _MenuItem(
+      icon: Icons.people_alt_outlined, label: 'Students', isLive: true), // 1
+  const _MenuItem(
+      icon: Icons.person_add_alt_1_outlined,
+      label: 'Admissions',
+      isLive: true), // 2
+  const _MenuItem(
+      icon: Icons.menu_book_outlined, label: 'Homework', isLive: true), // 3
+  const _MenuItem(
+      icon: Icons.video_library_outlined,
+      label: 'Video Tutorials',
+      isLive: true), // 4
   // -- FINANCE --
-  const _MenuItem(icon: Icons.receipt_long_outlined,     label: 'Fees',           isLive: true),  // 5
-  const _MenuItem(icon: Icons.money_off_outlined,        label: 'Expenses',       isLive: true),  // 6
-  const _MenuItem(icon: Icons.assessment_outlined,       label: 'Reports',        isLive: true),  // 7
+  const _MenuItem(
+      icon: Icons.receipt_long_outlined, label: 'Fees', isLive: true), // 5
+  const _MenuItem(
+      icon: Icons.money_off_outlined, label: 'Expenses', isLive: true), // 6
+  const _MenuItem(
+      icon: Icons.assessment_outlined, label: 'Reports', isLive: true), // 7
   // -- SCHOOL OPERATIONS --
-  const _MenuItem(icon: Icons.rule_folder_outlined,      label: 'Attendance',     isLive: true),  // 8
-  const _MenuItem(icon: Icons.table_chart_outlined,      label: 'Timetable',      isLive: true),  // 9
-  const _MenuItem(icon: Icons.emoji_events_outlined,     label: 'Results',        isLive: true),  // 10
-  const _MenuItem(icon: Icons.directions_bus_outlined,   label: 'Transport',      isLive: true),  // 11
-  const _MenuItem(icon: Icons.gavel_outlined,            label: 'Discipline',     isLive: true),  // 12
+  const _MenuItem(
+      icon: Icons.rule_folder_outlined, label: 'Attendance', isLive: true), // 8
+  const _MenuItem(
+      icon: Icons.table_chart_outlined, label: 'Timetable', isLive: true), // 9
+  const _MenuItem(
+      icon: Icons.emoji_events_outlined, label: 'Results', isLive: true), // 10
+  const _MenuItem(
+      icon: Icons.directions_bus_outlined,
+      label: 'Transport',
+      isLive: true), // 11
+  const _MenuItem(
+      icon: Icons.gavel_outlined, label: 'Discipline', isLive: true), // 12
   // -- COMMUNICATION --
-  const _MenuItem(icon: Icons.notifications_active_outlined, label: 'Notifications', isLive: true), // 13
-  const _MenuItem(icon: Icons.chat_outlined,             label: 'Chat',           isLive: true),  // 14
+  const _MenuItem(
+      icon: Icons.notifications_active_outlined,
+      label: 'Notifications',
+      isLive: true), // 13
+  const _MenuItem(icon: Icons.chat_outlined, label: 'Chat', isLive: true), // 14
   // -- HR & PAYROLL --
-  const _MenuItem(icon: Icons.badge_outlined,            label: 'HR & Staff',     isLive: true),  // 15
+  const _MenuItem(
+      icon: Icons.badge_outlined, label: 'HR & Staff', isLive: true), // 15
   // -- ADMINISTRATION --
-  const _MenuItem(icon: Icons.description_outlined,      label: 'Certificates',   isLive: true),  // 16
-  const _MenuItem(icon: Icons.smart_toy_outlined,        label: 'AI Settings',    isLive: true),  // 17
-  const _MenuItem(icon: Icons.settings_outlined,         label: 'Settings',       isLive: true),  // 18
+  const _MenuItem(
+      icon: Icons.description_outlined,
+      label: 'Certificates',
+      isLive: true), // 16
+  const _MenuItem(
+      icon: Icons.smart_toy_outlined, label: 'AI Settings', isLive: true), // 17
+  const _MenuItem(
+      icon: Icons.settings_outlined, label: 'Settings', isLive: true), // 18
 ];
 
 final _groups = [
-  _MenuGroup(title: 'ACADEMICS',         items: [_allItems[0], _allItems[1], _allItems[2], _allItems[3], _allItems[4]]),
-  _MenuGroup(title: 'FINANCE',           items: [_allItems[5], _allItems[6], _allItems[7]]),
-  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [_allItems[8], _allItems[9], _allItems[10], _allItems[11], _allItems[12]]),
-  _MenuGroup(title: 'COMMUNICATION',     items: [_allItems[13], _allItems[14]]),
-  _MenuGroup(title: 'HR & PAYROLL',      items: [_allItems[15]]),
-  _MenuGroup(title: 'ADMINISTRATION',    items: [_allItems[16], _allItems[17], _allItems[18]]),
+  _MenuGroup(title: 'ACADEMICS', items: [
+    _allItems[0],
+    _allItems[1],
+    _allItems[2],
+    _allItems[3],
+    _allItems[4]
+  ]),
+  _MenuGroup(
+      title: 'FINANCE', items: [_allItems[5], _allItems[6], _allItems[7]]),
+  _MenuGroup(title: 'SCHOOL OPERATIONS', items: [
+    _allItems[8],
+    _allItems[9],
+    _allItems[10],
+    _allItems[11],
+    _allItems[12]
+  ]),
+  _MenuGroup(title: 'COMMUNICATION', items: [_allItems[13], _allItems[14]]),
+  _MenuGroup(title: 'HR & PAYROLL', items: [_allItems[15]]),
+  _MenuGroup(
+      title: 'ADMINISTRATION',
+      items: [_allItems[16], _allItems[17], _allItems[18]]),
 ];
 
 // --------- Page ---------
@@ -104,35 +150,56 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildContent() {
     switch (_selectedIndex) {
-      case 0:  return const _OverviewContent();
-      case 1:  return const StudentsScreen();
-      case 2:  return const AdmissionScreen();
-      case 3:  return const HomeworkScreen();
-      case 4:  return const VideoManagementScreen();
-      case 5:  return const FeeScreen();
-      case 6:  return const ExpenseScreen();
-      case 7:  return const ReportsScreen();
-      case 8:  return const AttendanceScreen();
-      case 9:  return const TimetableScreen();
-      case 10: return const ResultsAdminScreen();
-      case 11: return const TransportAdminScreen();
-      case 12: return const DisciplineScreen();
-      case 13: return const NotificationsScreen();
-      case 14: return const ChatListScreen();
-      case 15: return const HrScreen();
-      case 16: return const CertificatesScreen();
-      case 17: return const AiConfigScreen();
-      case 18: return const SettingsScreen();
-      default: return const SizedBox.shrink();
+      case 0:
+        return _OverviewContent(
+          onNavigate: (index) => setState(() => _selectedIndex = index),
+        );
+      case 1:
+        return const StudentsScreen();
+      case 2:
+        return const AdmissionScreen();
+      case 3:
+        return const HomeworkScreen();
+      case 4:
+        return const VideoManagementScreen();
+      case 5:
+        return const FeeScreen();
+      case 6:
+        return const ExpenseScreen();
+      case 7:
+        return const ReportsScreen();
+      case 8:
+        return const AttendanceScreen();
+      case 9:
+        return const TimetableScreen();
+      case 10:
+        return const ResultsAdminScreen();
+      case 11:
+        return const TransportAdminScreen();
+      case 12:
+        return const DisciplineScreen();
+      case 13:
+        return const NotificationsScreen();
+      case 14:
+        return const ChatListScreen();
+      case 15:
+        return const HrScreen();
+      case 16:
+        return const CertificatesScreen();
+      case 17:
+        return const AiConfigScreen();
+      case 18:
+        return const SettingsScreen();
+      default:
+        return const SizedBox.shrink();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile  = Responsive.isMobile(context);
+    final isMobile = Responsive.isMobile(context);
     final isDesktop = Responsive.isDesktop(context);
-    // Desktop sidebar: 240px | Tablet sidebar: 200px
-    final sidebarWidth = isDesktop ? 240.0 : 200.0;
+    final sidebarWidth = isDesktop ? 224.0 : 196.0;
 
     // Find which bottom-nav slot to highlight; fall back to "More" (slot 4)
     int bottomIdx = _bottomNavToGlobal.indexOf(_selectedIndex);
@@ -140,9 +207,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.cream,
+      backgroundColor: context.palette.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.navy,
+        toolbarHeight: 58,
+        backgroundColor: context.palette.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: Border(
+          bottom: BorderSide(color: context.palette.border),
+        ),
         leading: isMobile
             // Mobile: hamburger opens the drawer
             ? IconButton(
@@ -157,7 +229,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
         title: Text(
           _allItems[_selectedIndex].label,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18),
+          style: GoogleFonts.nunitoSans(
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
+            color: AppColors.textPrimary,
+          ),
         ),
         actions: [
           // Full text on tablet/desktop; icon-only on mobile to save space
@@ -165,14 +241,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             TextButton.icon(
               onPressed: () =>
                   Navigator.pushReplacementNamed(context, AppRouter.home),
-              icon: const Icon(Icons.public, color: AppColors.goldLight, size: 18),
+              icon: const Icon(Icons.public, color: AppColors.gold, size: 18),
               label: Text('View Website',
-                  style: GoogleFonts.poppins(
-                      color: AppColors.goldLight, fontSize: 12)),
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.gold,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700)),
             )
           else
             IconButton(
-              icon: const Icon(Icons.public, color: AppColors.goldLight),
+              icon: const Icon(Icons.public, color: AppColors.gold),
               tooltip: 'View Website',
               onPressed: () =>
                   Navigator.pushReplacementNamed(context, AppRouter.home),
@@ -194,11 +272,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           // Persistent sidebar for tablet and desktop
           if (!isMobile && _sideMenuVisible)
             Material(
-              elevation: 2,
+              elevation: 0,
               child: SizedBox(
                 width: sidebarWidth,
                 child: ColoredBox(
-                  color: AppColors.white,
+                  color: context.palette.surface,
                   child: _buildMenuList(),
                 ),
               ),
@@ -276,7 +354,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     final user = auth.currentUser;
     final userName = user?.fullName ?? 'Admin';
-    final userRole = user != null ? UserRole.displayName(user.role) : 'Dashboard';
+    final userRole =
+        user != null ? UserRole.displayName(user.role) : 'Dashboard';
 
     return ListView(
       padding: EdgeInsets.zero,
@@ -284,29 +363,50 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         // -- Sidebar header
         Container(
           padding: EdgeInsets.fromLTRB(
-              20, Responsive.isMobile(context) ? 48 : 24, 20, 20),
-          color: AppColors.navy,
+              16, Responsive.isMobile(context) ? 42 : 18, 16, 16),
+          decoration: BoxDecoration(
+            color: context.palette.surface,
+            border: Border(bottom: BorderSide(color: context.palette.border)),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.school_rounded, color: Colors.white, size: 36),
-              const SizedBox(height: 8),
-              Text(userName,
-                  style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-              Text(userRole,
-                  style: GoogleFonts.poppins(
-                      color: AppColors.goldLight,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400)),
+              Row(children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: context.palette.brand,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Icon(Icons.school_rounded,
+                      color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(userName,
+                          style: GoogleFonts.nunitoSans(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      Text(userRole,
+                          style: GoogleFonts.nunitoSans(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+              ]),
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         // -- Grouped items (role-filtered)
         ...groupWidgets,
         const Divider(indent: 16, endIndent: 16, height: 24),
@@ -338,14 +438,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildGroupHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 3),
       child: Text(
         title,
-        style: GoogleFonts.poppins(
-          fontSize: 10,
+        style: GoogleFonts.nunitoSans(
+          fontSize: 9.5,
           fontWeight: FontWeight.w700,
           color: AppColors.textLight,
-          letterSpacing: 1.5,
+          letterSpacing: 1.2,
         ),
       ),
     );
@@ -354,7 +454,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Widget _buildMenuItem(_MenuItem item, int index) {
     final isActive = _selectedIndex == index;
     return Material(
-      color: isActive ? AppColors.goldPale : Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
         onTap: () {
           setState(() => _selectedIndex = index);
@@ -362,29 +462,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           if (Responsive.isMobile(context)) Navigator.pop(context);
         },
         child: Container(
-          decoration: isActive
-              ? const BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: AppColors.gold, width: 3),
-                  ),
-                )
-              : null,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          decoration: BoxDecoration(
+            color: isActive
+                ? context.palette.brand.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
           child: Row(
             children: [
               Icon(item.icon,
                   size: 18,
                   color: isActive ? AppColors.navy : AppColors.textSecondary),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(item.label,
-                    style: GoogleFonts.poppins(
-                      fontWeight:
-                          isActive ? FontWeight.w600 : FontWeight.w400,
-                      color: isActive
-                          ? AppColors.navy
-                          : AppColors.textSecondary,
-                      fontSize: 13,
+                    style: GoogleFonts.nunitoSans(
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                      color:
+                          isActive ? AppColors.navy : AppColors.textSecondary,
+                      fontSize: 12.5,
                     )),
               ),
               if (item.isLive)
@@ -392,9 +490,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   width: 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: isActive
-                        ? AppColors.gold
-                        : AppColors.success,
+                    color: isActive ? AppColors.gold : AppColors.success,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -409,7 +505,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 // --------- Overview ---------
 
 class _OverviewContent extends StatefulWidget {
-  const _OverviewContent();
+  final void Function(int index)? onNavigate;
+  const _OverviewContent({this.onNavigate});
 
   @override
   State<_OverviewContent> createState() => _OverviewContentState();
@@ -417,8 +514,30 @@ class _OverviewContent extends StatefulWidget {
 
 class _OverviewContentState extends State<_OverviewContent> {
   bool _loading = true;
+  String? _error;
   SchoolSummary? _schoolSummary;
   Map<String, dynamic>? _staffDashboard;
+
+  static const _moduleNavMap = {
+    'Students': 1,
+    'Admissions': 2,
+    'Homework': 3,
+    'Video Tutorials': 4,
+    'Fees': 5,
+    'Expenses': 6,
+    'Reports': 7,
+    'Attendance': 8,
+    'Timetable': 9,
+    'Results': 10,
+    'Transport': 11,
+    'Discipline': 12,
+    'Notifications': 13,
+    'Chat': 14,
+    'HR & Staff': 15,
+    'Certificates': 16,
+    'AI Settings': 17,
+    'Settings': 18,
+  };
 
   @override
   void initState() {
@@ -427,7 +546,10 @@ class _OverviewContentState extends State<_OverviewContent> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final results = await Future.wait([
         FeeApiService.getSchoolSummary(),
@@ -437,16 +559,19 @@ class _OverviewContentState extends State<_OverviewContent> {
         setState(() {
           _schoolSummary = results[0] as SchoolSummary;
           _staffDashboard = results[1] as Map<String, dynamic>;
+          _error = null;
         });
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _error = e.toString());
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load dashboard: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    if (mounted) setState(() => _loading = false);
   }
 
   String _formatNumber(int n) {
@@ -465,7 +590,9 @@ class _OverviewContentState extends State<_OverviewContent> {
   }
 
   String _formatRevenue(double amount) {
-    if (amount >= 10000000) return 'Rs ${(amount / 10000000).toStringAsFixed(1)}Cr';
+    if (amount >= 10000000) {
+      return 'Rs ${(amount / 10000000).toStringAsFixed(1)}Cr';
+    }
     if (amount >= 100000) return 'Rs ${(amount / 100000).toStringAsFixed(1)}L';
     if (amount >= 1000) return 'Rs ${(amount / 1000).toStringAsFixed(1)}K';
     return 'Rs ${amount.toStringAsFixed(0)}';
@@ -478,25 +605,92 @@ class _OverviewContentState extends State<_OverviewContent> {
     final pendingLeaves =
         (_staffDashboard?['pendingLeaveRequests'] as num?)?.toInt() ?? 0;
     final revenue = _schoolSummary?.totalFeesCollected ?? 0.0;
+    final checklist = SchoolData.setupChecklist;
+    final completedChecklistCount = checklist.where((c) => c.isComplete).length;
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(Responsive.contentPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-              'Welcome Back, ${AuthService.instance.currentUser?.fullName?.split(' ').first ?? 'Admin'}!',
-              style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy)),
-          const SizedBox(height: 4),
-          Text("Here's a quick overview of your school.",
-              style: GoogleFonts.poppins(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400)),
-          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome Back, ${AuthService.instance.currentUser?.fullName.split(' ').first ?? 'Admin'}!',
+                      style: GoogleFonts.poppins(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navy),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Here's a quick overview of your school.",
+                      style: GoogleFonts.poppins(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Refresh metrics',
+                onPressed: _loading ? null : _loadData,
+                icon: const Icon(Icons.refresh_rounded, color: AppColors.navy),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          if (_error != null) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                border: Border.all(color: AppColors.error.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded,
+                      color: AppColors.error, size: 28),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Unable to Load Metrics',
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.error)),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Displaying defaults. Server connection error: $_error',
+                          style: GoogleFonts.nunitoSans(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _loadData,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (_loading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
@@ -507,69 +701,239 @@ class _OverviewContentState extends State<_OverviewContent> {
               builder: (context, constraints) {
                 final columns = Responsive.gridColumns(context);
                 return Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
+                  spacing: 12,
+                  runSpacing: 12,
                   children: [
-                    _statCard(context, 'Total Students',
+                    _statCard(
+                        context,
+                        'Total Students',
                         _formatNumber(totalStudents),
-                        Icons.people_alt_rounded, AppColors.navy,
-                        constraints.maxWidth, columns),
-                    _statCard(context, 'Total Staff',
+                        Icons.people_alt_rounded,
+                        AppColors.navy,
+                        constraints.maxWidth,
+                        columns,
+                        onTap: () => widget.onNavigate?.call(1)),
+                    _statCard(
+                        context,
+                        'Total Staff',
                         _formatNumber(totalStaff),
-                        Icons.badge_rounded, const Color(0xFF0D9488),
-                        constraints.maxWidth, columns),
-                    _statCard(context, 'Pending Leaves',
+                        Icons.badge_rounded,
+                        const Color(0xFF0D9488),
+                        constraints.maxWidth,
+                        columns,
+                        onTap: () => widget.onNavigate?.call(15)),
+                    _statCard(
+                        context,
+                        'Pending Leaves',
                         '$pendingLeaves',
-                        Icons.event_busy_rounded, AppColors.gold,
-                        constraints.maxWidth, columns),
-                    _statCard(context, 'Revenue (Total)',
+                        Icons.event_busy_rounded,
+                        AppColors.gold,
+                        constraints.maxWidth,
+                        columns,
+                        onTap: () => widget.onNavigate?.call(15)),
+                    _statCard(
+                        context,
+                        'Revenue (Total)',
                         _formatRevenue(revenue),
-                        Icons.monetization_on_rounded, const Color(0xFFDB2777),
-                        constraints.maxWidth, columns),
+                        Icons.monetization_on_rounded,
+                        const Color(0xFFDB2777),
+                        constraints.maxWidth,
+                        columns,
+                        onTap: () => widget.onNavigate?.call(5)),
                   ],
                 );
               },
             ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          Text('Quick Actions',
+              style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.navy)),
+          const SizedBox(height: 4),
+          Text('Jump directly to frequent workflows and operations.',
+              style: GoogleFonts.poppins(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _actionCard('New Enquiry', Icons.person_add_alt_1_outlined, 2, AppColors.navy),
+              _actionCard('Enroll Student', Icons.school_outlined, 1, const Color(0xFF0D9488)),
+              _actionCard('Collect Fees', Icons.receipt_long_outlined, 5, const Color(0xFFDB2777)),
+              _actionCard('Mark Attendance', Icons.how_to_reg_outlined, 8, AppColors.gold),
+              _actionCard('Assign Homework', Icons.menu_book_outlined, 3, AppColors.info),
+              _actionCard('Send Notice', Icons.campaign_outlined, 13, AppColors.warning),
+            ],
+          ),
+          if (completedChecklistCount < checklist.length) ...[
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.checklist_rounded, color: AppColors.navy, size: 22),
+                      const SizedBox(width: 8),
+                      Text('School Setup Progress',
+                          style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.navy)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.navy.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$completedChecklistCount / ${checklist.length} Complete',
+                          style: GoogleFonts.nunitoSans(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navy,
+                              fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...checklist.map((item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              item.isComplete
+                                  ? Icons.check_circle_rounded
+                                  : Icons.radio_button_unchecked_rounded,
+                              size: 18,
+                              color: item.isComplete
+                                  ? AppColors.success
+                                  : AppColors.textLight,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.title,
+                                      style: GoogleFonts.nunitoSans(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: item.isComplete
+                                              ? AppColors.textPrimary
+                                              : AppColors.navy)),
+                                  Text(item.description,
+                                      style: GoogleFonts.nunitoSans(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                            if (!item.isComplete)
+                              TextButton(
+                                onPressed: () =>
+                                    widget.onNavigate?.call(item.targetIndex),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text('Configure →',
+                                    style: TextStyle(fontSize: 12)),
+                              ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
           Text('Live Modules',
               style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: AppColors.navy)),
           const SizedBox(height: 4),
-          Text('All modules below are connected to the Spring Boot backend.',
+          Text('Click any module chip to open it directly.',
               style: GoogleFonts.poppins(
                   color: AppColors.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w400)),
-          const SizedBox(height: 16),
-          Wrap(spacing: 10, runSpacing: 10, children: [
-            _liveChip(Icons.people_alt_outlined,          'Students'),
-            _liveChip(Icons.person_add_alt_1_outlined,    'Admissions'),
-            _liveChip(Icons.receipt_long_outlined,        'Fees'),
-            _liveChip(Icons.money_off_outlined,           'Expenses'),
-            _liveChip(Icons.assessment_outlined,          'Reports'),
-            _liveChip(Icons.rule_folder_outlined,         'Attendance'),
-            _liveChip(Icons.table_chart_outlined,         'Timetable'),
-            _liveChip(Icons.emoji_events_outlined,        'Results'),
-            _liveChip(Icons.directions_bus_outlined,      'Transport'),
-            _liveChip(Icons.notifications_active_outlined,'Notifications'),
-            _liveChip(Icons.settings_outlined,            'Settings'),
-            _liveChip(Icons.gavel_outlined,               'Discipline'),
-            _liveChip(Icons.chat_outlined,                'Chat'),
-            _liveChip(Icons.badge_outlined,               'HR & Staff'),
-            _liveChip(Icons.description_outlined,         'Certificates'),
-            _liveChip(Icons.menu_book_outlined,           'Homework'),
-            _liveChip(Icons.video_library_outlined,       'Video Tutorials'),
-            _liveChip(Icons.smart_toy_outlined,           'AI Settings'),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            _liveChip(Icons.people_alt_outlined, 'Students'),
+            _liveChip(Icons.person_add_alt_1_outlined, 'Admissions'),
+            _liveChip(Icons.receipt_long_outlined, 'Fees'),
+            _liveChip(Icons.money_off_outlined, 'Expenses'),
+            _liveChip(Icons.assessment_outlined, 'Reports'),
+            _liveChip(Icons.rule_folder_outlined, 'Attendance'),
+            _liveChip(Icons.table_chart_outlined, 'Timetable'),
+            _liveChip(Icons.emoji_events_outlined, 'Results'),
+            _liveChip(Icons.directions_bus_outlined, 'Transport'),
+            _liveChip(Icons.notifications_active_outlined, 'Notifications'),
+            _liveChip(Icons.settings_outlined, 'Settings'),
+            _liveChip(Icons.gavel_outlined, 'Discipline'),
+            _liveChip(Icons.chat_outlined, 'Chat'),
+            _liveChip(Icons.badge_outlined, 'HR & Staff'),
+            _liveChip(Icons.description_outlined, 'Certificates'),
+            _liveChip(Icons.menu_book_outlined, 'Homework'),
+            _liveChip(Icons.video_library_outlined, 'Video Tutorials'),
+            _liveChip(Icons.smart_toy_outlined, 'AI Settings'),
           ]),
         ],
       ),
     );
   }
 
-  Widget _liveChip(IconData icon, String label) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+  Widget _actionCard(String label, IconData icon, int targetIndex, Color color) {
+    return InkWell(
+      onTap: () => widget.onNavigate?.call(targetIndex),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Text(label,
+                style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.navy)),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.textLight),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _liveChip(IconData icon, String label) {
+    final target = _moduleNavMap[label];
+    return InkWell(
+      onTap: target != null ? () => widget.onNavigate?.call(target) : null,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: AppColors.success.withOpacity(0.08),
           borderRadius: BorderRadius.circular(20),
@@ -590,7 +954,9 @@ class _OverviewContentState extends State<_OverviewContent> {
               decoration: const BoxDecoration(
                   color: AppColors.success, shape: BoxShape.circle)),
         ]),
-      );
+      ),
+    );
+  }
 
   Widget _statCard(
     BuildContext context,
@@ -599,31 +965,32 @@ class _OverviewContentState extends State<_OverviewContent> {
     IconData icon,
     Color color,
     double maxWidth,
-    int columns,
-  ) {
+    int columns, {
+    VoidCallback? onTap,
+  }) {
     return SizedBox(
-      width: (maxWidth - (columns - 1) * 16) / columns,
+      width: (maxWidth - (columns - 1) * 12) / columns,
       child: Card(
         child: InkWell(
-          onTap: () {},
+          onTap: onTap,
           borderRadius: BorderRadius.circular(AppSizes.radiusLG),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 26,
+                  radius: 22,
                   backgroundColor: color.withOpacity(0.12),
-                  child: Icon(icon, size: 26, color: color),
+                  child: Icon(icon, size: 22, color: color),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(value,
                           style: GoogleFonts.poppins(
-                              fontSize: 24,
+                              fontSize: 21,
                               fontWeight: FontWeight.w700,
                               color: color)),
                       const SizedBox(height: 2),

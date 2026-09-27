@@ -21,7 +21,7 @@ SCALARS = {
     "phone", "email", "address", "officeHours",
     "admissionCtaTitle", "admissionCtaSubtitle",
     "feeStructureTitle", "feeStructureNote", "mapUrl",
-    "announcement",
+    "announcement", "facebookUrl",
     "principalName", "principalTitle", "principalImagePath", "heroBannerImagePath",
     "principalMessage", "mission", "vision",
 }

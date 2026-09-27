@@ -1,0 +1,41 @@
+{
+  "schoolShortName": "Rising Star",
+  "tagline": "Education in Tikri, Nawabganj, Gonda",
+  "phone": "095176 62187",
+  "email": "risingstartikri@gmail.com",
+  "address": "Tikri, Nawabganj, Gonda, Uttar Pradesh 271303",
+  "heroBannerImagePath": "https://schools.katixo.com/school-media/risingstar/campus.jpg",
+  "facebookUrl": "https://www.facebook.com/profile.php?id=100063756525930",
+  "galleryCategories": [
+    "Campus",
+    "Classroom",
+    "Community"
+  ],
+  "galleryImages": [
+    {
+      "category": "Campus",
+      "label": "Rising Star Public School campus",
+      "imagePath": "https://schools.katixo.com/school-media/risingstar/campus.jpg"
+    },
+    {
+      "category": "Campus",
+      "label": "School campus at night",
+      "imagePath": "https://schools.katixo.com/school-media/risingstar/campus-night.jpg"
+    },
+    {
+      "category": "Campus",
+      "label": "Walkway on the school campus",
+      "imagePath": "https://schools.katixo.com/school-media/risingstar/walkway.jpg"
+    },
+    {
+      "category": "Classroom",
+      "label": "Children's activity room",
+      "imagePath": "https://schools.katixo.com/school-media/risingstar/activity-room.jpg"
+    },
+    {
+      "category": "Community",
+      "label": "School community",
+      "imagePath": "https://schools.katixo.com/school-media/risingstar/community.jpg"
+    }
+  ]
+}

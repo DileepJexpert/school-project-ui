@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/public_colors.dart';
+import '../../core/constants/academic_year.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/app_shell.dart';
 import '../../core/widgets/shared_widgets.dart';
-import '../../core/widgets/responsive.dart';
 import '../../services/dio_client.dart';
+import '../../services/auth_service.dart';
 
 class ResultsPage extends StatefulWidget {
   const ResultsPage({super.key});
@@ -25,8 +27,13 @@ class _ResultsPageState extends State<ResultsPage> {
   List<Map<String, dynamic>> _resultItems = [];
   String _studentName = '';
 
-  final sessions = ['2025-26', '2024-25', '2023-24'];
-  final classes = ['Grade 10', 'Grade 12'];
+  final sessions = AcademicYear.choices(short: true).reversed.toList();
+  final classes = SchoolConstants.allClasses
+      .where(
+        (name) =>
+            name.startsWith('Class 10 -') || name.startsWith('Class 12 -'),
+      )
+      .toList();
 
   @override
   void dispose() {
@@ -35,10 +42,21 @@ class _ResultsPageState extends State<ResultsPage> {
   }
 
   Future<void> _handleSearch() async {
+    if (!AuthService.instance
+        .hasAnyRole(const ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'TEACHER'])) {
+      setState(() => _error =
+          'Sign in as school staff to search published results. Students and parents can view their own results in their portals.');
+      return;
+    }
     if (_selectedSession == null ||
         _selectedClass == null ||
         _rollController.text.isEmpty) return;
-    setState(() { _loading = true; _error = null; _resultItems = []; _searched = false; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _resultItems = [];
+      _searched = false;
+    });
     try {
       final response = await DioClient.get('/results', queryParams: {
         'rollNumber': _rollController.text.trim(),
@@ -66,9 +84,11 @@ class _ResultsPageState extends State<ResultsPage> {
       currentRoute: AppRouter.results,
       child: Column(
         children: [
-          const PageHeader(title: 'Student Results', subtitle: 'View board examination results'),
+          const PageHeader(
+              title: 'Student Results',
+              subtitle: 'View board examination results'),
           SectionWrapper(
-            backgroundColor: AppColors.white,
+            backgroundColor: PublicColors.white,
             child: Column(
               children: [
                 const SectionTitle(title: 'Search Results', centered: true),
@@ -76,8 +96,15 @@ class _ResultsPageState extends State<ResultsPage> {
                 Text(
                   'Enter your details to view your board examination results.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 14),
+                  style: GoogleFonts.nunitoSans(
+                      color: PublicColors.textSecondary, fontSize: 14),
                 ),
+                if (!AuthService.instance.isLoggedIn)
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRouter.login),
+                    child: const Text('Sign in to view results'),
+                  ),
                 const SizedBox(height: 32),
 
                 // Search form
@@ -85,8 +112,8 @@ class _ResultsPageState extends State<ResultsPage> {
                   constraints: const BoxConstraints(maxWidth: 700),
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: AppColors.cream,
-                    border: Border.all(color: AppColors.border),
+                    color: PublicColors.cream,
+                    border: Border.all(color: PublicColors.border),
                   ),
                   child: Column(
                     children: [
@@ -95,18 +122,28 @@ class _ResultsPageState extends State<ResultsPage> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               value: _selectedSession,
-                              decoration: const InputDecoration(hintText: 'Academic Session'),
-                              items: sessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                              onChanged: (v) => setState(() => _selectedSession = v),
+                              decoration: const InputDecoration(
+                                  hintText: 'Academic Session'),
+                              items: sessions
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) =>
+                                  setState(() => _selectedSession = v),
                             ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               value: _selectedClass,
-                              decoration: const InputDecoration(hintText: 'Class'),
-                              items: classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                              onChanged: (v) => setState(() => _selectedClass = v),
+                              decoration:
+                                  const InputDecoration(hintText: 'Class'),
+                              items: classes
+                                  .map((c) => DropdownMenuItem(
+                                      value: c, child: Text(c)))
+                                  .toList(),
+                              onChanged: (v) =>
+                                  setState(() => _selectedClass = v),
                             ),
                           ),
                         ],
@@ -117,7 +154,8 @@ class _ResultsPageState extends State<ResultsPage> {
                           Expanded(
                             child: TextFormField(
                               controller: _rollController,
-                              decoration: const InputDecoration(hintText: 'Roll Number'),
+                              decoration: const InputDecoration(
+                                  hintText: 'Roll Number'),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -126,7 +164,8 @@ class _ResultsPageState extends State<ResultsPage> {
                             icon: const Icon(Icons.search, size: 18),
                             label: const Text('Search'),
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 28, vertical: 16),
                             ),
                           ),
                         ],
@@ -144,14 +183,18 @@ class _ResultsPageState extends State<ResultsPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.07),
-                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                      color: PublicColors.error.withOpacity(0.07),
+                      border: Border.all(
+                          color: PublicColors.error.withOpacity(0.3)),
                     ),
                     child: Row(children: [
-                      const Icon(Icons.error_outline, color: AppColors.error),
+                      const Icon(Icons.error_outline,
+                          color: PublicColors.error),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(_error!,
-                          style: GoogleFonts.nunitoSans(color: AppColors.error))),
+                      Expanded(
+                          child: Text(_error!,
+                              style: GoogleFonts.nunitoSans(
+                                  color: PublicColors.error))),
                     ]),
                   ),
                 ] else if (_searched) ...[
@@ -169,7 +212,7 @@ class _ResultsPageState extends State<ResultsPage> {
   Widget _buildResultCard(BuildContext context) {
     if (_resultItems.isEmpty) {
       return Text('No results found for this roll number.',
-          style: GoogleFonts.nunitoSans(color: AppColors.textSecondary));
+          style: GoogleFonts.nunitoSans(color: PublicColors.textSecondary));
     }
 
     double total = 0, maxTotal = 0;
@@ -181,8 +224,9 @@ class _ResultsPageState extends State<ResultsPage> {
           ? (r['maxMarks'] as num).toDouble()
           : 100;
     }
-    final pct = maxTotal > 0 ? (total / maxTotal * 100).toStringAsFixed(1) : '0';
-    final pass = maxTotal > 0 && (total / maxTotal) >= 0.33;
+    final pct =
+        maxTotal > 0 ? (total / maxTotal * 100).toStringAsFixed(1) : '0';
+    final pass = _resultItems.every((row) => row['isPassed'] == true);
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 700),
@@ -191,7 +235,7 @@ class _ResultsPageState extends State<ResultsPage> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
-          color: AppColors.navy,
+          color: PublicColors.navy,
           child: Column(children: [
             Text('Result Card',
                 style: GoogleFonts.cormorantGaramond(
@@ -201,8 +245,8 @@ class _ResultsPageState extends State<ResultsPage> {
             const SizedBox(height: 8),
             Text(
               'Student: $_studentName  |  Roll: ${_rollController.text}  |  Class: $_selectedClass',
-              style:
-                  GoogleFonts.nunitoSans(color: AppColors.goldLight, fontSize: 13),
+              style: GoogleFonts.nunitoSans(
+                  color: PublicColors.goldLight, fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ]),
@@ -212,13 +256,13 @@ class _ResultsPageState extends State<ResultsPage> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
-            headingRowColor: WidgetStateProperty.all(AppColors.creamDark),
+            headingRowColor: WidgetStateProperty.all(PublicColors.creamDark),
             headingTextStyle: GoogleFonts.nunitoSans(
-                color: AppColors.navy,
+                color: PublicColors.navy,
                 fontWeight: FontWeight.w700,
                 fontSize: 13),
             dataTextStyle: GoogleFonts.nunitoSans(fontSize: 13),
-            border: TableBorder.all(color: AppColors.border, width: 0.5),
+            border: TableBorder.all(color: PublicColors.border, width: 0.5),
             columnSpacing: 40,
             columns: const [
               DataColumn(label: Text('Subject')),
@@ -231,14 +275,12 @@ class _ResultsPageState extends State<ResultsPage> {
                 .map((r) => DataRow(cells: [
                       DataCell(Text(r['subject']?.toString() ?? '—')),
                       DataCell(Text(r['examType']?.toString() ?? '—')),
-                      DataCell(Text(
-                          '${r['marksObtained'] ?? '—'}',
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w600))),
+                      DataCell(Text('${r['marksObtained'] ?? '—'}',
+                          style: const TextStyle(fontWeight: FontWeight.w600))),
                       DataCell(Text('${r['maxMarks'] ?? 100}')),
                       DataCell(Text(r['grade']?.toString() ?? '—',
                           style: const TextStyle(
-                              color: AppColors.gold,
+                              color: PublicColors.gold,
                               fontWeight: FontWeight.w700))),
                     ]))
                 .toList(),
@@ -249,24 +291,24 @@ class _ResultsPageState extends State<ResultsPage> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          color: AppColors.goldPale,
+          color: PublicColors.goldPale,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Total: ${total.toInt()} / ${maxTotal.toInt()}',
                   style: GoogleFonts.nunitoSans(
-                      color: AppColors.navy,
+                      color: PublicColors.navy,
                       fontWeight: FontWeight.w700,
                       fontSize: 15)),
               Text('Percentage: $pct%',
                   style: GoogleFonts.nunitoSans(
-                      color: AppColors.gold,
+                      color: PublicColors.gold,
                       fontWeight: FontWeight.w700,
                       fontSize: 15)),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                color: pass ? AppColors.success : AppColors.error,
+                color: pass ? PublicColors.success : PublicColors.error,
                 child: Text(pass ? 'PASS' : 'FAIL',
                     style: GoogleFonts.nunitoSans(
                         color: Colors.white,

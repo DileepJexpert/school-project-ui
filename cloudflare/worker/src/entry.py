@@ -14,6 +14,7 @@ import base64
 from datetime import datetime, timezone
 import hashlib
 import hmac
+import json
 import secrets
 import time
 
@@ -21,6 +22,11 @@ from fastapi import FastAPI, Request, HTTPException, Depends, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from workers import WorkerEntrypoint, Response, fetch, asgi
 from school_auth import router as school_auth_router
+from school_overview import router as school_overview_router
+from school_students import router as school_students_router
+from school_setup import router as school_setup_router
+from school_fee_structures import router as school_fee_structures_router
+from school_admissions import router as school_admissions_router
 
 EXPECTED_SCHEMA_VERSION = "0002_school_schema"
 REQUIRED_TABLES = {
@@ -47,6 +53,11 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
 app.include_router(school_auth_router)
+app.include_router(school_overview_router)
+app.include_router(school_students_router)
+app.include_router(school_setup_router)
+app.include_router(school_fee_structures_router)
+app.include_router(school_admissions_router)
 
 
 def to_py(val):
@@ -103,6 +114,29 @@ async def get_db(request: Request):
     if env and isinstance(env, dict) and "DB" in env:
         return env["DB"]
     raise HTTPException(status_code=500, detail="D1 database binding 'DB' not accessible in request scope")
+
+
+@app.get("/api/site-content")
+async def get_site_content(
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    db=Depends(get_db),
+):
+    """Public school website content, scoped to an active tenant."""
+    tenant_id = (x_tenant_id or "").strip().lower()
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="School code required")
+    school = to_py(await db.prepare(
+        "SELECT name, active FROM tenants WHERE id = ?"
+    ).bind(tenant_id).first())
+    if not isinstance(school, dict) or not school.get("active"):
+        raise HTTPException(status_code=404, detail="School not found")
+    row = to_py(await db.prepare(
+        "SELECT content FROM school_site_content WHERE tenant_id = ?"
+    ).bind(tenant_id).first())
+    content = json.loads(row["content"]) if isinstance(row, dict) else {}
+    if not isinstance(content, dict):
+        content = {}
+    return {"schoolName": school["name"], **content}
 
 
 async def verify_probe_access(
@@ -528,4 +562,6 @@ BaseDefault = asgi.entrypoint(app)
 
 class Default(BaseDefault):
     async def on_fetch(self, request):
+        if "/api/expenses" in str(request.url).split("?", 1)[0]:
+            return await self.env.FINANCE.fetch(request)
         return await self.fetch(request)
