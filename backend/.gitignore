@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.pytest_temp/
+*.pyc
+data/
+pytest-cache-files*
+*.db
+*.sqlite

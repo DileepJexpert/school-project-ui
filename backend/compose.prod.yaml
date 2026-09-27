@@ -1,0 +1,28 @@
+services:
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the production PostgreSQL URL}
+    restart: "no"
+  api:
+    build: .
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the production PostgreSQL URL}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS to the Flutter website origin}
+      VIDEO_STORAGE_DIR: /srv/data/videos
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - school_video:/srv/data/videos
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+volumes:
+  school_video:

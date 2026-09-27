@@ -1,0 +1,6220 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/academic-years/rollover",
+    "name": "roll_over_class",
+    "module": "rollover",
+    "function": "roll_over_class",
+    "auth": "Bearer Token",
+    "role": "Permission: students:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "RolloverInput",
+    "request_fields": {
+      "sourceClass": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "sourceYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "action": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "targetClass": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "targetYear": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "Idempotency-Key (header, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/academic-years/rollover/{run_id}",
+    "name": "get_rollover",
+    "module": "rollover",
+    "function": "get_rollover",
+    "auth": "Bearer Token",
+    "role": "Permission: students:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "run_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/ai-config",
+    "name": "get_config",
+    "module": "ai",
+    "function": "get_config",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/ai_config_api_service.dart:8"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/ai-config",
+    "name": "put_config",
+    "module": "ai",
+    "function": "put_config",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "AiConfigInput",
+    "request_fields": {
+      "enabled": {
+        "type": "boolean",
+        "format": null,
+        "required": false
+      },
+      "enabledModes": {
+        "type": "array",
+        "format": null,
+        "required": false
+      },
+      "primaryProvider": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "fallbackProvider": {
+        "type": "null",
+        "format": null,
+        "required": false
+      },
+      "ollamaBaseUrl": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "ollamaModel": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "geminiApiKey": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "claudeApiKey": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "dailyLimitPerStudent": {
+        "type": "integer",
+        "format": null,
+        "required": false
+      },
+      "maxConversationTurns": {
+        "type": "integer",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/ai_config_api_service.dart:15"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/ai-config/usage-report",
+    "name": "usage_report",
+    "module": "ai",
+    "function": "usage_report",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "from (query, string, req)",
+      "to (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/ai_config_api_service.dart:22"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/ai/chat",
+    "name": "chat",
+    "module": "ai",
+    "function": "chat",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "AiChatInput",
+    "request_fields": {
+      "homeworkId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "conversationId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "message": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "mode": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "language": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/ai_api_service.dart:6"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/ai/conversations",
+    "name": "conversations",
+    "module": "ai",
+    "function": "conversations",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/ai_api_service.dart:12"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/ai/conversations/{conversation_id}",
+    "name": "conversation",
+    "module": "ai",
+    "function": "conversation",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "conversation_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/ai_api_service.dart:18"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/ai/usage",
+    "name": "usage",
+    "module": "ai",
+    "function": "usage",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/ai_api_service.dart:24"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/attendance/class/{class_name}",
+    "name": "class_date",
+    "module": "attendance",
+    "function": "class_date",
+    "auth": "Bearer Token",
+    "role": "Permission: attendance:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "class_name (path, string, req)",
+      "date (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/attendance_api_service.dart:30"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/attendance/class/{class_name}/range",
+    "name": "class_range",
+    "module": "attendance",
+    "function": "class_range",
+    "auth": "Bearer Token",
+    "role": "Permission: attendance:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "class_name (path, string, req)",
+      "from (query, string, req)",
+      "to (query, string, req)",
+      "academicYear (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/attendance_api_service.dart:66"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/attendance/mark",
+    "name": "mark_bulk",
+    "module": "attendance",
+    "function": "mark_bulk",
+    "auth": "Bearer Token",
+    "role": "Permission: attendance:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "AttendanceBulkInput",
+    "request_fields": {
+      "className": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "date": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "markedBy": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "entries": {
+        "type": "array",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/attendance_api_service.dart:15"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/attendance/student/{student_id}",
+    "name": "student_range",
+    "module": "attendance",
+    "function": "student_range",
+    "auth": "Bearer Token",
+    "role": "Permission: attendance:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "from (query, string, req)",
+      "to (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/attendance_api_service.dart:42"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/attendance/student/{student_id}/summary",
+    "name": "student_summary",
+    "module": "attendance",
+    "function": "student_summary",
+    "auth": "Bearer Token",
+    "role": "Permission: attendance:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "academicYear (query, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/attendance_api_service.dart:54"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/attendance/{record_id}",
+    "name": "void_attendance",
+    "module": "attendance",
+    "function": "void_attendance",
+    "auth": "Bearer Token",
+    "role": "Permission: attendance:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "record_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/attendance_api_service.dart:76"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/login",
+    "name": "login_school",
+    "module": "auth",
+    "function": "login_school",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "LoginInput",
+    "request_fields": {
+      "email": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "password": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/logout",
+    "name": "logout",
+    "module": "auth",
+    "function": "logout",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "Authorization (header, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/auth_service.dart:124"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/refresh",
+    "name": "refresh",
+    "module": "auth",
+    "function": "refresh",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "None",
+    "request_model": "RefreshInput",
+    "request_fields": {
+      "refreshToken": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      401,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/auth_service.dart:102"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/certificates",
+    "name": "certificates",
+    "module": "school_workflows",
+    "function": "certificates",
+    "auth": "Bearer Token",
+    "role": "Permission: certificates:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/certificate_api_service.dart:24"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/certificates/generate",
+    "name": "generate_certificate",
+    "module": "school_workflows",
+    "function": "generate_certificate",
+    "auth": "Bearer Token",
+    "role": "Permission: certificates:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "CertificateInput",
+    "request_fields": {
+      "studentId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "certificateType": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "reason": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "additionalFields": {
+        "type": "object",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/certificate_api_service.dart:8"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/certificates/student/{student_id}",
+    "name": "student_certificates",
+    "module": "school_workflows",
+    "function": "student_certificates",
+    "auth": "Bearer Token",
+    "role": "Permission: certificates:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/certificate_api_service.dart:14"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/certificates/type/{certificate_type}",
+    "name": "certificates_by_type",
+    "module": "school_workflows",
+    "function": "certificates_by_type",
+    "auth": "Bearer Token",
+    "role": "Permission: certificates:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "certificate_type (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/certificate_api_service.dart:19"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/chat/rooms",
+    "name": "my_rooms",
+    "module": "chat",
+    "function": "my_rooms",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "userId (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/chat_api_service.dart:14"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/chat/rooms",
+    "name": "get_or_create_room",
+    "module": "chat",
+    "function": "get_or_create_room",
+    "auth": "Bearer Token",
+    "role": "STUDENT, PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "ChatRoomInput",
+    "request_fields": {
+      "userId1": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "userId2": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "studentId": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "names": {
+        "type": "object",
+        "format": null,
+        "required": false
+      },
+      "roles": {
+        "type": "object",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/chat_api_service.dart:29"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/chat/rooms/{room_id}/messages",
+    "name": "messages",
+    "module": "chat",
+    "function": "messages",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "room_id (path, string, req)",
+      "page (query, integer, opt)",
+      "size (query, integer, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/chat_api_service.dart:42"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/chat/rooms/{room_id}/messages",
+    "name": "send_message",
+    "module": "chat",
+    "function": "send_message",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "ChatMessageInput",
+    "request_fields": {
+      "senderId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "message": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "messageType": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "room_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/chat_api_service.dart:53"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/chat/rooms/{room_id}/read",
+    "name": "mark_read",
+    "module": "chat",
+    "function": "mark_read",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "object",
+    "request_fields": null,
+    "parameters": [
+      "room_id (path, string, req)",
+      "userId (query, any, opt)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/chat_api_service.dart:59"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/contact/enquiries",
+    "name": "list_contact_enquiries",
+    "module": "public",
+    "function": "list_contact_enquiries",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "POST",
+    "path": "/api/contact/enquiry",
+    "name": "submit_contact",
+    "module": "public",
+    "function": "submit_contact",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "Optional / Header (X-Tenant-ID)",
+    "request_model": "ContactEnquiryInput",
+    "request_fields": {
+      "name": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "email": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "phone": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "gradeInterested": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "message": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/contact/contact_page.dart:43"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/discipline",
+    "name": "incidents",
+    "module": "school_workflows",
+    "function": "incidents",
+    "auth": "Bearer Token",
+    "role": "Permission: discipline:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "className (query, any, opt)",
+      "severity (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/discipline_api_service.dart:11"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/discipline",
+    "name": "create_incident",
+    "module": "school_workflows",
+    "function": "create_incident",
+    "auth": "Bearer Token",
+    "role": "Permission: discipline:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "IncidentInput",
+    "request_fields": {
+      "studentId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "severity": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "category": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "description": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "actionTaken": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "incidentDate": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "academicYear": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/discipline_api_service.dart:20"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/discipline/student/{student_id}",
+    "name": "student_incidents",
+    "module": "school_workflows",
+    "function": "student_incidents",
+    "auth": "Bearer Token",
+    "role": "PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/discipline_api_service.dart:25"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/discipline/summary",
+    "name": "incident_summary",
+    "module": "school_workflows",
+    "function": "incident_summary",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/discipline_api_service.dart:39"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/discipline/{incident_id}/resolve",
+    "name": "resolve_incident",
+    "module": "school_workflows",
+    "function": "resolve_incident",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "IncidentResolutionInput",
+    "request_fields": {
+      "resolution": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [
+      "incident_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/discipline_api_service.dart:31"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/expenses",
+    "name": "list_expenses",
+    "module": "expenses",
+    "function": "list_expenses",
+    "auth": "Bearer Token",
+    "role": "Permission: expenses:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "from (query, any, opt)",
+      "to (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:107"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/expenses",
+    "name": "add_expense",
+    "module": "expenses",
+    "function": "add_expense",
+    "auth": "Bearer Token",
+    "role": "Permission: expenses:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "ExpenseInput",
+    "request_fields": {
+      "title": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "category": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "amount": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "date": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "paidTo": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "remarks": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:117"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/expenses/{expense_id}",
+    "name": "void_expense",
+    "module": "expenses",
+    "function": "void_expense",
+    "auth": "Bearer Token",
+    "role": "Permission: expenses:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "expense_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:121"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/fees/collect",
+    "name": "collect_fee",
+    "module": "payments",
+    "function": "collect_fee",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "FeePaymentInput",
+    "request_fields": {
+      "studentId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "amount": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "discount": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "installmentNames": {
+        "type": "array",
+        "format": null,
+        "required": true
+      },
+      "paymentMode": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "remarks": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "chequeDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "transactionId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "Idempotency-Key (header, any, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:35"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/fees/dues",
+    "name": "outstanding_dues",
+    "module": "payments",
+    "function": "outstanding_dues",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:41"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/fees/payments",
+    "name": "list_payments",
+    "module": "payments",
+    "function": "list_payments",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "academicYear (query, any, opt)",
+      "studentId (query, any, opt)",
+      "status (query, string, opt)",
+      "page (query, integer, opt)",
+      "size (query, integer, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/fees/payments/{payment_id}",
+    "name": "get_payment",
+    "module": "payments",
+    "function": "get_payment",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "payment_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "POST",
+    "path": "/api/fees/payments/{payment_id}/void",
+    "name": "void_payment",
+    "module": "payments",
+    "function": "void_payment",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "VoidPaymentInput",
+    "request_fields": {
+      "reason": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [
+      "payment_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/fees/search",
+    "name": "search_fee_profiles",
+    "module": "payments",
+    "function": "search_fee_profiles",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "name (query, string, opt)",
+      "className (query, any, opt)",
+      "rollNumber (query, any, opt)",
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:27"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/feestructures",
+    "name": "list_structures",
+    "module": "fees",
+    "function": "list_structures",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "year (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:50"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/feestructures",
+    "name": "save_structures",
+    "module": "fees",
+    "function": "save_structures",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "List[FeeStructureInput]",
+    "request_fields": {
+      "className": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "feeComponents": {
+        "type": "array",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:61",
+      "lib/services/fee_api_service.dart:66"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/feestructures/{structure_id}",
+    "name": "delete_structure",
+    "module": "fees",
+    "function": "delete_structure",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "structure_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:70"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/homework",
+    "name": "list_homework",
+    "module": "school_workflows",
+    "function": "list_homework",
+    "auth": "Bearer Token",
+    "role": "Permission: homework:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "className (query, any, opt)",
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/homework_api_service.dart:18"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/homework",
+    "name": "create_homework",
+    "module": "school_workflows",
+    "function": "create_homework",
+    "auth": "Bearer Token",
+    "role": "Permission: homework:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "HomeworkInput",
+    "request_fields": {
+      "title": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "description": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "className": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "subject": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dueDate": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "assignedDate": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "academicYear": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/homework_api_service.dart:28"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/homework/{homework_id}",
+    "name": "delete_homework",
+    "module": "school_workflows",
+    "function": "delete_homework",
+    "auth": "Bearer Token",
+    "role": "TEACHER",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "homework_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/homework_api_service.dart:41"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/homework/{homework_id}",
+    "name": "get_homework",
+    "module": "school_workflows",
+    "function": "get_homework",
+    "auth": "Bearer Token",
+    "role": "STUDENT, PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "homework_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/api/homework/{homework_id}",
+    "name": "update_homework",
+    "module": "school_workflows",
+    "function": "update_homework",
+    "auth": "Bearer Token",
+    "role": "TEACHER",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "HomeworkInput",
+    "request_fields": {
+      "title": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "description": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "className": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "subject": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dueDate": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "assignedDate": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "academicYear": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "homework_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/homework_api_service.dart:35"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/leave",
+    "name": "list_leaves",
+    "module": "hr",
+    "function": "list_leaves",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "status (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:44"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/leave/apply",
+    "name": "apply_leave",
+    "module": "hr",
+    "function": "apply_leave",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN, TEACHER, ACCOUNTANT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "LeaveInput",
+    "request_fields": {
+      "staffId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "leaveType": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "fromDate": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "toDate": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "reason": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:53"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/leave/staff/{staff_id}",
+    "name": "staff_leaves",
+    "module": "hr",
+    "function": "staff_leaves",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "staff_id (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/leave/{leave_id}",
+    "name": "cancel_leave",
+    "module": "hr",
+    "function": "cancel_leave",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "leave_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/api/leave/{leave_id}/approve",
+    "name": "decide_leave",
+    "module": "hr",
+    "function": "decide_leave",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "LeaveDecisionInput",
+    "request_fields": {
+      "action": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "remarks": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "leave_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:59"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/master-data",
+    "name": "master_data",
+    "module": "master_data",
+    "function": "master_data",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/admin/screens/settings_screen.dart:45"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/master-data/class-subjects",
+    "name": "get_class_subjects",
+    "module": "master_data",
+    "function": "get_class_subjects",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "className (query, string, req)",
+      "academicYear (query, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/api/master-data/class-subjects",
+    "name": "save_class_subjects",
+    "module": "master_data",
+    "function": "save_class_subjects",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "ClassSubjectsInput",
+    "request_fields": {
+      "className": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "subjects": {
+        "type": "array",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/master-data/subjects",
+    "name": "get_subjects",
+    "module": "master_data",
+    "function": "get_subjects",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/api/master-data/subjects",
+    "name": "add_subject",
+    "module": "master_data",
+    "function": "add_subject",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "SchoolSubjectInput",
+    "request_fields": {
+      "name": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications",
+    "name": "notifications",
+    "module": "notifications",
+    "function": "notifications",
+    "auth": "Bearer Token",
+    "role": "Permission: notifications:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/notification_api_service.dart:8"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/notifications",
+    "name": "create_notification",
+    "module": "notifications",
+    "function": "create_notification",
+    "auth": "Bearer Token",
+    "role": "Permission: notifications:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "NotificationInput",
+    "request_fields": {
+      "title": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "message": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "type": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "targetAudience": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "targetClass": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "targetStudentId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "priority": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "expiresAt": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/notification_api_service.dart:17"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications/class/{class_name}",
+    "name": "notifications_for_class",
+    "module": "notifications",
+    "function": "notifications_for_class",
+    "auth": "Bearer Token",
+    "role": "STUDENT, PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "class_name (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications/student/{student_id}",
+    "name": "notifications_for_student",
+    "module": "notifications",
+    "function": "notifications_for_student",
+    "auth": "Bearer Token",
+    "role": "STUDENT, PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "class_name (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications/type/{notice_type}",
+    "name": "notifications_by_type",
+    "module": "notifications",
+    "function": "notifications_by_type",
+    "auth": "Bearer Token",
+    "role": "Permission: notifications:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "notice_type (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/notification_api_service.dart:39"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/notifications/{notice_id}",
+    "name": "delete_notification",
+    "module": "notifications",
+    "function": "delete_notification",
+    "auth": "Bearer Token",
+    "role": "TEACHER",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "notice_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/notification_api_service.dart:34"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/notifications/{notice_id}",
+    "name": "update_notification",
+    "module": "notifications",
+    "function": "update_notification",
+    "auth": "Bearer Token",
+    "role": "TEACHER",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "NotificationInput",
+    "request_fields": {
+      "title": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "message": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "type": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "targetAudience": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "targetClass": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "targetStudentId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "priority": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "expiresAt": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "notice_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/notification_api_service.dart:24"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/notifications/{notice_id}/read",
+    "name": "mark_read",
+    "module": "notifications",
+    "function": "mark_read",
+    "auth": "Bearer Token",
+    "role": "Any Authenticated (Own notification)",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "notice_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/notification_api_service.dart:29"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/parent/child/{student_id}/attendance",
+    "name": "child_attendance",
+    "module": "portals",
+    "function": "child_attendance",
+    "auth": "Bearer Token",
+    "role": "PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "month (query, any, opt)",
+      "year (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/parent_api_service.dart:18"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/parent/child/{student_id}/attendance/summary",
+    "name": "child_attendance_summary",
+    "module": "portals",
+    "function": "child_attendance_summary",
+    "auth": "Bearer Token",
+    "role": "PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/parent_api_service.dart:29"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/parent/child/{student_id}/fees",
+    "name": "child_fees",
+    "module": "portals",
+    "function": "child_fees",
+    "auth": "Bearer Token",
+    "role": "PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/parent_api_service.dart:47"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/parent/child/{student_id}/results",
+    "name": "child_results",
+    "module": "portals",
+    "function": "child_results",
+    "auth": "Bearer Token",
+    "role": "PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/parent_api_service.dart:38"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/parent/child/{student_id}/timetable",
+    "name": "child_timetable",
+    "module": "portals",
+    "function": "child_timetable",
+    "auth": "Bearer Token",
+    "role": "PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/parent_api_service.dart:53"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/parent/dashboard",
+    "name": "parent_dashboard",
+    "module": "portals",
+    "function": "parent_dashboard",
+    "auth": "Bearer Token",
+    "role": "PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403
+    ],
+    "flutter_callers": [
+      "lib/services/parent_api_service.dart:8"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/reports/fees/report-summary",
+    "name": "fee_report",
+    "module": "reports",
+    "function": "fee_report",
+    "auth": "Bearer Token",
+    "role": "Permission: reports:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "startDate (query, any, opt)",
+      "endDate (query, any, opt)",
+      "className (query, any, opt)",
+      "paymentMode (query, any, opt)",
+      "page (query, integer, opt)",
+      "size (query, integer, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:92"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/reports/school-summary",
+    "name": "school_summary",
+    "module": "reports",
+    "function": "school_summary",
+    "auth": "Bearer Token",
+    "role": "Permission: reports:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:75"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/results",
+    "name": "search_published_results",
+    "module": "results",
+    "function": "search_published_results",
+    "auth": "Bearer Token",
+    "role": "Permission: results:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "rollNumber (query, string, req)",
+      "className (query, string, req)",
+      "academicYear (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/results/results_page.dart:50"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/results/bulk",
+    "name": "bulk_marks",
+    "module": "results",
+    "function": "bulk_marks",
+    "auth": "Bearer Token",
+    "role": "Permission: results:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "ResultBulkInput",
+    "request_fields": {
+      "className": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "examType": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "subject": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "maxMarks": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "enteredBy": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "entries": {
+        "type": "array",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:38"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/results/class/{class_name}/analytics",
+    "name": "get_class_analytics",
+    "module": "results",
+    "function": "get_class_analytics",
+    "auth": "Bearer Token",
+    "role": "Permission: results:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "class_name (path, string, req)",
+      "year (query, string, req)",
+      "examType (query, any, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:94"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/results/class/{class_name}/exam/{exam_type}",
+    "name": "class_sheet",
+    "module": "results",
+    "function": "class_sheet",
+    "auth": "Bearer Token",
+    "role": "Permission: results:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "class_name (path, string, req)",
+      "exam_type (path, string, req)",
+      "year (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:56"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/results/coscholastic",
+    "name": "save_coscholastic",
+    "module": "results",
+    "function": "save_coscholastic",
+    "auth": "Bearer Token",
+    "role": "Permission: results:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "CoscholasticInput",
+    "request_fields": {
+      "id": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "studentId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "studentName": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "className": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "term": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "areas": {
+        "type": "array",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:164"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/results/coscholastic/student/{student_id}",
+    "name": "get_coscholastic",
+    "module": "results",
+    "function": "get_coscholastic",
+    "auth": "Bearer Token",
+    "role": "Permission: results:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "year (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:151"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/results/exam-config",
+    "name": "list_exam_configs",
+    "module": "results",
+    "function": "list_exam_configs",
+    "auth": "Bearer Token",
+    "role": "Permission: results:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "year (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:134"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/results/exam-config",
+    "name": "save_exam_config",
+    "module": "results",
+    "function": "save_exam_config",
+    "auth": "Bearer Token",
+    "role": "Permission: results:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "ExamConfigInput",
+    "request_fields": {
+      "id": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "examType": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "displayName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "weightagePercent": {
+        "type": "integer",
+        "format": null,
+        "required": true
+      },
+      "maxMarksDefault": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "isActive": {
+        "type": "boolean",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:143"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/results/grading-policy",
+    "name": "get_grading_policy",
+    "module": "results",
+    "function": "get_grading_policy",
+    "auth": "Bearer Token",
+    "role": "Permission: results:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "year (query, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/api/results/grading-policy",
+    "name": "save_grading_policy",
+    "module": "results",
+    "function": "save_grading_policy",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "GradingPolicyInput",
+    "request_fields": {
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "passPercentage": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "bands": {
+        "type": "array",
+        "format": null,
+        "required": true
+      },
+      "examOrder": {
+        "type": "array",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/api/results/publish",
+    "name": "publish_results",
+    "module": "results",
+    "function": "publish_results",
+    "auth": "Bearer Token",
+    "role": "Permission: results:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "className (query, string, req)",
+      "examType (query, string, req)",
+      "year (query, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:108"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/results/student/{student_id}",
+    "name": "student_results",
+    "module": "results",
+    "function": "student_results",
+    "auth": "Bearer Token",
+    "role": "Permission: results:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "year (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:80"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/results/student/{student_id}/report",
+    "name": "get_report_card",
+    "module": "results",
+    "function": "get_report_card",
+    "auth": "Bearer Token",
+    "role": "Permission: results:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "year (query, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:69"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/results/{result_id}",
+    "name": "void_result",
+    "module": "results",
+    "function": "void_result",
+    "auth": "Bearer Token",
+    "role": "Permission: results:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "result_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:128"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/results/{result_id}",
+    "name": "update_result",
+    "module": "results",
+    "function": "update_result",
+    "auth": "Bearer Token",
+    "role": "Permission: results:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "ResultUpdateInput",
+    "request_fields": {
+      "marksObtained": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "maxMarks": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "teacherRemarks": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "result_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/result_api_service.dart:108",
+      "lib/services/result_api_service.dart:123"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/salary",
+    "name": "salaries",
+    "module": "hr",
+    "function": "salaries",
+    "auth": "Bearer Token",
+    "role": "Permission: payroll:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "month (query, integer, req)",
+      "year (query, integer, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:71"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/salary/generate",
+    "name": "generate_salary",
+    "module": "hr",
+    "function": "generate_salary",
+    "auth": "Bearer Token",
+    "role": "Permission: payroll:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "SalaryGenerateInput",
+    "request_fields": {
+      "month": {
+        "type": "integer",
+        "format": null,
+        "required": true
+      },
+      "year": {
+        "type": "integer",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:80"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/salary/staff/{staff_id}",
+    "name": "staff_salaries",
+    "module": "hr",
+    "function": "staff_salaries",
+    "auth": "Bearer Token",
+    "role": "Permission: payroll:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "staff_id (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/api/salary/{salary_id}/pay",
+    "name": "pay_salary",
+    "module": "hr",
+    "function": "pay_salary",
+    "auth": "Bearer Token",
+    "role": "Permission: payroll:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "object",
+    "request_fields": null,
+    "parameters": [
+      "salary_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:88"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/school/profile",
+    "name": "get_profile",
+    "module": "school_profile",
+    "function": "get_profile",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/admin/screens/settings_screen.dart:43"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/school/profile",
+    "name": "update_profile",
+    "module": "school_profile",
+    "function": "update_profile",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "SchoolProfileInput",
+    "request_fields": {
+      "name": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/admin/screens/settings_screen.dart:113"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/site-content",
+    "name": "get_site_content",
+    "module": "site_content",
+    "function": "get_site_content",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "Optional / Header (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      422
+    ],
+    "flutter_callers": [
+      "lib/models/school_data.dart:254"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/site-content",
+    "name": "save_site_content",
+    "module": "site_content",
+    "function": "save_site_content",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "SiteContentInput",
+    "request_fields": {
+      "content": {
+        "type": "object",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff",
+    "name": "list_staff",
+    "module": "hr",
+    "function": "list_staff",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "department (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:13"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff",
+    "name": "create_staff",
+    "module": "hr",
+    "function": "create_staff",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "StaffInput",
+    "request_fields": {
+      "employeeId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "fullName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "email": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "phone": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "department": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "designation": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dateOfJoining": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "dateOfLeaving": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "basicSalary": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "gender": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "dateOfBirth": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "qualification": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "specialization": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bankAccountNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bankName": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "panNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "address": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "emergencyContact": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "emergencyContactName": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bloodGroup": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "aadharNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "profilePhotoUrl": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:24"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff-attendance",
+    "name": "staff_attendance_by_date",
+    "module": "hr",
+    "function": "staff_attendance_by_date",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "date (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff-attendance/date",
+    "name": "staff_attendance_by_date",
+    "module": "hr",
+    "function": "staff_attendance_by_date",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "date (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:96"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff-attendance/department/{department}",
+    "name": "attendance_by_department",
+    "module": "hr",
+    "function": "attendance_by_department",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "department (path, string, req)",
+      "date (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff-attendance/mark",
+    "name": "mark_staff_attendance",
+    "module": "hr",
+    "function": "mark_staff_attendance",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "List[StaffAttendanceInput]",
+    "request_fields": {
+      "staffId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "date": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "checkInTime": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "checkOutTime": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "remarks": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:105"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff-attendance/staff/{staff_id}",
+    "name": "attendance_by_staff",
+    "module": "hr",
+    "function": "attendance_by_staff",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "staff_id (path, string, req)",
+      "from (query, string, req)",
+      "to (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/dashboard",
+    "name": "dashboard",
+    "module": "hr",
+    "function": "dashboard",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:8"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/search",
+    "name": "search_staff",
+    "module": "hr",
+    "function": "search_staff",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "name (query, string, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/staff/{staff_id}",
+    "name": "delete_staff",
+    "module": "hr",
+    "function": "delete_staff",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "staff_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:35"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/{staff_id}",
+    "name": "get_staff",
+    "module": "hr",
+    "function": "get_staff",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "staff_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:8",
+      "lib/services/staff_api_service.dart:18"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/staff/{staff_id}",
+    "name": "update_staff",
+    "module": "hr",
+    "function": "update_staff",
+    "auth": "Bearer Token",
+    "role": "Permission: staff:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "StaffInput",
+    "request_fields": {
+      "employeeId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "fullName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "email": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "phone": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "department": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "designation": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dateOfJoining": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "dateOfLeaving": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "basicSalary": {
+        "type": "any",
+        "format": null,
+        "required": true
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "gender": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "dateOfBirth": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "qualification": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "specialization": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bankAccountNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bankName": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "panNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "address": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "emergencyContact": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "emergencyContactName": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bloodGroup": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "aadharNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "profilePhotoUrl": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "staff_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/staff_api_service.dart:30"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-fee-profiles/{student_id}",
+    "name": "get_profile",
+    "module": "fees",
+    "function": "get_profile",
+    "auth": "Bearer Token",
+    "role": "Permission: fees:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)",
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/fee_api_service.dart:13"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-portal/attendance",
+    "name": "student_attendance",
+    "module": "portals",
+    "function": "student_attendance",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "month (query, any, opt)",
+      "year (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/student_portal_api_service.dart:18"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-portal/attendance/summary",
+    "name": "student_attendance_summary",
+    "module": "portals",
+    "function": "student_attendance_summary",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/student_portal_api_service.dart:27"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-portal/dashboard",
+    "name": "student_dashboard",
+    "module": "portals",
+    "function": "student_dashboard",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403
+    ],
+    "flutter_callers": [
+      "lib/services/student_portal_api_service.dart:8"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-portal/fees",
+    "name": "student_fees",
+    "module": "portals",
+    "function": "student_fees",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403
+    ],
+    "flutter_callers": [
+      "lib/services/student_portal_api_service.dart:51"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-portal/homework",
+    "name": "student_homework",
+    "module": "school_workflows",
+    "function": "student_homework",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/homework_api_service.dart:8"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-portal/results",
+    "name": "student_results",
+    "module": "portals",
+    "function": "student_results",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/student_portal_api_service.dart:36"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-portal/timetable",
+    "name": "student_timetable",
+    "module": "portals",
+    "function": "student_timetable",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403
+    ],
+    "flutter_callers": [
+      "lib/services/student_portal_api_service.dart:45"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/student-portal/videos",
+    "name": "student_videos",
+    "module": "videos",
+    "function": "student_videos",
+    "auth": "Bearer Token",
+    "role": "STUDENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/video_api_service.dart:26"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/students",
+    "name": "list_students",
+    "module": "students",
+    "function": "list_students",
+    "auth": "Bearer Token",
+    "role": "Permission: students:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "className (query, any, opt)",
+      "academicYear (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/admission_api_service.dart:9",
+      "lib/services/result_api_service.dart:12",
+      "lib/services/student_api_service.dart:8"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/students/add",
+    "name": "admit_student",
+    "module": "students",
+    "function": "admit_student",
+    "auth": "Bearer Token",
+    "role": "Permission: students:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "StudentInput",
+    "request_fields": {
+      "fullName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dateOfBirth": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "gender": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bloodGroup": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "nationality": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "religion": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "motherTongue": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "aadharNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "classForAdmission": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dateOfAdmission": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "admissionNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "rollNumber": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "parentDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "contactDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "previousSchoolDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/admission_api_service.dart:21"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/students/enquiry",
+    "name": "create_enquiry",
+    "module": "students",
+    "function": "create_enquiry",
+    "auth": "Bearer Token",
+    "role": "Permission: students:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "StudentInput",
+    "request_fields": {
+      "fullName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dateOfBirth": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "gender": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bloodGroup": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "nationality": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "religion": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "motherTongue": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "aadharNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "classForAdmission": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dateOfAdmission": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "admissionNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "rollNumber": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "parentDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "contactDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "previousSchoolDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/admission_api_service.dart:27"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/students/search",
+    "name": "search_students",
+    "module": "students",
+    "function": "search_students",
+    "auth": "Bearer Token",
+    "role": "Permission: students:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "name (query, string, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/student_api_service.dart:21"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/students/{student_id}",
+    "name": "delete_enquiry",
+    "module": "students",
+    "function": "delete_enquiry",
+    "auth": "Bearer Token",
+    "role": "Permission: students:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/admission_api_service.dart:35"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/students/{student_id}",
+    "name": "get_student",
+    "module": "students",
+    "function": "get_student",
+    "auth": "Bearer Token",
+    "role": "Permission: students:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/admission_api_service.dart:16",
+      "lib/services/student_api_service.dart:15",
+      "lib/services/student_api_service.dart:21"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/students/{student_id}",
+    "name": "save_student",
+    "module": "students",
+    "function": "save_student",
+    "auth": "Bearer Token",
+    "role": "Permission: students:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "StudentInput",
+    "request_fields": {
+      "fullName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dateOfBirth": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "gender": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "bloodGroup": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "nationality": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "religion": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "motherTongue": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "aadharNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "classForAdmission": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dateOfAdmission": {
+        "type": "string",
+        "format": "date",
+        "required": true
+      },
+      "admissionNumber": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "rollNumber": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "parentDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "contactDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "previousSchoolDetails": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "student_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/admission_api_service.dart:31"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/timetable",
+    "name": "save_day",
+    "module": "timetable",
+    "function": "save_day",
+    "auth": "Bearer Token",
+    "role": "Permission: timetable:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "TimetableDayInput",
+    "request_fields": {
+      "id": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "className": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "academicYear": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "dayOfWeek": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "periods": {
+        "type": "array",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/timetable_api_service.dart:22"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/timetable/entry/{day_id}",
+    "name": "delete_day",
+    "module": "timetable",
+    "function": "delete_day",
+    "auth": "Bearer Token",
+    "role": "Permission: timetable:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "day_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/timetable_api_service.dart:28"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/timetable/{class_name}",
+    "name": "delete_class",
+    "module": "timetable",
+    "function": "delete_class",
+    "auth": "Bearer Token",
+    "role": "Permission: timetable:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "class_name (path, string, req)",
+      "academicYear (query, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/timetable_api_service.dart:34"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/timetable/{class_name}",
+    "name": "class_timetable",
+    "module": "timetable",
+    "function": "class_timetable",
+    "auth": "Bearer Token",
+    "role": "Permission: timetable:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "class_name (path, string, req)",
+      "academicYear (query, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/timetable_api_service.dart:10"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/transport/assignments",
+    "name": "assignments",
+    "module": "transport",
+    "function": "assignments",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:61"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/transport/assignments",
+    "name": "assign_student",
+    "module": "transport",
+    "function": "assign_student",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "TransportAssignmentInput",
+    "request_fields": {
+      "studentId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "busId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "routeId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "pickupStop": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:92"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/transport/assignments/bus/{bus_id}",
+    "name": "bus_roster",
+    "module": "transport",
+    "function": "bus_roster",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "bus_id (path, string, req)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:70"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/transport/assignments/student/{student_id}",
+    "name": "student_assignment",
+    "module": "transport",
+    "function": "student_assignment",
+    "auth": "Bearer Token",
+    "role": "STUDENT, PARENT",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "student_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:81"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/transport/assignments/{assignment_id}",
+    "name": "remove_assignment",
+    "module": "transport",
+    "function": "remove_assignment",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "assignment_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:97"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/transport/buses",
+    "name": "buses",
+    "module": "transport",
+    "function": "buses",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:13"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/transport/buses",
+    "name": "create_bus",
+    "module": "transport",
+    "function": "create_bus",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "BusInput",
+    "request_fields": {
+      "busNumber": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "driverName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "driverMobile": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "routeId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "capacity": {
+        "type": "integer",
+        "format": null,
+        "required": true
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "insuranceExpiry": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "notes": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:20"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/transport/buses/{bus_id}",
+    "name": "delete_bus",
+    "module": "transport",
+    "function": "delete_bus",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "bus_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:31"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/transport/buses/{bus_id}",
+    "name": "update_bus",
+    "module": "transport",
+    "function": "update_bus",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "BusInput",
+    "request_fields": {
+      "busNumber": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "driverName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "driverMobile": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "routeId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "capacity": {
+        "type": "integer",
+        "format": null,
+        "required": true
+      },
+      "status": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "insuranceExpiry": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "notes": {
+        "type": "any",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "bus_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:26"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/transport/routes",
+    "name": "routes",
+    "module": "transport",
+    "function": "routes",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:37"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/transport/routes",
+    "name": "create_route",
+    "module": "transport",
+    "function": "create_route",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "TransportRouteInput",
+    "request_fields": {
+      "zoneName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "displayName": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "areasCovered": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "stops": {
+        "type": "array",
+        "format": null,
+        "required": false
+      },
+      "firstPickupTime": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "monthlyFee": {
+        "type": "any",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:44"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/transport/routes/{route_id}",
+    "name": "delete_route",
+    "module": "transport",
+    "function": "delete_route",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "route_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:55"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/transport/routes/{route_id}",
+    "name": "update_route",
+    "module": "transport",
+    "function": "update_route",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "TransportRouteInput",
+    "request_fields": {
+      "zoneName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "displayName": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "areasCovered": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "stops": {
+        "type": "array",
+        "format": null,
+        "required": false
+      },
+      "firstPickupTime": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "monthlyFee": {
+        "type": "any",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [
+      "route_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:50"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/transport/stats",
+    "name": "stats",
+    "module": "transport",
+    "function": "stats",
+    "auth": "Bearer Token",
+    "role": "Permission: transport:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/transport_api_service.dart:103"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/users",
+    "name": "list_users",
+    "module": "users",
+    "function": "list_users",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN, PARENT, STUDENT, TEACHER",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/chat_api_service.dart:8",
+      "lib/features/admin/screens/user_management_screen.dart:37"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/users",
+    "name": "create_user",
+    "module": "users",
+    "function": "create_user",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "UserInput",
+    "request_fields": {
+      "email": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "password": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "fullName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "phone": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "role": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "linkedEntityId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "extraPermissions": {
+        "type": "array",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/admin/screens/user_management_screen.dart:148"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/change-password",
+    "name": "change_password",
+    "module": "users",
+    "function": "change_password",
+    "auth": "Bearer Token",
+    "role": "Any Authenticated (Own User)",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "ChangePasswordInput",
+    "request_fields": {
+      "currentPassword": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "newPassword": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/admin/screens/settings_screen.dart:260"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/{user_id}",
+    "name": "deactivate_user",
+    "module": "users",
+    "function": "deactivate_user",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "user_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/admin/screens/user_management_screen.dart:194"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/{user_id}",
+    "name": "get_user",
+    "module": "users",
+    "function": "get_user",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "user_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/api/users/{user_id}",
+    "name": "update_user",
+    "module": "users",
+    "function": "update_user",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN, SCHOOL_ADMIN",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "UserInput",
+    "request_fields": {
+      "email": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "password": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "fullName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "phone": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "role": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "linkedEntityId": {
+        "type": "any",
+        "format": null,
+        "required": false
+      },
+      "extraPermissions": {
+        "type": "array",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [
+      "user_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/features/admin/screens/user_management_screen.dart:150"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/videos",
+    "name": "videos",
+    "module": "videos",
+    "function": "videos",
+    "auth": "Bearer Token",
+    "role": "Permission: videos:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "className (query, any, opt)",
+      "subject (query, any, opt)"
+    ],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/video_api_service.dart:17"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/videos",
+    "name": "upload_video",
+    "module": "videos",
+    "function": "upload_video",
+    "auth": "Bearer Token",
+    "role": "Permission: videos:write",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "multipart/form-data",
+    "request_fields": {
+      "file": {
+        "type": "string",
+        "format": "binary",
+        "required": true
+      },
+      "title": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "subject": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "class_name": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "description": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "chapter": {
+        "type": "string",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/video_api_service.dart:48"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/videos/{video_id}",
+    "name": "delete_video",
+    "module": "videos",
+    "function": "delete_video",
+    "auth": "Bearer Token",
+    "role": "TEACHER",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "video_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      204,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": [
+      "lib/services/video_api_service.dart:60"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/videos/{video_id}",
+    "name": "get_video",
+    "module": "videos",
+    "function": "get_video",
+    "auth": "Bearer Token",
+    "role": "Permission: videos:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "video_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/videos/{video_id}/stream",
+    "name": "stream_video",
+    "module": "videos",
+    "function": "stream_video",
+    "auth": "Bearer Token",
+    "role": "Permission: videos:read",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "video_id (path, string, req)"
+    ],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/docs",
+    "name": "swagger_ui_html",
+    "module": "fastapi.applications",
+    "function": "swagger_ui_html",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "None",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/docs/oauth2-redirect",
+    "name": "swagger_ui_redirect",
+    "module": "fastapi.applications",
+    "function": "swagger_ui_redirect",
+    "auth": "Bearer Token",
+    "role": "Authenticated",
+    "tenant": "Required (X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      400,
+      401,
+      403
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/health/live",
+    "name": "live",
+    "module": "app.main",
+    "function": "live",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "None",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/health/ready",
+    "name": "ready",
+    "module": "app.main",
+    "function": "ready",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "None",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/openapi.json",
+    "name": "openapi",
+    "module": "fastapi.applications",
+    "function": "openapi",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "None",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [],
+    "flutter_callers": []
+  },
+  {
+    "method": "POST",
+    "path": "/platform/auth/login",
+    "name": "login_platform",
+    "module": "auth",
+    "function": "login_platform",
+    "auth": "Public",
+    "role": "Public",
+    "tenant": "Platform Scope (No X-Tenant-ID)",
+    "request_model": "LoginInput",
+    "request_fields": {
+      "email": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "password": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/platform/schools",
+    "name": "list_schools",
+    "module": "platform",
+    "function": "list_schools",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN",
+    "tenant": "Platform Scope (No X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "List[object]",
+    "response_fields": null,
+    "contract_status": "Resolved (Pydantic schema)",
+    "status_codes": [
+      200,
+      401,
+      403
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "POST",
+    "path": "/platform/schools",
+    "name": "create_school",
+    "module": "platform",
+    "function": "create_school",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN",
+    "tenant": "Platform Scope (No X-Tenant-ID)",
+    "request_model": "SchoolInput",
+    "request_fields": {
+      "tenantId": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "name": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "city": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "board": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "active": {
+        "type": "boolean",
+        "format": null,
+        "required": false
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/platform/schools/{tenant_id}",
+    "name": "get_school",
+    "module": "platform",
+    "function": "get_school",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN",
+    "tenant": "Platform Scope (No X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "tenant_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "PUT",
+    "path": "/platform/schools/{tenant_id}/status",
+    "name": "school_status",
+    "module": "platform",
+    "function": "school_status",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN",
+    "tenant": "Platform Scope (No X-Tenant-ID)",
+    "request_model": "object",
+    "request_fields": null,
+    "parameters": [
+      "tenant_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/platform/schools/{tenant_id}/validate",
+    "name": "validate_school",
+    "module": "platform",
+    "function": "validate_school",
+    "auth": "Public",
+    "role": "Public",
+    "tenant": "Platform Scope (No X-Tenant-ID)",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [
+      "tenant_id (path, string, req)"
+    ],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      200,
+      400,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "POST",
+    "path": "/platform/users",
+    "name": "create_platform_user",
+    "module": "platform",
+    "function": "create_platform_user",
+    "auth": "Bearer Token",
+    "role": "SUPER_ADMIN",
+    "tenant": "Platform Scope (No X-Tenant-ID)",
+    "request_model": "PlatformUserInput",
+    "request_fields": {
+      "email": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "password": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "fullName": {
+        "type": "string",
+        "format": null,
+        "required": true
+      },
+      "phone": {
+        "type": "string",
+        "format": null,
+        "required": false
+      },
+      "role": {
+        "type": "string",
+        "format": null,
+        "required": true
+      }
+    },
+    "parameters": [],
+    "response_model": "object",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [
+      201,
+      401,
+      403,
+      422
+    ],
+    "flutter_callers": []
+  },
+  {
+    "method": "GET",
+    "path": "/redoc",
+    "name": "redoc_html",
+    "module": "fastapi.applications",
+    "function": "redoc_html",
+    "auth": "Public",
+    "role": "Public (Unauthenticated)",
+    "tenant": "None",
+    "request_model": "(None)",
+    "request_fields": null,
+    "parameters": [],
+    "response_model": "(None)",
+    "response_fields": null,
+    "contract_status": "Unresolved (untyped dict response)",
+    "status_codes": [],
+    "flutter_callers": []
+  }
+]
