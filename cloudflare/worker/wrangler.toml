@@ -1,7 +1,8 @@
-name = "school-api-worker"
+name = "school-api-staging"
 main = "src/entry.py"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["python_workers"]
+account_id = "24e366c9448ef4c466bffe6f17efa51b"
 
 [vars]
 ENVIRONMENT = "production"
@@ -10,5 +11,5 @@ ENABLE_TEST_PROBES = "false"
 [[d1_databases]]
 binding = "DB"
 database_name = "school-staging-d1"
-database_id = "00000000-0000-0000-0000-000000000001"
+database_id = "e27122b3-e2ba-474f-b7b3-dc7cddd39a89"
 migrations_dir = "migrations"

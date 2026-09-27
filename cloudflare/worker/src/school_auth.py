@@ -69,17 +69,33 @@ def password_hash(password: str) -> str:
     return "$scrypt$16384$8$1$" + base64.urlsafe_b64encode(salt).decode() + "$" + base64.urlsafe_b64encode(digest).decode()
 
 
-def _verify_password(password: str, stored: str) -> bool:
+try:
+    import bcrypt
+    _HAS_BCRYPT = True
+except ImportError:
+    _HAS_BCRYPT = False
+
+
+def _verify_password(password: str, stored: str) -> tuple[bool, bool]:
+    """Verify password against stored hash. Returns (is_valid, needs_rehash)."""
     try:
+        if stored.startswith(("$2a$", "$2b$", "$2y$")):
+            if _HAS_BCRYPT:
+                valid = bcrypt.checkpw(password.encode(), stored.encode())
+                return valid, True  # Legacy BCrypt hash -> needs rehash to scrypt
+            return False, False
         _, algorithm, n, r, p, salt, expected = stored.split("$")
-        if (algorithm, n, r, p) != ("scrypt", "16384", "8", "1"):
-            return False
+        if algorithm != "scrypt":
+            return False, False
+        n_int, r_int, p_int = int(n), int(r), int(p)
         digest = hashlib.scrypt(
-            password.encode(), salt=base64.urlsafe_b64decode(salt), n=16384, r=8, p=1
+            password.encode(), salt=base64.urlsafe_b64decode(salt), n=n_int, r=r_int, p=p_int
         )
-        return hmac.compare_digest(digest, base64.urlsafe_b64decode(expected))
+        valid = hmac.compare_digest(digest, base64.urlsafe_b64decode(expected))
+        needs_rehash = (n_int, r_int, p_int) != (16384, 8, 1)
+        return valid, needs_rehash
     except (ValueError, TypeError, OverflowError):
-        return False
+        return False, False
 
 
 def _token_hash(token: str) -> str:
@@ -137,15 +153,20 @@ async def _login(data: LoginInput, scope: str, db):
     user = _py(await db.prepare(
         "SELECT * FROM users WHERE scope = ? AND email = ?"
     ).bind(scope, data.email.strip().lower()).first())
-    if (not user or not user["active"] or
-            (scope == "platform" and (user["tenant_id"] is not None or user["role"] != "SUPER_ADMIN")) or
-            (scope != "platform" and user["tenant_id"] != scope) or
-            not _verify_password(data.password, user["password_hash"])):
+    if not user or not user["active"]:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if scope == "platform" and (user["tenant_id"] is not None or user["role"] != "SUPER_ADMIN"):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if scope != "platform" and user["tenant_id"] != scope:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    is_valid, needs_rehash = _verify_password(data.password, user["password_hash"])
+    if not is_valid:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     now = _utc_now()
     access, refresh, access_hash, refresh_hash = _new_tokens()
-    await db.batch([
+    batch_statements = [
         db.prepare("UPDATE users SET last_login_at = ? WHERE id = ? AND active = 1").bind(now.isoformat(), user["id"]),
         db.prepare(
             "INSERT INTO auth_sessions (id, user_id, access_hash, refresh_hash, access_expires_at, refresh_expires_at) "
@@ -153,7 +174,13 @@ async def _login(data: LoginInput, scope: str, db):
         ).bind(secrets.token_hex(16), user["id"], access_hash, refresh_hash,
                (now + timedelta(seconds=ACCESS_SECONDS)).isoformat(),
                (now + timedelta(days=REFRESH_DAYS)).isoformat()),
-    ])
+    ]
+    if needs_rehash:
+        new_hash = password_hash(data.password)
+        batch_statements.append(
+            db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(new_hash, user["id"])
+        )
+    await db.batch(batch_statements)
     user["last_login_at"] = now.isoformat()
     return {"token": access, "refreshToken": refresh, **_wire(user), "expiresIn": ACCESS_SECONDS}
 
@@ -240,3 +267,38 @@ async def logout(
     if meta.get("changes") != 1:
         raise HTTPException(status_code=401, detail="Invalid token")
     return {"message": "Logged out successfully"}
+
+
+async def get_current_user(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    db=Depends(_db),
+) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Bearer token required")
+    token = authorization[7:].strip()
+    token_hash = _token_hash(token)
+    user = await _session_user(db, token_hash, refresh=False)
+    if not _active(user, refresh=False):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if user["tenant_id"] is not None:
+        if not x_tenant_id or x_tenant_id.strip().lower() != user["tenant_id"]:
+            raise HTTPException(status_code=403, detail="Tenant does not match token")
+    return _wire(user)
+
+
+async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") not in ("SUPER_ADMIN", "SCHOOL_ADMIN"):
+        raise HTTPException(status_code=403, detail="School administrator required")
+    return user
+
+
+async def require_super_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") != "SUPER_ADMIN":
+        raise HTTPException(status_code=403, detail="Platform administrator required")
+    return user
+
+
+@router.get("/api/auth/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    return user

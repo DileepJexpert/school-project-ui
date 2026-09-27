@@ -6,13 +6,13 @@ Prepared 26 September 2026; target updated 27 September 2026 to schools.katixo.c
 
 Deploy the existing school application with a Flutter Pages frontend, a separate Python/FastAPI Worker and a separate D1 database, while preserving the existing /api and /platform contracts and school/role isolation. Aim to fit the account's free allowance, but measure real CPU, database and media usage before claiming zero-cost operation. Do not rewrite the frontend or switch backend language as part of this plan.
 
-Do not change existing katixo.com, Milterra Pages/Worker/D1, or other application resources. Do not expose real student data, accept real fee entries, activate paid subscriptions or enable untested features during migration. No new school resources or DNS have been created yet. The current work is a local source checkpoint and handoff; a public cutover must follow completed acceptance.
+Do not change existing katixo.com, Milterra Pages/Worker/D1, or other application resources. Do not expose real student data, accept real fee entries, activate paid subscriptions or enable untested features during migration. Separate school staging D1, Worker, and Pages resources now exist; no school DNS or public-domain cutover has been made. A public cutover must follow completed acceptance.
 
 ## Source baseline and preservation
 
 The active source is C:/dileepkm/Learning/School-project; Git origin is DileepJexpert/school-project-ui. The older OneDrive path is not the active checkout used for this audit.
 
-IMPORTANT: the entire FastAPI backend/ directory and several Flutter/test files are currently untracked, while many other source files have uncommitted edits. These are existing work, not disposable files. The narrow Cloudflare checkpoint excludes the backend and unrelated Flutter work. A fresh GitHub clone will NOT contain the complete Python implementation described here. Antigravity must use this local checkout first, inspect changes, and coordinate a reviewed source checkpoint before working elsewhere. Never git clean, reset --hard, overwrite the checkout, or blindly stage all files; backend/data, virtual environments, credentials and generated artifacts must not be published.
+IMPORTANT: the FastAPI `backend/` directory and route contract matrix were checkpointed in local commit `818d9c4`; several Flutter/test files and Worker auth/bootstrap changes remain uncommitted. These are existing work, not disposable files. A fresh GitHub clone still lacks local commits until they are synchronized. Antigravity must inspect this checkout and Git divergence before working elsewhere. Never git clean, reset --hard, overwrite the checkout, or blindly stage all files; backend/data, virtual environments, credentials and generated artifacts must not be published.
 
 Current evidence:
 

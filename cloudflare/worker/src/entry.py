@@ -18,6 +18,7 @@ import secrets
 import time
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
 from workers import WorkerEntrypoint, Response, fetch, asgi
 from school_auth import router as school_auth_router
 
@@ -39,6 +40,12 @@ REQUIRED_TABLES = {
 }
 
 app = FastAPI(title="School Cloudflare Worker API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://school-staging.pages.dev", "https://schools.katixo.com"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
+)
 app.include_router(school_auth_router)
 
 
