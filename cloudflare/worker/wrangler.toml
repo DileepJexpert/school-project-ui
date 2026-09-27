@@ -1,0 +1,14 @@
+name = "school-api-worker"
+main = "src/entry.py"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["python_workers"]
+
+[vars]
+ENVIRONMENT = "production"
+ENABLE_TEST_PROBES = "false"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "school-staging-d1"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
