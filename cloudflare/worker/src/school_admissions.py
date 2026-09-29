@@ -77,7 +77,7 @@ def _student_values(item: StudentInput, tenant: str, student_id: str, admission_
         student_id, tenant, item.fullName.strip(), item.dateOfBirth.isoformat(),
         item.gender, item.bloodGroup, item.nationality, item.religion,
         item.motherTongue, item.aadharNumber, class_name, year,
-        item.dateOfAdmission.isoformat(), admission_number, item.rollNumber,
+        item.dateOfAdmission.isoformat(), admission_number, item.rollNumber or "",
         status, json.dumps(item.parentDetails), json.dumps(item.contactDetails),
         json.dumps(item.previousSchoolDetails),
     )
@@ -96,7 +96,7 @@ def _profile_statements(db, tenant: str, student_id: str, item: StudentInput, cl
     enrollment_id = uuid4().hex
     profile_id = uuid4().hex
     statements = [
-        db.prepare("INSERT INTO enrollments (id, tenant_id, student_id, academic_year, class_name, roll_number, date_of_admission, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(enrollment_id, tenant, student_id, year, class_name, item.rollNumber, item.dateOfAdmission.isoformat(), "ACTIVE"),
+        db.prepare("INSERT INTO enrollments (id, tenant_id, student_id, academic_year, class_name, roll_number, date_of_admission, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(enrollment_id, tenant, student_id, year, class_name, item.rollNumber or "", item.dateOfAdmission.isoformat(), "ACTIVE"),
         db.prepare("INSERT INTO fee_profiles (id, tenant_id, enrollment_id, fee_structure_id) VALUES (?, ?, ?, ?)").bind(profile_id, tenant, enrollment_id, structure["id"]),
     ]
     position = 0
@@ -219,6 +219,6 @@ async def save_student(
         statements.extend(_profile_statements(db, tenant, student_id, item, class_name, year, structure, components))
     elif enrollment:
         enrollment_status = "ACTIVE" if item.status == "ACTIVE" else "INACTIVE"
-        statements.append(db.prepare("UPDATE enrollments SET status = ?, roll_number = ? WHERE tenant_id = ? AND id = ?").bind(enrollment_status, item.rollNumber, tenant, enrollment["id"]))
+        statements.append(db.prepare("UPDATE enrollments SET status = ?, roll_number = ? WHERE tenant_id = ? AND id = ?").bind(enrollment_status, item.rollNumber or "", tenant, enrollment["id"]))
     await db.batch(statements)
     return await _created(db, tenant, student_id)

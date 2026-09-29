@@ -170,7 +170,7 @@ class Student {
         'academicYear': academicYear,
         'dateOfAdmission': dateOfAdmission.toIso8601String().substring(0, 10),
         'admissionNumber': admissionNumber,
-        if (rollNumber != null) 'rollNumber': rollNumber,
+        'rollNumber': rollNumber ?? '',
         'status': status,
         'parentDetails': parentDetails.toJson(),
         'contactDetails': contactDetails.toJson(),

@@ -103,6 +103,7 @@ def test_enquiry_to_admission_requires_fees_and_creates_april_march_installments
     assert enquiry["status"] == "ENQUIRY"
     assert enquiry["admissionNumber"].startswith("ENQ-")
     assert enquiry["parentDetails"]["fatherName"] == "Raj"
+    assert db.execute("SELECT roll_number FROM students WHERE id = ?", (enquiry["id"],)).fetchone()[0] == ""
     assert client.put(f"/api/students/{enquiry['id']}", json=PAYLOAD, headers=headers).status_code == 409
     db.executescript("""
         INSERT INTO fee_structures VALUES ('fs1', 'school-a', 'Class 1 - A', '2026-2027');
