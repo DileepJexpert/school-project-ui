@@ -56,7 +56,7 @@ def _client():
     db.row_factory = sqlite3.Row
     db.executescript("""
         CREATE TABLE tenants (id TEXT, active INTEGER);
-        CREATE TABLE school_classes (id TEXT, tenant_id TEXT, class_name TEXT, active INTEGER);
+        CREATE TABLE school_classes (id TEXT, tenant_id TEXT, class_name TEXT, base_class TEXT, active INTEGER);
         CREATE TABLE class_year_closures (id TEXT, tenant_id TEXT, class_name TEXT, academic_year TEXT);
         CREATE TABLE students (id TEXT, tenant_id TEXT, full_name TEXT, date_of_birth TEXT,
             gender TEXT, blood_group TEXT, nationality TEXT, religion TEXT,
@@ -75,7 +75,7 @@ def _client():
             name TEXT, amount_due INTEGER, paid_amount INTEGER, discount_amount INTEGER,
             status TEXT);
         INSERT INTO tenants VALUES ('school-a', 1), ('school-b', 1);
-        INSERT INTO school_classes VALUES ('c-a', 'school-a', 'Class 1 - A', 1);
+        INSERT INTO school_classes VALUES ('c-a', 'school-a', 'Class 1 - A', 'Class 1', 1);
     """)
     app = FastAPI()
     app.include_router(read_router)
@@ -135,3 +135,26 @@ def test_direct_admission_and_enquiry_delete_are_school_scoped():
     assert client.get(f"/api/students/{inquiry['id']}", headers=headers).status_code == 404
     assert client.post("/api/students/enquiry", json=PAYLOAD,
                        headers={"X-Tenant-ID": "school-b"}).status_code == 403
+
+
+def test_enquiry_accepts_base_class_but_admission_requires_section():
+    client, db = _client()
+    headers = {"X-Tenant-ID": "school-a"}
+    interested = {**PAYLOAD, "classForAdmission": "Class 1", "status": "ENQUIRY"}
+
+    created = client.post("/api/students/enquiry", json=interested, headers=headers)
+    assert created.status_code == 201, created.text
+    student_id = created.json()["id"]
+    assert created.json()["classForAdmission"] == "Class 1"
+    assert client.put(f"/api/students/{student_id}", json=interested, headers=headers).status_code == 200
+    assert client.post("/api/students/add", json=interested, headers=headers).status_code == 409
+
+    db.executescript("""
+        INSERT INTO fee_structures VALUES ('fs1', 'school-a', 'Class 1 - A', '2026-2027');
+        INSERT INTO fee_components VALUES ('fs1', 0, 'Annual', 100000, 'YEARLY');
+    """)
+    admitted = client.put(f"/api/students/{student_id}",
+                          json={**PAYLOAD, "status": "ACTIVE"}, headers=headers)
+    assert admitted.status_code == 200, admitted.text
+    assert admitted.json()["classForAdmission"] == "Class 1 - A"
+    assert db.execute("SELECT COUNT(*) FROM enrollments WHERE student_id = ?", (student_id,)).fetchone()[0] == 1

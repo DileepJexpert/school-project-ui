@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -47,7 +48,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       final students = await AdmissionApiService.getStudents();
       // Set _all first, then call _filter separately to avoid nested setState
       setState(() {
-        _all = students.where((s) => s.status.toUpperCase() == 'ENQUIRY').toList();
+        _all =
+            students.where((s) => s.status.toUpperCase() == 'ENQUIRY').toList();
       });
       _filter();
     } catch (e) {
@@ -83,10 +85,10 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       case _SortBy.nameZA:
         list.sort((a, b) => b.fullName.compareTo(a.fullName));
       case _SortBy.classAsc:
-        list.sort((a, b) =>
-            SchoolConstants.allClasses
-                .indexOf(a.classForAdmission)
-                .compareTo(SchoolConstants.allClasses.indexOf(b.classForAdmission)));
+        list.sort((a, b) => SchoolConstants.allClasses
+            .indexOf(a.classForAdmission)
+            .compareTo(
+                SchoolConstants.allClasses.indexOf(b.classForAdmission)));
     }
     setState(() => _filtered = list);
   }
@@ -98,7 +100,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       final base = SchoolConstants.parseClassName(s.classForAdmission).$1;
       if (seen.add(base)) result.add(base);
     }
-    result.sort((a, b) => SchoolConstants.baseClasses.indexOf(a)
+    result.sort((a, b) => SchoolConstants.baseClasses
+        .indexOf(a)
         .compareTo(SchoolConstants.baseClasses.indexOf(b)));
     return result;
   }
@@ -115,7 +118,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-          builder: (_) => NewAdmissionScreen(studentId: studentId, admitMode: true)),
+          builder: (_) =>
+              NewAdmissionScreen(studentId: studentId, admitMode: true)),
     );
     if (saved == true) _fetch();
   }
@@ -174,10 +178,13 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
           scrollable: true,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('New Enquiry',
               style: GoogleFonts.cormorantGaramond(
-                  fontWeight: FontWeight.w700, fontSize: 22, color: AppColors.navy)),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 22,
+                  color: AppColors.navy)),
           content: SizedBox(
             width: 420,
             child: SingleChildScrollView(
@@ -195,14 +202,16 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                     TextFormField(
                       controller: nameCtrl,
                       decoration: _inputDec('Student Name *'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      decoration: _inputDec('Class Interested In *'),
+                      decoration: _inputDec('Class / Section Interested In *'),
                       value: selectedClass,
-                      items: SchoolConstants.baseClasses
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      items: SchoolConstants.allClasses
+                          .map(
+                              (c) => DropdownMenuItem(value: c, child: Text(c)))
                           .toList(),
                       onChanged: (v) => setSt(() => selectedClass = v),
                       validator: (v) => v == null ? 'Required' : null,
@@ -212,7 +221,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                       value: selectedYear,
                       decoration: _inputDec('Academic Year *'),
                       items: AcademicYear.choices()
-                          .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                          .map(
+                              (y) => DropdownMenuItem(value: y, child: Text(y)))
                           .toList(),
                       onChanged: (v) => setSt(() => selectedYear = v!),
                     ),
@@ -220,7 +230,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                     TextFormField(
                       controller: parentCtrl,
                       decoration: _inputDec('Parent / Guardian Name *'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -246,11 +257,13 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                         if (picked != null) setSt(() => enquiryDate = picked);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 14),
                         decoration: BoxDecoration(
                           color: AppColors.white,
                           border: Border.all(color: AppColors.border),
-                          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMD),
                         ),
                         child: Row(children: [
                           const Icon(Icons.calendar_today_outlined,
@@ -277,12 +290,14 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                 child: const Text('Cancel')),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white),
               icon: saving
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.save_alt_outlined, size: 18),
               label: Text(saving ? 'Saving…' : 'Save Enquiry'),
               onPressed: saving
@@ -293,7 +308,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                       try {
                         final student = Student(
                           fullName: nameCtrl.text.trim(),
-                          dateOfBirth: DateTime(2000, 1, 1), // placeholder, admin updates on admission
+                          dateOfBirth: DateTime(2000, 1,
+                              1), // placeholder, admin updates on admission
                           gender: '',
                           bloodGroup: '',
                           nationality: 'Indian',
@@ -331,14 +347,21 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                         _fetch();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Enquiry saved for ${nameCtrl.text.trim()}'),
+                              content: Text(
+                                  'Enquiry saved for ${nameCtrl.text.trim()}'),
                               backgroundColor: AppColors.success));
                         }
                       } catch (e) {
                         setSt(() => saving = false);
                         if (mounted) {
+                          final detail =
+                              e is DioException ? e.response?.data : null;
+                          final message = detail is Map &&
+                                  detail['detail'] != null
+                              ? detail['detail'].toString()
+                              : 'Please check the enquiry details and try again.';
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Failed to save enquiry: $e'),
+                              content: Text('Failed to save enquiry: $message'),
                               backgroundColor: AppColors.error));
                         }
                       }
@@ -354,7 +377,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
         labelText: label,
         filled: true,
         fillColor: AppColors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             borderSide: const BorderSide(color: AppColors.border)),
@@ -362,7 +386,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
             borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             borderSide: const BorderSide(color: AppColors.navy, width: 2)),
         labelStyle: GoogleFonts.nunitoSans(color: AppColors.textSecondary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       );
 
   @override
@@ -618,7 +643,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                     onView: (id) => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => StudentDetailScreen(studentId: id))),
+                            builder: (_) =>
+                                StudentDetailScreen(studentId: id))),
                     onAdmit: (id) => _admitEnquiry(id),
                     onDelete: (id, name) => _deleteEnquiry(id, name),
                   ),
@@ -634,32 +660,40 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
     final classes = _availableClasses;
     if (classes.isEmpty) {
       return AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppColors.navy,
-            border: Border.all(color: AppColors.navy),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text('All',
-              style: GoogleFonts.nunitoSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white)),
-        );
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.navy,
+          border: Border.all(color: AppColors.navy),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text('All',
+            style: GoogleFonts.nunitoSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white)),
+      );
     }
     return SizedBox(
       height: 34,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          _chip('All', _filterClass == null,
-              () => setState(() { _filterClass = null; _filter(); })),
+          _chip(
+              'All',
+              _filterClass == null,
+              () => setState(() {
+                    _filterClass = null;
+                    _filter();
+                  })),
           const SizedBox(width: 6),
           ...classes.map((cls) => Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: _chip(cls, _filterClass == cls, () {
-                  setState(() { _filterClass = cls; _filter(); });
+                  setState(() {
+                    _filterClass = cls;
+                    _filter();
+                  });
                 }),
               )),
         ],
@@ -675,7 +709,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? AppColors.navy : Colors.white,
-          border: Border.all(color: selected ? AppColors.navy : AppColors.border),
+          border:
+              Border.all(color: selected ? AppColors.navy : AppColors.border),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label,
@@ -696,7 +731,12 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
       _SortBy.classAsc => 'By Class',
     };
     return PopupMenuButton<_SortBy>(
-      onSelected: (v) { setState(() { _sortBy = v; _filter(); }); },
+      onSelected: (v) {
+        setState(() {
+          _sortBy = v;
+          _filter();
+        });
+      },
       itemBuilder: (_) => const [
         PopupMenuItem(value: _SortBy.dateDesc, child: Text('Newest first')),
         PopupMenuItem(value: _SortBy.dateAsc, child: Text('Oldest first')),
@@ -718,8 +758,11 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
             const SizedBox(width: 4),
             Text(label,
                 style: GoogleFonts.nunitoSans(
-                    fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy)),
-            const Icon(Icons.arrow_drop_down_rounded, size: 18, color: AppColors.navy),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy)),
+            const Icon(Icons.arrow_drop_down_rounded,
+                size: 18, color: AppColors.navy),
           ],
         ),
       ),
@@ -780,16 +823,20 @@ class _EnquiryDataSource extends DataTableSource {
                 fontWeight: FontWeight.w600,
                 color: AppColors.navy)),
       )),
-      DataCell(Text(s.parentDetails.fatherName.isNotEmpty
-          ? s.parentDetails.fatherName
-          : '—', style: GoogleFonts.nunitoSans())),
-      DataCell(Text(s.contactDetails.primaryContactNumber.isNotEmpty
-          ? s.contactDetails.primaryContactNumber
-          : s.parentDetails.fatherMobile.isNotEmpty
-              ? s.parentDetails.fatherMobile
+      DataCell(Text(
+          s.parentDetails.fatherName.isNotEmpty
+              ? s.parentDetails.fatherName
               : '—',
           style: GoogleFonts.nunitoSans())),
-      DataCell(Text(fmt.format(s.dateOfAdmission), style: GoogleFonts.nunitoSans())),
+      DataCell(Text(
+          s.contactDetails.primaryContactNumber.isNotEmpty
+              ? s.contactDetails.primaryContactNumber
+              : s.parentDetails.fatherMobile.isNotEmpty
+                  ? s.parentDetails.fatherMobile
+                  : '—',
+          style: GoogleFonts.nunitoSans())),
+      DataCell(
+          Text(fmt.format(s.dateOfAdmission), style: GoogleFonts.nunitoSans())),
       DataCell(Row(children: [
         IconButton(
           icon: const Icon(Icons.visibility_outlined, size: 18),

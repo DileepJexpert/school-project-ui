@@ -46,12 +46,16 @@ def _permission(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Student write access required")
 
 
-async def _validate_context(db, tenant: str, item: StudentInput) -> tuple[str, str]:
+async def _validate_context(db, tenant: str, item: StudentInput, *, enquiry: bool = False) -> tuple[str, str]:
     year = _year(item.academicYear)
     class_name = item.classForAdmission.strip()
     if not class_name or not item.fullName.strip():
         raise HTTPException(status_code=422, detail="Student and class names cannot be blank")
-    known = await _one(db, "SELECT id FROM school_classes WHERE tenant_id = ? AND class_name = ? AND active = 1", tenant, class_name)
+    if enquiry:
+        # The enquiry form asks for a class of interest before a section is assigned.
+        known = await _one(db, "SELECT id FROM school_classes WHERE tenant_id = ? AND active = 1 AND (base_class = ? OR class_name = ?) LIMIT 1", tenant, class_name, class_name)
+    else:
+        known = await _one(db, "SELECT id FROM school_classes WHERE tenant_id = ? AND class_name = ? AND active = 1", tenant, class_name)
     if not known:
         raise HTTPException(status_code=409, detail="Set up the class first")
     closed = await _one(db, "SELECT id FROM class_year_closures WHERE tenant_id = ? AND class_name = ? AND academic_year = ?", tenant, class_name, year)
@@ -124,7 +128,7 @@ async def create_enquiry(
 ):
     _permission(user)
     tenant = await _tenant(db, user, x_tenant_id)
-    class_name, year = await _validate_context(db, tenant, item)
+    class_name, year = await _validate_context(db, tenant, item, enquiry=True)
     student_id = uuid4().hex
     admission_number = f"ENQ-{uuid4().hex[:16].upper()}"
     await db.prepare(_INSERT_STUDENT).bind(*_student_values(item, tenant, student_id, admission_number, "ENQUIRY", class_name, year)).run()
@@ -187,7 +191,7 @@ async def save_student(
     old = await _one(db, "SELECT status, class_name, academic_year, admission_number FROM students WHERE tenant_id = ? AND id = ?", tenant, student_id)
     if not old:
         raise HTTPException(status_code=404, detail="Student not found")
-    class_name, year = await _validate_context(db, tenant, item)
+    class_name, year = await _validate_context(db, tenant, item, enquiry=old["status"] == "ENQUIRY" and item.status == "ENQUIRY")
     activating_enquiry = old["status"] == "ENQUIRY" and item.status == "ACTIVE"
     if old["status"] != "ENQUIRY" and (old["class_name"] != class_name or old["academic_year"] != year):
         raise HTTPException(status_code=409, detail="Class/year change requires the atomic rollover workflow")
