@@ -1,4 +1,4 @@
-"""Finance routes hosted separately to stay within Python Worker startup limits."""
+"""Finance Worker with lazy route loading to stay below startup CPU limits."""
 
 import os
 import sys
@@ -9,19 +9,30 @@ if vendor_path.is_dir() and str(vendor_path) not in sys.path:
     sys.path.insert(0, str(vendor_path))
 os.environ["PYDANTIC_PURE_PYTHON"] = "1"
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from workers import asgi
+from workers import WorkerEntrypoint
+from workers.asgi import fetch as asgi_fetch
 
-from school_expenses import router as expenses_router
 
-app = FastAPI(title="School Finance API", version="0.1.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://school-staging.pages.dev", "https://schools.katixo.com"],
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
-)
-app.include_router(expenses_router)
+def _build_app():
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    from school_expenses import router as expenses_router
 
-Default = asgi.entrypoint(app)
+    app = FastAPI(title="School Finance API", version="0.1.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["https://school-staging.pages.dev", "https://schools.katixo.com"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
+    )
+    app.include_router(expenses_router)
+    return app
+
+
+class Default(WorkerEntrypoint):
+    _app = None
+
+    async def on_fetch(self, request):
+        if self._app is None:
+            self._app = _build_app()
+        return await asgi_fetch(self._app, request, self.env, self.ctx)
