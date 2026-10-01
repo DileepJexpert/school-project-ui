@@ -1,19 +1,21 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/auth_models.dart';
 import '../models/school_data.dart';
 import 'dio_client.dart';
+import 'token_storage.dart';
 
 /// Manages authentication state: login, logout, token storage, role checks.
+/// Tokens live in platform secure storage (TokenStorage); only non-secret
+/// data (user profile, tenant id) is kept in SharedPreferences.
 class AuthService {
   static final AuthService instance = AuthService._();
   AuthService._();
 
-  static const _tokenKey = 'auth_token';
-  static const _refreshTokenKey = 'auth_refresh_token';
   static const _userKey = 'auth_user';
 
   AuthUser? _currentUser;
@@ -26,17 +28,18 @@ class AuthService {
 
   // -- Initialization
 
-  /// Load persisted auth state from SharedPreferences.
+  /// Load persisted auth state.
   /// Call this once in main() before runApp().
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString(_tokenKey);
-    _refreshToken = prefs.getString(_refreshTokenKey);
+    _token = await TokenStorage.getToken();
+    _refreshToken = await TokenStorage.getRefreshToken();
     final userJson = prefs.getString(_userKey);
     if (userJson != null) {
       try {
         _currentUser = AuthUser.fromJson(jsonDecode(userJson));
-      } catch (_) {
+      } catch (e) {
+        debugPrint('[AuthService] Corrupt stored user, clearing session: $e');
         await _clearStorage(prefs);
       }
     }
@@ -52,6 +55,9 @@ class AuthService {
 
   /// Login for SUPER_ADMIN users (uses /platform/auth/login, platform_db).
   Future<AuthUser> loginPlatform(String email, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tenant_id');
+    await prefs.remove('school_name');
     // Platform login uses a different base URL prefix -- strip /api from baseUrl
     final dio = DioClient.instance;
     final response = await dio.post(
@@ -78,11 +84,11 @@ class AuthService {
     _refreshToken = authResponse.refreshToken;
     _currentUser = authResponse.user;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, _token!);
+    await TokenStorage.saveToken(_token!);
     if (_refreshToken != null) {
-      await prefs.setString(_refreshTokenKey, _refreshToken!);
+      await TokenStorage.saveRefreshToken(_refreshToken!);
     }
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userKey, jsonEncode(_currentUser!.toJson()));
 
     // Persist tenant from the response (for future requests)
@@ -106,13 +112,13 @@ class AuthService {
       _token = data['token'] as String;
       _refreshToken = data['refreshToken'] as String?;
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, _token!);
+      await TokenStorage.saveToken(_token!);
       if (_refreshToken != null) {
-        await prefs.setString(_refreshTokenKey, _refreshToken!);
+        await TokenStorage.saveRefreshToken(_refreshToken!);
       }
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[AuthService] Token refresh failed: $e');
       return false;
     }
   }
@@ -122,8 +128,9 @@ class AuthService {
   Future<void> logout() async {
     try {
       await DioClient.post('/auth/logout');
-    } catch (_) {
-      // Ignore -- logout is always local
+    } catch (e) {
+      // Logout is always completed locally even if the server call fails
+      debugPrint('[AuthService] Server logout failed (continuing locally): $e');
     }
     _token = null;
     _refreshToken = null;
@@ -134,9 +141,10 @@ class AuthService {
   }
 
   Future<void> _clearStorage(SharedPreferences prefs) async {
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_refreshTokenKey);
+    await TokenStorage.clear();
     await prefs.remove(_userKey);
+    await prefs.remove('tenant_id');
+    await prefs.remove('school_name');
   }
 
   // -- Permission helpers
@@ -158,19 +166,31 @@ class AuthService {
     return switch (role) {
       UserRole.superAdmin || UserRole.schoolAdmin => true,
       UserRole.teacher => const {
-          'Overview', 'Students', 'Attendance', 'Timetable', 'Results',
-          'Notifications', 'Discipline', 'Chat', 'Homework', 'Video Tutorials'
+          'Overview',
+          'Students',
+          'Attendance',
+          'Timetable',
+          'Results',
+          'Notifications',
+          'Discipline',
+          'Chat',
+          'Homework',
+          'Video Tutorials'
         }.contains(menuLabel),
       UserRole.accountant => const {
-          'Overview', 'Students', 'Fees', 'Expenses', 'Reports',
-          'HR & Staff', 'Certificates'
+          'Overview',
+          'Students',
+          'Fees',
+          'Expenses',
+          'Reports',
+          'HR & Staff',
+          'Certificates'
         }.contains(menuLabel),
-      UserRole.transportManager => const {
-          'Overview', 'Students', 'Transport'
-        }.contains(menuLabel),
-      UserRole.student || UserRole.parent => const {
-          'Overview'
-        }.contains(menuLabel),
+      UserRole.transportManager =>
+        const {'Overview', 'Students', 'Transport'}.contains(menuLabel),
+      UserRole.student ||
+      UserRole.parent =>
+        const {'Overview'}.contains(menuLabel),
       _ => false,
     };
   }

@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../services/parent_api_service.dart';
+import '../../../services/payment_gateway_service.dart';
+import '../../payments/fee_payment_flow.dart';
 
 class ChildFeesScreen extends StatefulWidget {
   final String? studentId;
@@ -19,6 +21,7 @@ class _ChildFeesScreenState extends State<ChildFeesScreen> {
   bool _loading = false;
   String? _error;
   Map<String, dynamic>? _feeData;
+  bool _paymentsEnabled = false;
 
   @override
   void didUpdateWidget(ChildFeesScreen oldWidget) {
@@ -41,12 +44,35 @@ class _ChildFeesScreenState extends State<ChildFeesScreen> {
     });
     try {
       final data = await ParentApiService.getChildFees(widget.studentId!);
-      if (mounted) setState(() => _feeData = data);
+      bool enabled = false;
+      try {
+        final cfg = await PaymentGatewayService.getConfig();
+        enabled = cfg['enabled'] == true;
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _feeData = data;
+          _paymentsEnabled = enabled;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _error = 'Failed to load fees: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _payInstallment(Map<String, dynamic> inst) async {
+    final paid = await startFeePayment(
+      context,
+      studentId: widget.studentId!,
+      studentName: widget.studentName ?? 'Student',
+      className: _feeData?['className'] as String? ?? '',
+      installmentId: inst['installmentId'] as String? ?? '',
+      installmentName: inst['installmentName'] as String? ?? '',
+      amount: (inst['amountDue'] as num?)?.toDouble() ?? 0,
+    );
+    if (paid) _loadFees();
   }
 
   @override
@@ -69,89 +95,119 @@ class _ChildFeesScreenState extends State<ChildFeesScreen> {
               style: GoogleFonts.poppins(color: AppColors.textSecondary)));
     }
 
-    final totalFee = (_feeData?['totalFee'] as num?)?.toDouble() ?? 0;
-    final paidAmount = (_feeData?['paidAmount'] as num?)?.toDouble() ?? 0;
-    final pendingAmount = totalFee - paidAmount;
+    final totalFee = (_feeData?['totalFees'] as num?)?.toDouble() ?? 0;
+    final paidAmount = (_feeData?['paidFees'] as num?)?.toDouble() ?? 0;
+    final pendingAmount = (_feeData?['dueFees'] as num?)?.toDouble() ??
+        (totalFee - paidAmount);
     final installments =
-        (_feeData?['installments'] as List<dynamic>?) ?? [];
+        (_feeData?['feeInstallments'] as List<dynamic>?) ?? [];
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(Responsive.contentPadding(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return RefreshIndicator(
+      onRefresh: _loadFees,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.all(Responsive.contentPadding(context)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${widget.studentName}\'s Fees',
+                style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _feeCard('Total Fee', totalFee, AppColors.navy),
+                _feeCard('Paid', paidAmount, Colors.green),
+                _feeCard('Pending', pendingAmount,
+                    pendingAmount > 0 ? Colors.red : Colors.green),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text('Installments',
+                style: GoogleFonts.poppins(
+                    fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            if (installments.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                      child: Text('No installments found.',
+                          style: GoogleFonts.poppins(
+                              color: AppColors.textSecondary))),
+                ),
+              )
+            else
+              Card(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: installments.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    return _installmentTile(
+                        installments[index] as Map<String, dynamic>, index);
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _installmentTile(Map<String, dynamic> inst, int index) {
+    final name = inst['installmentName'] as String? ?? 'Installment ${index + 1}';
+    final amount = (inst['amountDue'] as num?)?.toDouble() ?? 0;
+    final status = inst['status'] as String? ?? 'PENDING';
+    final dueDate = inst['dueDate'] as String? ?? '';
+    final isPaid = status == 'PAID';
+
+    return ListTile(
+      title: Text(name, style: GoogleFonts.poppins(fontSize: 14)),
+      subtitle: dueDate.isEmpty
+          ? null
+          : Text('Due: $dueDate',
+              style: GoogleFonts.poppins(
+                  fontSize: 12, color: AppColors.textSecondary)),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text('${widget.studentName}\'s Fees',
-              style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy)),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _feeCard('Total Fee', totalFee, AppColors.navy),
-              _feeCard('Paid', paidAmount, Colors.green),
-              _feeCard('Pending', pendingAmount,
-                  pendingAmount > 0 ? Colors.red : Colors.green),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text('Installments',
-              style: GoogleFonts.poppins(
-                  fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          if (installments.isEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                    child: Text('No installments found.',
-                        style: GoogleFonts.poppins(
-                            color: AppColors.textSecondary))),
+          Text('Rs ${amount.toStringAsFixed(0)}',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          if (isPaid)
+            Chip(
+              label: Text('PAID', style: GoogleFonts.poppins(fontSize: 10)),
+              backgroundColor: Colors.green.withOpacity(0.1),
+              padding: EdgeInsets.zero,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            )
+          else if (_paymentsEnabled)
+            SizedBox(
+              height: 30,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  textStyle: GoogleFonts.poppins(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () => _payInstallment(inst),
+                child: const Text('Pay Now'),
               ),
             )
           else
-            Card(
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: installments.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final inst = installments[index] as Map<String, dynamic>;
-                  final name = inst['name'] as String? ?? 'Installment ${index + 1}';
-                  final amount = (inst['amount'] as num?)?.toDouble() ?? 0;
-                  final status = inst['status'] as String? ?? 'PENDING';
-                  final dueDate = inst['dueDate'] as String? ?? '';
-
-                  return ListTile(
-                    title: Text(name, style: GoogleFonts.poppins(fontSize: 14)),
-                    subtitle: Text('Due: $dueDate',
-                        style: GoogleFonts.poppins(
-                            fontSize: 12, color: AppColors.textSecondary)),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('Rs ${amount.toStringAsFixed(0)}',
-                            style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w600)),
-                        Chip(
-                          label: Text(status,
-                              style: GoogleFonts.poppins(fontSize: 10)),
-                          backgroundColor: status == 'PAID'
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
-                          padding: EdgeInsets.zero,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+            Chip(
+              label: Text(status, style: GoogleFonts.poppins(fontSize: 10)),
+              backgroundColor: Colors.orange.withOpacity(0.1),
+              padding: EdgeInsets.zero,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
         ],
       ),

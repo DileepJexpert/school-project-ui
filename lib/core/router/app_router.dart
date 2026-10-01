@@ -13,6 +13,7 @@ import '../../features/admin/admin_dashboard_page.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/parent/parent_dashboard_page.dart';
 import '../../features/student_portal/student_dashboard_page.dart';
+import '../../features/platform/platform_dashboard_page.dart';
 import '../../services/auth_service.dart';
 import '../../models/auth_models.dart';
 
@@ -30,6 +31,7 @@ class AppRouter {
   static const String contact = '/contact';
   static const String results = '/results';
   static const String adminDashboard = '/admin-dashboard';
+  static const String platformDashboard = '/platform-dashboard';
   static const String parentDashboard = '/parent-dashboard';
   static const String studentDashboard = '/student-dashboard';
   static const String login = '/login';
@@ -38,17 +40,26 @@ class AppRouter {
     NavItem(label: 'Home', route: home, icon: Icons.home_outlined),
     NavItem(label: 'About', route: about, icon: Icons.info_outline),
     NavItem(label: 'Academics', route: academics, icon: Icons.school_outlined),
-    NavItem(label: 'Admissions', route: admissions, icon: Icons.how_to_reg_outlined),
-    NavItem(label: 'Gallery', route: gallery, icon: Icons.photo_library_outlined),
+    NavItem(
+        label: 'Admissions',
+        route: admissions,
+        icon: Icons.how_to_reg_outlined),
+    NavItem(
+        label: 'Gallery', route: gallery, icon: Icons.photo_library_outlined),
     NavItem(label: 'Events', route: events, icon: Icons.event_outlined),
-    NavItem(label: 'Transport', route: transport, icon: Icons.directions_bus_outlined),
+    NavItem(
+        label: 'Transport',
+        route: transport,
+        icon: Icons.directions_bus_outlined),
     NavItem(label: 'Results', route: results, icon: Icons.assessment_outlined),
-    NavItem(label: 'Contact', route: contact, icon: Icons.contact_mail_outlined),
+    NavItem(
+        label: 'Contact', route: contact, icon: Icons.contact_mail_outlined),
   ];
 
   /// Returns the correct dashboard route based on user role
   static String dashboardRouteForRole(String? role) {
     return switch (role) {
+      UserRole.superAdmin => platformDashboard,
       UserRole.parent => parentDashboard,
       UserRole.student => studentDashboard,
       _ => adminDashboard,
@@ -80,10 +91,17 @@ class AppRouter {
       case adminDashboard:
         // Guard: redirect to login if not authenticated or no admin access
         if (!AuthService.instance.isLoggedIn ||
-            !(AuthService.instance.currentUser?.hasAdminAccess ?? false)) {
+            !(AuthService.instance.currentUser?.hasAdminAccess ?? false) ||
+            AuthService.instance.currentUser?.isSuperAdmin == true) {
           return _buildRoute(const LoginPage(), settings);
         }
         return _buildRoute(const AdminDashboardPage(), settings);
+      case platformDashboard:
+        if (!AuthService.instance.isLoggedIn ||
+            AuthService.instance.currentUser?.isSuperAdmin != true) {
+          return _buildRoute(const LoginPage(), settings);
+        }
+        return _buildRoute(const PlatformDashboardPage(), settings);
       case parentDashboard:
         // Guard: only PARENT role
         if (!AuthService.instance.isLoggedIn ||
