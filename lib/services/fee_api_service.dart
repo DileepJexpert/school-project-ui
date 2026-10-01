@@ -117,6 +117,10 @@ class FeeApiService {
     await DioClient.post(_expenseBase, data: expense.toJson());
   }
 
+  static Future<void> updateExpense(String id, Expense expense) async {
+    await DioClient.put('$_expenseBase/$id', data: expense.toJson());
+  }
+
   static Future<void> deleteExpense(String id) async {
     await DioClient.delete('$_expenseBase/$id');
   }

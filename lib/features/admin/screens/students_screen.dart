@@ -10,6 +10,7 @@ import '../../../services/admission_api_service.dart';
 import '../../../services/fee_api_service.dart';
 import '../../../services/csv_export_service.dart';
 import '../../../services/student_api_service.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 import 'new_admission_screen.dart';
 import 'student_detail_screen.dart';
 
@@ -975,22 +976,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Select Class',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radiusMD)),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 14),
-                    ),
-                    value: selectedClass,
-                    items: classesWithActive
-                        .map((c) =>
-                            DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
+                  SearchableDropdownFormField<String>(
+                    labelText: 'Select Class',
+                    initialValue: selectedClass,
+                    items: classesWithActive,
                     onChanged: (v) => setSt(() => selectedClass = v),
                   ),
                   if (selectedClass != null) ...[

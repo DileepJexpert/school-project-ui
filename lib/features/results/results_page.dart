@@ -7,6 +7,8 @@ import '../../core/constants/academic_year.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/app_shell.dart';
 import '../../core/widgets/shared_widgets.dart';
+import '../../core/widgets/searchable_dropdown.dart';
+
 import '../../services/dio_client.dart';
 import '../../services/auth_service.dart';
 
@@ -109,41 +111,41 @@ class _ResultsPageState extends State<ResultsPage> {
 
                 // Search form
                 Container(
-                  constraints: const BoxConstraints(maxWidth: 700),
+                  constraints: const BoxConstraints(maxWidth: 720),
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: PublicColors.cream,
-                    border: Border.all(color: PublicColors.border),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0A101828),
+                        blurRadius: 18,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedSession,
-                              decoration: const InputDecoration(
-                                  hintText: 'Academic Session'),
-                              items: sessions
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _selectedSession = v),
+                            child: SearchableDropdownFormField<String>(
+                              labelText: 'Academic Session',
+                              hintText: 'Select or type session...',
+                              initialValue: _selectedSession,
+                              items: sessions,
+                              onChanged: (v) => setState(() => _selectedSession = v),
                             ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedClass,
-                              decoration:
-                                  const InputDecoration(hintText: 'Class'),
-                              items: classes
-                                  .map((c) => DropdownMenuItem(
-                                      value: c, child: Text(c)))
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _selectedClass = v),
+                            child: SearchableDropdownFormField<String>(
+                              labelText: 'Class',
+                              hintText: 'Select or type class...',
+                              initialValue: _selectedClass,
+                              items: classes,
+                              onChanged: (v) => setState(() => _selectedClass = v),
                             ),
                           ),
                         ],
@@ -155,7 +157,9 @@ class _ResultsPageState extends State<ResultsPage> {
                             child: TextFormField(
                               controller: _rollController,
                               decoration: const InputDecoration(
-                                  hintText: 'Roll Number'),
+                                labelText: 'Roll Number',
+                                border: OutlineInputBorder(),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -164,6 +168,9 @@ class _ResultsPageState extends State<ResultsPage> {
                             icon: const Icon(Icons.search, size: 18),
                             label: const Text('Search'),
                             style: ElevatedButton.styleFrom(
+                              backgroundColor: PublicColors.navy,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 28, vertical: 16),
                             ),
@@ -183,9 +190,10 @@ class _ResultsPageState extends State<ResultsPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: PublicColors.error.withOpacity(0.07),
+                      color: PublicColors.error.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: PublicColors.error.withOpacity(0.3)),
+                          color: PublicColors.error.withValues(alpha: 0.3)),
                     ),
                     child: Row(children: [
                       const Icon(Icons.error_outline,
@@ -229,7 +237,20 @@ class _ResultsPageState extends State<ResultsPage> {
     final pass = _resultItems.every((row) => row['isPassed'] == true);
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 700),
+      constraints: const BoxConstraints(maxWidth: 720),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A101828),
+            blurRadius: 18,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(children: [
         // Header
         Container(
@@ -308,7 +329,10 @@ class _ResultsPageState extends State<ResultsPage> {
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                color: pass ? PublicColors.success : PublicColors.error,
+                decoration: BoxDecoration(
+                  color: pass ? PublicColors.success : PublicColors.error,
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 child: Text(pass ? 'PASS' : 'FAIL',
                     style: GoogleFonts.nunitoSans(
                         color: Colors.white,

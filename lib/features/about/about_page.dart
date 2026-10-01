@@ -87,7 +87,17 @@ class _MissionVisionSection extends StatelessWidget {
 
   Widget _timeline(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(gradient: PublicColors.heroGradient),
+      decoration: BoxDecoration(
+        gradient: PublicColors.heroGradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A0F172A),
+            blurRadius: 20,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.all(32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +131,7 @@ class _MissionVisionSection extends StatelessWidget {
                           Container(
                               width: 2,
                               height: 40,
-                              color: PublicColors.gold.withOpacity(0.2)),
+                              color: PublicColors.gold.withValues(alpha: 0.2)),
                       ],
                     ),
                     const SizedBox(width: 16),
@@ -138,7 +148,7 @@ class _MissionVisionSection extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(event.text,
                               style: GoogleFonts.nunitoSans(
-                                color: Colors.white.withOpacity(0.75),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 14,
                               )),
                         ],

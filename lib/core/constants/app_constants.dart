@@ -126,6 +126,25 @@ class SchoolConstants {
     'Moral Science',
   ];
 
+  /// Standard fee components / heads in master data.
+  static const List<String> masterFeeComponents = [
+    'Tuition Fee',
+    'Admission Fee',
+    'Exam Fee',
+    'Transport Fee',
+    'Development Fee',
+    'Computer Fee',
+    'Library Fee',
+    'Sports Fee',
+    'Laboratory Fee',
+    'Activity Fee',
+    'Annual Fee',
+    'Hostel Fee',
+    'Communication Fee',
+    'Uniform Fee',
+    'Miscellaneous Fee',
+  ];
+
   /// Full flat list of all class+section combinations as stored in MongoDB.
   /// Pre-primary classes appear once (no section).
   /// Class 1–12 appear twice (one entry per section).

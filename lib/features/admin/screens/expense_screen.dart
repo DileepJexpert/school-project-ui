@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
 
@@ -25,6 +26,10 @@ class _ExpenseScreenState extends State<ExpenseScreen>
   bool     _loading     = true;
   String   _eError      = '';
   DateTime? _filterMonth; // null = show all
+  String   _searchQuery = '';
+  String?  _selectedCategory; // null = show all
+  String   _sortBy      = 'date_desc'; // date_desc, date_asc, amount_desc, amount_asc
+  final    _searchCtrl  = TextEditingController();
 
   // ── Monthly Report tab ────────────────────────────────────────────────
   DateTime      _rMonth    = DateTime.now();
@@ -53,6 +58,56 @@ class _ExpenseScreenState extends State<ExpenseScreen>
     'Others':         AppColors.textSecondary,
   };
 
+  static const _catIcons = <String, IconData>{
+    'Salaries':       Icons.payments_outlined,
+    'Infrastructure': Icons.domain_outlined,
+    'Utilities':      Icons.bolt_outlined,
+    'Events':         Icons.celebration_outlined,
+    'Maintenance':    Icons.build_outlined,
+    'Stationery':     Icons.edit_note_outlined,
+    'Transport':      Icons.directions_bus_outlined,
+    'IT & Software':  Icons.devices_outlined,
+    'Others':         Icons.more_horiz_outlined,
+  };
+
+  IconData _catIcon(String cat) =>
+      _catIcons[cat] ?? Icons.receipt_long_outlined;
+
+  List<Expense> get _filteredExpenses {
+    final list = _expenses.where((e) {
+      if (_selectedCategory != null && e.category != _selectedCategory) {
+        return false;
+      }
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matchTitle = e.title.toLowerCase().contains(q);
+        final matchPayee = e.paidTo.toLowerCase().contains(q);
+        final matchRemarks = (e.remarks ?? '').toLowerCase().contains(q);
+        final matchCat = e.category.toLowerCase().contains(q);
+        if (!matchTitle && !matchPayee && !matchRemarks && !matchCat) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+
+    list.sort((a, b) {
+      switch (_sortBy) {
+        case 'amount_desc':
+          return b.amount.compareTo(a.amount);
+        case 'amount_asc':
+          return a.amount.compareTo(b.amount);
+        case 'date_asc':
+          return a.date.compareTo(b.date);
+        case 'date_desc':
+        default:
+          return b.date.compareTo(a.date);
+      }
+    });
+
+    return list;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +118,7 @@ class _ExpenseScreenState extends State<ExpenseScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -108,149 +164,506 @@ class _ExpenseScreenState extends State<ExpenseScreen>
     _fetchExpenses();
   }
 
-  Future<void> _showAddDialog() async {
-    final titleCtrl   = TextEditingController();
-    final paidToCtrl  = TextEditingController();
-    final amountCtrl  = TextEditingController();
-    final remarksCtrl = TextEditingController();
-    String? category;
-    DateTime date = DateTime.now();
+  Future<void> _showAddDialog() => _showExpenseFormDialog();
+
+  Future<void> _showExpenseFormDialog({Expense? expenseToEdit}) async {
+    final isEditing = expenseToEdit != null;
+    final titleCtrl   = TextEditingController(text: expenseToEdit?.title ?? '');
+    final paidToCtrl  = TextEditingController(text: expenseToEdit?.paidTo ?? '');
+    final amountCtrl  = TextEditingController(
+      text: expenseToEdit != null
+          ? (expenseToEdit.amount.truncateToDouble() == expenseToEdit.amount
+              ? expenseToEdit.amount.toInt().toString()
+              : expenseToEdit.amount.toString())
+          : '',
+    );
+    final remarksCtrl = TextEditingController(text: expenseToEdit?.remarks ?? '');
+    String? category = expenseToEdit?.category;
+    DateTime date = expenseToEdit?.date ?? DateTime.now();
+    bool isSaving = false;
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlg) => AlertDialog(
-          title: Text('Add Expense',
-              style: GoogleFonts.cormorantGaramond(
-                  fontWeight: FontWeight.w700, fontSize: 22)),
-          content: SizedBox(
-            width: 440,
+        builder: (ctx, setDlg) => Dialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
+          backgroundColor: Colors.white,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
             child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextField(
-                  controller: titleCtrl,
-                  decoration: const InputDecoration(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Dialog Header
+                  Row(children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: (isEditing ? AppColors.info : AppColors.navy)
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        isEditing ? Icons.edit_note_rounded : Icons.receipt_long_rounded,
+                        color: isEditing ? AppColors.info : AppColors.navy,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isEditing ? 'Edit School Expense' : 'Add School Expense',
+                            style: GoogleFonts.cormorantGaramond(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 22,
+                                color: AppColors.navy),
+                          ),
+                          Text(
+                            isEditing
+                                ? 'Update payment record details or remarks'
+                                : 'Record outgoings, vendor bills, or utility payments',
+                            style: GoogleFonts.nunitoSans(
+                                color: AppColors.textSecondary,
+                                fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
+                      onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                    ),
+                  ]),
+                  const SizedBox(height: 20),
+                  const Divider(height: 1, color: AppColors.border),
+                  const SizedBox(height: 20),
+
+                  // Title field
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
                       labelText: 'Expense Title *',
-                      border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: category,
-                  decoration: const InputDecoration(
-                      labelText: 'Category *',
-                      border: OutlineInputBorder()),
-                  items: _categories
-                      .map((c) =>
-                          DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (v) => setDlg(() => category = v),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amountCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Amount (₹) *',
-                      border: OutlineInputBorder()),
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: paidToCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Paid To *',
-                      border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: Text('Date: ${_dateFmt.format(date)}',
-                        style: GoogleFonts.nunitoSans(
-                            color: AppColors.textSecondary)),
+                      hintText: 'e.g., Science Lab Equipment, Diesel, Staff Salary',
+                      prefixIcon: const Icon(Icons.edit_outlined, size: 20),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                    ),
                   ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.calendar_today_outlined,
-                        size: 16),
-                    label: const Text('Change'),
-                    onPressed: () async {
-                      final p = await showDatePicker(
-                        context: ctx,
-                        initialDate: date,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now(),
+                  const SizedBox(height: 16),
+
+                  // Category dropdown
+                  SearchableDropdownFormField<String>(
+                    labelText: 'Category *',
+                    hintText: 'Select or search category…',
+                    initialValue: category,
+                    items: _categories,
+                    onChanged: (v) => setDlg(() => category = v),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Quick Category chips
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: _categories.take(6).map((cat) {
+                      final selected = category == cat;
+                      final col = _catColor(cat);
+                      return ChoiceChip(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_catIcon(cat), size: 13,
+                                color: selected ? Colors.white : col),
+                            const SizedBox(width: 4),
+                            Text(cat, style: GoogleFonts.nunitoSans(fontSize: 11)),
+                          ],
+                        ),
+                        selected: selected,
+                        selectedColor: col,
+                        backgroundColor: col.withValues(alpha: 0.08),
+                        labelStyle: TextStyle(
+                            color: selected ? Colors.white : AppColors.textPrimary,
+                            fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+                        onSelected: (val) {
+                          setDlg(() => category = val ? cat : null);
+                        },
                       );
-                      if (p != null) setDlg(() => date = p);
-                    },
+                    }).toList(),
                   ),
-                ]),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: remarksCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Remarks',
-                      border: OutlineInputBorder()),
-                  maxLines: 2,
-                ),
-              ]),
+                  const SizedBox(height: 16),
+
+                  // Amount and Paid To row
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(
+                      child: TextField(
+                        controller: amountCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Amount (₹) *',
+                          hintText: '0.00',
+                          prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 20),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                        ),
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: TextField(
+                        controller: paidToCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Paid To *',
+                          hintText: 'e.g., Ramesh Sharma, BESCOM',
+                          prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                        ),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  // Date selector
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                      color: AppColors.creamDark,
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 18, color: AppColors.navy),
+                      const SizedBox(width: 10),
+                      Text('Payment Date: ',
+                          style: GoogleFonts.nunitoSans(
+                              color: AppColors.textSecondary, fontSize: 13)),
+                      Text(_dateFmt.format(date),
+                          style: GoogleFonts.nunitoSans(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                              fontSize: 13)),
+                      const Spacer(),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.edit_calendar_outlined, size: 15),
+                        label: const Text('Change Date'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.navy,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          side: const BorderSide(color: AppColors.border),
+                        ),
+                        onPressed: () async {
+                          final p = await showDatePicker(
+                            context: ctx,
+                            initialDate: date,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                            builder: _dpTheme,
+                          );
+                          if (p != null) setDlg(() => date = p);
+                        },
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Remarks
+                  TextField(
+                    controller: remarksCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Remarks / Invoice No. (Optional)',
+                      hintText: 'e.g., Bill #4092, Paid via UPI',
+                      prefixIcon: const Icon(Icons.notes_rounded, size: 20),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Actions
+                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    TextButton(
+                      onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.navy,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                      ),
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                              if (titleCtrl.text.trim().isEmpty ||
+                                  category == null ||
+                                  amountCtrl.text.trim().isEmpty ||
+                                  paidToCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Please fill all required fields.')),
+                                );
+                                return;
+                              }
+                              setDlg(() => isSaving = true);
+                              final expense = Expense(
+                                id:       expenseToEdit?.id,
+                                title:    titleCtrl.text.trim(),
+                                category: category!,
+                                amount:
+                                    double.tryParse(amountCtrl.text.trim()) ?? 0.0,
+                                date:     date,
+                                paidTo:   paidToCtrl.text.trim(),
+                                remarks:  remarksCtrl.text.trim().isEmpty
+                                    ? null
+                                    : remarksCtrl.text.trim(),
+                              );
+                              try {
+                                if (isEditing && expenseToEdit.id != null) {
+                                  await FeeApiService.updateExpense(
+                                      expenseToEdit.id!, expense);
+                                } else {
+                                  await FeeApiService.addExpense(expense);
+                                }
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                _fetchExpenses();
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(isEditing
+                                            ? 'Expense updated successfully!'
+                                            : 'Expense added successfully!'),
+                                        backgroundColor: AppColors.success),
+                                  );
+                                }
+                              } catch (e) {
+                                setDlg(() => isSaving = false);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text('Failed: $e'),
+                                        backgroundColor: AppColors.error),
+                                  );
+                                }
+                              }
+                            },
+                      icon: isSaving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check_rounded, size: 18),
+                      label: Text(isSaving
+                          ? (isEditing ? 'Updating…' : 'Saving…')
+                          : (isEditing ? 'Update Expense' : 'Save Expense')),
+                    ),
+                  ]),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navy,
-                  foregroundColor: Colors.white),
-              onPressed: () async {
-                if (titleCtrl.text.trim().isEmpty ||
-                    category == null ||
-                    amountCtrl.text.trim().isEmpty ||
-                    paidToCtrl.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Fill all required fields.')),
-                  );
-                  return;
-                }
-                final expense = Expense(
-                  title:    titleCtrl.text.trim(),
-                  category: category!,
-                  amount:
-                      double.tryParse(amountCtrl.text.trim()) ?? 0.0,
-                  date:     date,
-                  paidTo:   paidToCtrl.text.trim(),
-                  remarks:  remarksCtrl.text.trim().isEmpty
-                      ? null
-                      : remarksCtrl.text.trim(),
-                );
-                try {
-                  await FeeApiService.addExpense(expense);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  _fetchExpenses();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Expense added!'),
-                          backgroundColor: AppColors.success),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Failed: $e'),
-                          backgroundColor: AppColors.error),
-                    );
-                  }
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
         ),
       ),
     );
+  }
+
+  Future<void> _showViewDialog(Expense expense) async {
+    final col = _catColor(expense.category);
+    final icon = _catIcon(expense.category);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
+        backgroundColor: Colors.white,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Voucher Header
+                Row(children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: col.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: col.withValues(alpha: 0.25)),
+                    ),
+                    child: Icon(icon, color: col, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Expense Voucher',
+                            style: GoogleFonts.cormorantGaramond(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 22,
+                                color: AppColors.navy)),
+                        Text(
+                          expense.id != null
+                              ? 'Ref: #${expense.id!.length > 8 ? expense.id!.substring(0, 8) : expense.id!}'
+                              : 'Official School Outgoing Record',
+                          style: GoogleFonts.nunitoSans(
+                              color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ]),
+                const SizedBox(height: 18),
+                const Divider(height: 1, color: AppColors.border),
+                const SizedBox(height: 18),
+
+                // Amount Banner
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.creamDark,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Amount Paid',
+                            style: GoogleFonts.nunitoSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary)),
+                        const SizedBox(height: 2),
+                        Text(_currency.format(expense.amount),
+                            style: GoogleFonts.cormorantGaramond(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.error)),
+                      ]),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: col.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: col.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(icon, size: 14, color: col),
+                          const SizedBox(width: 5),
+                          Text(expense.category,
+                              style: GoogleFonts.nunitoSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: col)),
+                        ]),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Details Rows
+                _voucherRow('Title / Purpose', expense.title, Icons.description_outlined),
+                const SizedBox(height: 12),
+                _voucherRow('Beneficiary / Paid To', expense.paidTo, Icons.business_outlined),
+                const SizedBox(height: 12),
+                _voucherRow('Payment Date', _dateFmt.format(expense.date), Icons.calendar_today_outlined),
+                if (expense.remarks != null && expense.remarks!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _voucherRow('Remarks / Invoice', expense.remarks!, Icons.sticky_note_2_outlined),
+                ],
+                const SizedBox(height: 24),
+
+                // Actions: Delete, Close, Edit
+                Row(children: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _delete(expense);
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                    label: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.error),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Close'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showExpenseFormDialog(expenseToEdit: expense);
+                    },
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit Expense'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.navy,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _voucherRow(String label, String value, IconData icon) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 16, color: AppColors.textLight),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary)),
+          const SizedBox(height: 1),
+          Text(value,
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
+        ]),
+      ),
+    ]);
   }
 
   Future<void> _delete(Expense expense) async {
@@ -361,7 +774,7 @@ class _ExpenseScreenState extends State<ExpenseScreen>
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Page header ─────────────────────────────────────────────
         Row(children: [
@@ -370,7 +783,7 @@ class _ExpenseScreenState extends State<ExpenseScreen>
                 children: [
               Text('Expenses',
                   style: GoogleFonts.cormorantGaramond(
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.w700,
                       color: AppColors.navy)),
               Text('Track salaries, purchases and all school outgoings',
@@ -386,35 +799,42 @@ class _ExpenseScreenState extends State<ExpenseScreen>
                 backgroundColor: AppColors.navy,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12)),
+                    horizontal: 18, vertical: 10)),
           ),
         ]),
-        const SizedBox(height: 16),
-        // ── Tab bar ────────────────────────────────────────────────
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.creamDark,
-            borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            indicator: BoxDecoration(
-              color: AppColors.navy,
-              borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        const SizedBox(height: 12),
+        // ── Tab bar (Segmented pill) ────────────────────────────────
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            width: 300,
+            height: 38,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: AppColors.creamDark,
+              borderRadius: BorderRadius.circular(20),
             ),
-            labelColor: Colors.white,
-            unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: GoogleFonts.nunitoSans(
-                fontWeight: FontWeight.w700, fontSize: 13),
-            unselectedLabelStyle: GoogleFonts.nunitoSans(fontSize: 13),
-            dividerColor: Colors.transparent,
-            tabs: const [
-              Tab(text: 'Expenses'),
-              Tab(text: 'Monthly Report'),
-            ],
+            child: TabBar(
+              controller: _tabController,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                color: AppColors.navy,
+                borderRadius: BorderRadius.circular(17),
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: AppColors.textSecondary,
+              labelStyle: GoogleFonts.nunitoSans(
+                  fontWeight: FontWeight.w700, fontSize: 13),
+              unselectedLabelStyle: GoogleFonts.nunitoSans(fontSize: 13),
+              dividerColor: Colors.transparent,
+              tabs: const [
+                Tab(text: 'Expenses'),
+                Tab(text: 'Monthly Report'),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Expanded(
           child: TabBarView(
             controller: _tabController,
@@ -453,22 +873,148 @@ class _ExpenseScreenState extends State<ExpenseScreen>
       );
     }
 
-    final total = _expenses.fold<double>(0, (s, e) => s + e.amount);
+    final filtered = _filteredExpenses;
+    final totalFiltered = filtered.fold<double>(0, (s, e) => s + e.amount);
 
-    return Column(children: [
-      // ── Filter + total bar ───────────────────────────────────────
+    // Category breakdown maps
+    final Map<String, int> catCounts = {};
+    final Map<String, double> catTotals = {};
+    for (final e in _expenses) {
+      catCounts[e.category] = (catCounts[e.category] ?? 0) + 1;
+      catTotals[e.category] = (catTotals[e.category] ?? 0) + e.amount;
+    }
+
+    // Top Category
+    String? topCategory;
+    double topCategoryAmount = 0;
+    catTotals.forEach((cat, amt) {
+      if (amt > topCategoryAmount) {
+        topCategoryAmount = amt;
+        topCategory = cat;
+      }
+    });
+
+    final hasActiveFilter =
+        _selectedCategory != null || _searchQuery.isNotEmpty || _filterMonth != null;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // ── 1. Summary Metrics Cards ──────────────────────────────────
+      LayoutBuilder(builder: (ctx, constraints) {
+        final isWide = constraints.maxWidth > 720;
+        final metrics = [
+          _buildMetricCard(
+            label: _selectedCategory != null
+                ? '$_selectedCategory Spend'
+                : 'Total Spend',
+            value: _currency.format(totalFiltered),
+            subtitle: _filterMonth != null
+                ? _monthLabel(_filterMonth!)
+                : '${filtered.length} transactions',
+            icon: Icons.trending_down_rounded,
+            color: AppColors.error,
+          ),
+          _buildMetricCard(
+            label: 'Transactions',
+            value: '${filtered.length}',
+            subtitle: _expenses.length == filtered.length
+                ? 'Total recorded'
+                : 'Filtered from ${_expenses.length}',
+            icon: Icons.receipt_long_outlined,
+            color: AppColors.navy,
+          ),
+          _buildMetricCard(
+            label: 'Top Category',
+            value: topCategory ?? 'None',
+            subtitle: topCategoryAmount > 0
+                ? _currency.format(topCategoryAmount)
+                : 'No data',
+            icon: _catIcon(topCategory ?? 'Others'),
+            color: _catColor(topCategory ?? 'Others'),
+          ),
+          _buildMetricCard(
+            label: 'Average / Item',
+            value: filtered.isNotEmpty
+                ? _currency.format(totalFiltered / filtered.length)
+                : '₹0',
+            subtitle: 'Average transaction size',
+            icon: Icons.query_stats_rounded,
+            color: AppColors.info,
+          ),
+        ];
+
+        if (isWide) {
+          return Row(
+            children: metrics
+                .map((m) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: m,
+                      ),
+                    ))
+                .toList(),
+          );
+        }
+        return GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 2.3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          children: metrics,
+        );
+      }),
+      const SizedBox(height: 16),
+
+      // ── 2. Search & Filter Bar ────────────────────────────────────
       Row(children: [
+        // Search textfield
+        Expanded(
+          flex: 3,
+          child: Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              style: GoogleFonts.nunitoSans(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Search by title, payee, or notes…',
+                hintStyle: GoogleFonts.nunitoSans(
+                    fontSize: 13, color: AppColors.textLight),
+                prefixIcon: const Icon(Icons.search,
+                    size: 18, color: AppColors.textSecondary),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 16),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+
+        // Month Picker Chip
         InkWell(
           onTap: _pickFilterMonth,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
-              color: _filterMonth != null
-                  ? AppColors.navy
-                  : AppColors.creamDark,
-              borderRadius: BorderRadius.circular(20),
+              color: _filterMonth != null ? AppColors.navy : Colors.white,
+              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
               border: Border.all(
                   color: _filterMonth != null
                       ? AppColors.navy
@@ -480,126 +1026,567 @@ class _ExpenseScreenState extends State<ExpenseScreen>
                   color: _filterMonth != null
                       ? Colors.white
                       : AppColors.textSecondary),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Text(
                 _filterMonth != null
                     ? _monthLabel(_filterMonth!)
-                    : 'All months',
+                    : 'All Months',
                 style: GoogleFonts.nunitoSans(
                     fontSize: 13,
+                    fontWeight: FontWeight.w600,
                     color: _filterMonth != null
                         ? Colors.white
-                        : AppColors.textSecondary),
+                        : AppColors.textPrimary),
               ),
               if (_filterMonth != null) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
                 GestureDetector(
                   onTap: _clearFilter,
-                  child: const Icon(Icons.close,
-                      size: 14, color: Colors.white),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
                 ),
               ],
             ]),
           ),
         ),
-        const Spacer(),
-        Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.error.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-            border:
-                Border.all(color: AppColors.error.withOpacity(0.3)),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.trending_down_rounded,
-                size: 16, color: AppColors.error),
-            const SizedBox(width: 6),
-            Text('Total: ${_currency.format(total)}',
+        const SizedBox(width: 10),
+
+        // Sort popup
+        PopupMenuButton<String>(
+          initialValue: _sortBy,
+          tooltip: 'Sort Expenses',
+          onSelected: (val) => setState(() => _sortBy = val),
+          itemBuilder: (ctx) => const [
+            PopupMenuItem(value: 'date_desc', child: Text('Date: Newest first')),
+            PopupMenuItem(value: 'date_asc', child: Text('Date: Oldest first')),
+            PopupMenuItem(value: 'amount_desc', child: Text('Amount: High to Low')),
+            PopupMenuItem(value: 'amount_asc', child: Text('Amount: Low to High')),
+          ],
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.sort_rounded, size: 16, color: AppColors.navy),
+              const SizedBox(width: 6),
+              Text(
+                _sortLabel(_sortBy),
                 style: GoogleFonts.nunitoSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.error)),
-          ]),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary),
+              ),
+              const Icon(Icons.arrow_drop_down,
+                  size: 18, color: AppColors.textSecondary),
+            ]),
+          ),
         ),
+
+        // Reset Filter Action
+        if (hasActiveFilter) ...[
+          const SizedBox(width: 10),
+          TextButton.icon(
+            onPressed: () {
+              _searchCtrl.clear();
+              setState(() {
+                _searchQuery = '';
+                _selectedCategory = null;
+                _filterMonth = null;
+              });
+              _fetchExpenses();
+            },
+            icon: const Icon(Icons.filter_alt_off_outlined, size: 15),
+            label: const Text('Reset'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+              textStyle: GoogleFonts.nunitoSans(
+                  fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ]),
       const SizedBox(height: 12),
-      // ── Expense list ─────────────────────────────────────────────
+
+      // ── 3. Horizontal Category Filter Pills ───────────────────────
+      SizedBox(
+        height: 38,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            // "All" chip
+            _buildCategoryFilterChip(
+              label: 'All Categories',
+              count: _expenses.length,
+              icon: Icons.dashboard_outlined,
+              color: AppColors.navy,
+              isSelected: _selectedCategory == null,
+              onTap: () => setState(() => _selectedCategory = null),
+            ),
+            const SizedBox(width: 8),
+
+            // Individual category chips
+            ..._categories.map((cat) {
+              final isSel = _selectedCategory == cat;
+              final col = _catColor(cat);
+              final icon = _catIcon(cat);
+              final count = catCounts[cat] ?? 0;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _buildCategoryFilterChip(
+                  label: cat,
+                  count: count,
+                  icon: icon,
+                  color: col,
+                  isSelected: isSel,
+                  onTap: () {
+                    setState(() {
+                      _selectedCategory = isSel ? null : cat;
+                    });
+                  },
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+      const SizedBox(height: 14),
+
+      // ── 4. Expense List View ──────────────────────────────────────
       Expanded(
-        child: _expenses.isEmpty
+        child: filtered.isEmpty
             ? Center(
-                child: Column(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.paid_outlined,
-                          size: 60, color: AppColors.textLight),
-                      const SizedBox(height: 12),
-                      Text('No expenses recorded yet.',
-                          style: GoogleFonts.nunitoSans(
-                              color: AppColors.textSecondary)),
-                      const SizedBox(height: 8),
-                      Text('Tap "Add Expense" to get started.',
-                          style: GoogleFonts.nunitoSans(
-                              color: AppColors.textLight, fontSize: 12)),
-                    ]))
-            : ListView.separated(
-                itemCount: _expenses.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(height: 6),
-                itemBuilder: (_, i) {
-                  final e   = _expenses[i];
-                  final col = _catColor(e.category);
-                  return Card(
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                            AppSizes.radiusLG)),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: col.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(
-                              AppSizes.radiusMD),
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: const BoxDecoration(
+                          color: AppColors.creamDark,
+                          shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.paid_outlined,
-                            color: col, size: 22),
+                        child: Icon(
+                          hasActiveFilter
+                              ? Icons.filter_list_off_rounded
+                              : Icons.receipt_long_outlined,
+                          size: 28,
+                          color: AppColors.textLight,
+                        ),
                       ),
-                      title: Text(e.title,
-                          style: GoogleFonts.nunitoSans(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary)),
-                      subtitle: Text(
-                        '${e.category}  ·  ${e.paidTo}'
-                        '  ·  ${_dateFmt.format(e.date)}',
+                      const SizedBox(height: 10),
+                      Text(
+                        hasActiveFilter
+                            ? 'No expenses match your filters'
+                            : 'No expenses recorded yet',
+                        style: GoogleFonts.cormorantGaramond(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        hasActiveFilter
+                            ? 'Try clearing search terms or selecting another category.'
+                            : 'Click "Add Expense" above to record your first operational expense.',
                         style: GoogleFonts.nunitoSans(
-                            color: AppColors.textSecondary,
-                            fontSize: 12),
+                            color: AppColors.textSecondary, fontSize: 12),
+                        textAlign: TextAlign.center,
                       ),
-                      trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(_currency.format(e.amount),
-                                style: GoogleFonts.cormorantGaramond(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.error)),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: AppColors.error, size: 18),
-                              onPressed: () => _delete(e),
+                      if (hasActiveFilter) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.refresh_rounded, size: 14),
+                          label: const Text('Clear All Filters'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.navy,
+                            side: const BorderSide(color: AppColors.navy),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            textStyle: GoogleFonts.nunitoSans(
+                                fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() {
+                              _searchQuery = '';
+                              _selectedCategory = null;
+                              _filterMonth = null;
+                            });
+                            _fetchExpenses();
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              )
+            : ListView.separated(
+                itemCount: filtered.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) {
+                  final e = filtered[i];
+                  final col = _catColor(e.category);
+                  final icon = _catIcon(e.category);
+
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _showViewDialog(e),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+                          border: Border.all(color: AppColors.border),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
                             ),
-                          ]),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Squircle category icon
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: col.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: col.withValues(alpha: 0.25), width: 1),
+                                ),
+                                child: Icon(icon, color: col, size: 24),
+                              ),
+                              const SizedBox(width: 14),
+
+                              // Title, tags & details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(children: [
+                                      Expanded(
+                                        child: Text(
+                                          e.title,
+                                          style: GoogleFonts.nunitoSans(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              color: AppColors.textPrimary),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      // Category Pill
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: col.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                              color: col.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: BoxDecoration(
+                                                color: col,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              e.category,
+                                              style: GoogleFonts.nunitoSans(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: col),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ]),
+                                    const SizedBox(height: 6),
+
+                                    // Payee & Date metadata
+                                    Row(children: [
+                                      Icon(Icons.business_outlined,
+                                          size: 13,
+                                          color: AppColors.textSecondary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Paid to: ${e.paidTo}',
+                                        style: GoogleFonts.nunitoSans(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Icon(Icons.calendar_today_outlined,
+                                          size: 12,
+                                          color: AppColors.textSecondary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _dateFmt.format(e.date),
+                                        style: GoogleFonts.nunitoSans(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary),
+                                      ),
+                                    ]),
+
+                                    // Optional remarks preview
+                                    if (e.remarks != null &&
+                                        e.remarks!.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.creamDark,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                                Icons.sticky_note_2_outlined,
+                                                size: 12,
+                                                color: AppColors.textSecondary),
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(
+                                                e.remarks!,
+                                                style: GoogleFonts.nunitoSans(
+                                                    fontSize: 11,
+                                                    fontStyle: FontStyle.italic,
+                                                    color:
+                                                        AppColors.textSecondary),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+
+                              // Amount and Action buttons (View, Edit, Delete)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _currency.format(e.amount),
+                                    style: GoogleFonts.cormorantGaramond(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.error),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.visibility_outlined,
+                                            color: AppColors.textSecondary, size: 17),
+                                        tooltip: 'View Voucher',
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _showViewDialog(e),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined,
+                                            color: AppColors.navy, size: 17),
+                                        tooltip: 'Edit Expense',
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () =>
+                                            _showExpenseFormDialog(expenseToEdit: e),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline_rounded,
+                                            color: AppColors.error, size: 17),
+                                        tooltip: 'Delete Expense',
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _delete(e),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },
               ),
       ),
     ]);
+  }
+
+  // ── Helper Widgets for Expenses Tab ─────────────────────────────────
+
+  Widget _buildMetricCard({
+    required String label,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(label,
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary),
+                  overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 1),
+              Text(value,
+                  style: GoogleFonts.cormorantGaramond(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary),
+                  overflow: TextOverflow.ellipsis),
+              Text(subtitle,
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 10, color: AppColors.textLight),
+                  overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildCategoryFilterChip({
+    required String label,
+    required int count,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : AppColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 14, color: isSelected ? Colors.white : color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.nunitoSans(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              color: isSelected ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Colors.white.withValues(alpha: 0.25)
+                  : AppColors.creamDark,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: GoogleFonts.nunitoSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  String _sortLabel(String sort) {
+    switch (sort) {
+      case 'date_asc':
+        return 'Oldest first';
+      case 'amount_desc':
+        return 'Amount: High';
+      case 'amount_asc':
+        return 'Amount: Low';
+      case 'date_desc':
+      default:
+        return 'Newest first';
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -800,12 +1787,16 @@ class _ExpenseScreenState extends State<ExpenseScreen>
                     horizontal: 16, vertical: 14),
                 child: Row(children: [
                   Container(
-                    width: 10,
-                    height: 10,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
-                        color: col, shape: BoxShape.circle),
+                      color: col.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: col.withValues(alpha: 0.2)),
+                    ),
+                    child: Icon(_catIcon(entry.key), color: col, size: 18),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     flex: 2,
                     child: Text(entry.key,
@@ -822,7 +1813,7 @@ class _ExpenseScreenState extends State<ExpenseScreen>
                         child: LinearProgressIndicator(
                           value: pct,
                           minHeight: 7,
-                          backgroundColor: col.withOpacity(0.12),
+                          backgroundColor: col.withValues(alpha: 0.12),
                           valueColor:
                               AlwaysStoppedAnimation<Color>(col),
                         ),
@@ -869,9 +1860,9 @@ class _ExpenseScreenState extends State<ExpenseScreen>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

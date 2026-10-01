@@ -121,11 +121,25 @@ class AppTheme {
         elevation: 0,
         color: palette.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-          side: BorderSide(color: palette.border, width: 1),
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: palette.border.withValues(alpha: 0.8), width: 1),
         ),
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: palette.surface,
+        elevation: 10,
+        shadowColor: const Color(0x26101828),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: palette.border.withValues(alpha: 0.7)),
+        ),
+        titleTextStyle: GoogleFonts.poppins(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -135,7 +149,7 @@ class AppTheme {
           minimumSize: const Size(0, 42),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+            borderRadius: BorderRadius.circular(10),
           ),
           textStyle: GoogleFonts.nunitoSans(
             fontSize: 14,
@@ -151,10 +165,10 @@ class AppTheme {
           minimumSize: const Size(0, 42),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+            borderRadius: BorderRadius.circular(10),
           ),
           textStyle: GoogleFonts.nunitoSans(
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
@@ -164,17 +178,17 @@ class AppTheme {
         filled: true,
         fillColor: palette.surface,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+          borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: palette.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+          borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: palette.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+          borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: palette.brand, width: 1.5),
         ),
         hintStyle: GoogleFonts.nunitoSans(
@@ -203,13 +217,7 @@ class AppTheme {
           color: AppColors.textPrimary,
         ),
       ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: palette.surface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-        ),
-      ),
+
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.navyDark,

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../services/video_api_service.dart';
 
 class VideoManagementScreen extends StatefulWidget {
@@ -77,40 +78,22 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                         onChanged: (v) => title = v,
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          labelText: 'Class *',
-                          labelStyle: GoogleFonts.poppins(fontSize: 13),
-                          border: const OutlineInputBorder(),
-                        ),
-                        items: SchoolConstants.allClasses
-                            .map((c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c,
-                                    style:
-                                        GoogleFonts.poppins(fontSize: 13))))
-                            .toList(),
+                      SearchableDropdownFormField<String>(
+                        labelText: 'Class *',
+                        hintText: 'Select or type class…',
+                        initialValue: selectedClass,
+                        items: SchoolConstants.allClasses,
                         onChanged: (v) =>
                             setDialogState(() => selectedClass = v),
-                        value: selectedClass,
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          labelText: 'Subject *',
-                          labelStyle: GoogleFonts.poppins(fontSize: 13),
-                          border: const OutlineInputBorder(),
-                        ),
-                        items: SchoolConstants.commonSubjects
-                            .map((s) => DropdownMenuItem(
-                                value: s,
-                                child: Text(s,
-                                    style:
-                                        GoogleFonts.poppins(fontSize: 13))))
-                            .toList(),
+                      SearchableDropdownFormField<String>(
+                        labelText: 'Subject *',
+                        hintText: 'Select or type subject…',
+                        initialValue: selectedSubject,
+                        items: SchoolConstants.commonSubjects,
                         onChanged: (v) =>
                             setDialogState(() => selectedSubject = v),
-                        value: selectedSubject,
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -346,59 +329,27 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
                   runSpacing: 8,
                   children: [
                     SizedBox(
-                      width: 180,
-                      child: DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          labelText: 'Filter by Class',
-                          labelStyle: GoogleFonts.poppins(fontSize: 12),
-                          border: const OutlineInputBorder(),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                        ),
-                        value: _filterClass,
-                        items: [
-                          DropdownMenuItem(
-                              value: null,
-                              child: Text('All Classes',
-                                  style: GoogleFonts.poppins(fontSize: 13))),
-                          ...SchoolConstants.allClasses.map((c) =>
-                              DropdownMenuItem(
-                                  value: c,
-                                  child: Text(c,
-                                      style:
-                                          GoogleFonts.poppins(fontSize: 13)))),
-                        ],
+                      width: 200,
+                      child: SearchableDropdownFormField<String>(
+                        labelText: 'Filter by Class',
+                        hintText: 'All Classes',
+                        initialValue: _filterClass ?? 'All Classes',
+                        items: ['All Classes', ...SchoolConstants.allClasses],
                         onChanged: (v) {
-                          setState(() => _filterClass = v);
+                          setState(() => _filterClass = (v == null || v == 'All Classes') ? null : v);
                           _loadVideos();
                         },
                       ),
                     ),
                     SizedBox(
-                      width: 180,
-                      child: DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          labelText: 'Filter by Subject',
-                          labelStyle: GoogleFonts.poppins(fontSize: 12),
-                          border: const OutlineInputBorder(),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                        ),
-                        value: _filterSubject,
-                        items: [
-                          DropdownMenuItem(
-                              value: null,
-                              child: Text('All Subjects',
-                                  style: GoogleFonts.poppins(fontSize: 13))),
-                          ...SchoolConstants.commonSubjects.map((s) =>
-                              DropdownMenuItem(
-                                  value: s,
-                                  child: Text(s,
-                                      style:
-                                          GoogleFonts.poppins(fontSize: 13)))),
-                        ],
+                      width: 200,
+                      child: SearchableDropdownFormField<String>(
+                        labelText: 'Filter by Subject',
+                        hintText: 'All Subjects',
+                        initialValue: _filterSubject ?? 'All Subjects',
+                        items: ['All Subjects', ...SchoolConstants.commonSubjects],
                         onChanged: (v) {
-                          setState(() => _filterSubject = v);
+                          setState(() => _filterSubject = (v == null || v == 'All Subjects') ? null : v);
                           _loadVideos();
                         },
                       ),

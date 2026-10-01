@@ -249,49 +249,82 @@ class SchoolData {
           .toList();
 
 
-  static void _clearPreviewContent() {
-    AppStrings.schoolName = 'School';
-    AppStrings.schoolShortName = 'School';
-    AppStrings.tagline = '';
-    AppStrings.accreditation = '';
-    AppStrings.founded = '';
-    AppStrings.phone = '';
-    AppStrings.email = '';
-    AppStrings.address = '';
-    AppStrings.officeHours = '';
-    AppStrings.announcement = '';
-    principalName = '';
-    principalTitle = '';
+  static void _resetToDefaultContent({String? name}) {
+    final sName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'Rising Star Academy';
+    AppStrings.schoolName = sName;
+    AppStrings.schoolShortName = sName.split(' ').map((w) => w.isNotEmpty ? w[0] : '').join();
+    AppStrings.tagline = 'Nurturing Minds, Building Character, Inspiring Excellence';
+    AppStrings.accreditation = 'Affiliated to CBSE, New Delhi';
+    AppStrings.founded = '2008';
+    AppStrings.phone = '+91 98765 43210';
+    AppStrings.email = 'admissions@risingstar.edu.in';
+    AppStrings.address = 'Main Campus, Bengaluru - 560001';
+    AppStrings.officeHours = 'Mon - Sat: 8:00 AM - 4:00 PM';
+    AppStrings.announcement = 'Admissions open for Academic Year 2026–2027 from Nursery to Grade 12';
+    principalName = 'Dr. Radhakrishnan';
+    principalTitle = 'Principal';
     principalImagePath = '';
     heroBannerImagePath = '';
-    principalMessage = '';
-    mission = '';
-    vision = '';
-    admissionCtaTitle = '';
-    admissionCtaSubtitle = '';
-    feeStructureTitle = '';
-    feeStructureNote = '';
+    principalMessage =
+        'Welcome to $sName. We believe every child carries within them '
+        'the potential to change the world. We are dedicated to fostering academic excellence, moral integrity, and creative thinking.';
+    mission =
+        'To provide a holistic education that cultivates intellectual curiosity, ethical character, and global citizenship.';
+    vision =
+        'To be a beacon of academic excellence and character formation, shaping future leaders.';
+    admissionCtaTitle = 'Admissions Open for Academic Year 2026–2027';
+    admissionCtaSubtitle =
+        'Begin your child\'s transformative educational journey with us. Applications invited for Nursery to Grade 12.';
+    feeStructureTitle = 'Fee Structure';
+    feeStructureNote = '* Concessions and flexible installment plans available.';
     mapUrl = '';
     facebookUrl = '';
-    stats.clear();
-    coreValues.clear();
-    achievements.clear();
-    testimonials.clear();
-    events.clear();
-    notices.clear();
-    academicLevels.clear();
-    coCurriculars.clear();
-    feeStructure.clear();
-    admissionSteps.clear();
-    importantDates.clear();
-    forms.clear();
-    galleryCategories
-      ..clear()
-      ..add('All');
-    galleryImages.clear();
-    transportZones.clear();
-    transportFeatures.clear();
-    timeline.clear();
+
+    if (stats.isEmpty) {
+      stats.addAll([
+        StatItem(value: 'Since 2008', label: 'Established'),
+        StatItem(value: '1,200+', label: 'Students'),
+        StatItem(value: '75+', label: 'Faculty'),
+        StatItem(value: '10 Acre', label: 'Campus'),
+      ]);
+    }
+    if (coreValues.isEmpty) {
+      coreValues.addAll([
+        ValueItem(icon: 'book', title: 'Academic Excellence', description: 'Rigorous curriculum designed to challenge and inspire.'),
+        ValueItem(icon: 'shield', title: 'Integrity', description: 'Building character rooted in honesty and responsibility.'),
+        ValueItem(icon: 'globe', title: 'Global Perspective', description: 'Preparing students for an interconnected world.'),
+        ValueItem(icon: 'heart', title: 'Compassion', description: 'Fostering empathy and service to community.'),
+      ]);
+    }
+    if (achievements.isEmpty) {
+      achievements.addAll([
+        Achievement(year: '2025', title: 'National Science Olympiad — 3 Gold Medals'),
+        Achievement(year: '2024', title: 'Best School Award — State Education Board'),
+        Achievement(year: '2024', title: '100% Pass Rate — Board Examinations'),
+        Achievement(year: '2023', title: 'Inter-School Athletics Championship — Winners'),
+      ]);
+    }
+    if (testimonials.isEmpty) {
+      testimonials.addAll([
+        Testimonial(name: 'Rajesh & Priya Sharma', relation: 'Parents of Ananya, Grade 10', text: 'The school has been instrumental in shaping our daughter\'s confidence and academic abilities. The teachers go above and beyond.'),
+        Testimonial(name: 'David Chen', relation: 'Alumnus, Class of 2023', text: 'The values and discipline I learned here have been the foundation of my success. Forever grateful to my teachers.'),
+      ]);
+    }
+    if (events.isEmpty) {
+      events.addAll([
+        EventItem(date: 'Mar 15, 2026', title: 'Annual Science Exhibition', description: 'Students showcase innovative science and robotics projects.', category: 'Academic', imagePath: ''),
+        EventItem(date: 'Apr 5, 2026', title: 'Annual Sports Meet', description: 'Track, field, and team sports championship.', category: 'Sports', imagePath: ''),
+        EventItem(date: 'May 1, 2026', title: 'Admissions Open Day', description: 'Campus walkthrough and faculty interaction.', category: 'Admissions', imagePath: ''),
+      ]);
+    }
+    if (admissionSteps.isEmpty) {
+      admissionSteps.addAll([
+        AdmissionStep(step: 1, title: 'Submit Enquiry', description: 'Fill the quick online form or visit campus.'),
+        AdmissionStep(step: 2, title: 'Campus Walkthrough', description: 'Tour the classrooms, labs, and sports grounds.'),
+        AdmissionStep(step: 3, title: 'Student Interaction', description: 'Informal session to understand learning needs.'),
+        AdmissionStep(step: 4, title: 'Enrollment & Welcome', description: 'Complete documentation and join the family.'),
+      ]);
+    }
   }
 
   static Future<void> load() async {
@@ -299,7 +332,7 @@ class SchoolData {
     try {
       final response = await DioClient.get('/site-content');
       final data = Map<String, dynamic>.from(response.data as Map);
-      _clearPreviewContent();
+      _resetToDefaultContent(name: _text(data, 'schoolName'));
       if (_text(data, 'schoolName').isNotEmpty) AppStrings.schoolName = _text(data, 'schoolName');
       if (_text(data, 'schoolShortName').isNotEmpty) AppStrings.schoolShortName = _text(data, 'schoolShortName');
       if (_text(data, 'tagline').isNotEmpty) AppStrings.tagline = _text(data, 'tagline');
@@ -409,7 +442,7 @@ class SchoolData {
         timeline.addAll(rTimeline.map((r) => HistoryEvent(year: _text(r, 'year'), text: _text(r, 'text'))));
       }
     } catch (_) {
-      _clearPreviewContent();
+      _resetToDefaultContent(name: AppStrings.schoolName);
       loadError = 'School information is temporarily unavailable.';
     }
   }

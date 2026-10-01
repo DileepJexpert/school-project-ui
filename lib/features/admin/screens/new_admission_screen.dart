@@ -6,8 +6,9 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/academic_year.dart';
 import '../../../models/admission_data.dart';
 import '../../../services/admission_api_service.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../services/fee_api_service.dart';
-// SchoolConstants is defined in app_constants.dart
 
 class NewAdmissionScreen extends StatefulWidget {
   final String? studentId;
@@ -54,16 +55,15 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   DateTime? _dob;
   DateTime? _doa;
   String? _gender;
-  String? _baseClass;   // e.g. "Class 5" — base class without section
-  String _section = SchoolConstants.sections.first; // 'A' default
+  String? _baseClass;
+  String _section = SchoolConstants.sections.first;
   String? _year;
   bool _sameAddr = false;
-  String? _rollNumber;           // preserved from existing record on edit
+  String? _rollNumber;
   String? _loadedClass;
   String? _loadedYear;
-  String _existingStatus = 'ACTIVE'; // preserved from existing record on edit
+  String _existingStatus = 'ACTIVE';
 
-  // The value stored in DB: "Class 5 - A" or "Nursery"
   String? get _classForAdmission => _baseClass == null
       ? null
       : SchoolConstants.buildClassName(_baseClass!, _section);
@@ -71,10 +71,29 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
   final _genders = ['Male', 'Female', 'Other'];
   List<String> get _years => AcademicYear.choices(include: _year);
 
+  static const _stepTitles = [
+    'Student Details',
+    'Admission Details',
+    'Parent / Guardian',
+    'Contact Information',
+    'Previous School',
+  ];
+
+  static const _stepIcons = [
+    Icons.person_outline_rounded,
+    Icons.school_outlined,
+    Icons.family_restroom_outlined,
+    Icons.location_on_outlined,
+    Icons.history_edu_outlined,
+  ];
+
   @override
   void initState() {
     super.initState();
-    if (!_isEdit) _year = AcademicYear.currentLong();
+    if (!_isEdit) {
+      _year = AcademicYear.currentLong();
+      _doa = DateTime.now();
+    }
     if (_isEdit) _loadStudent();
   }
 
@@ -85,9 +104,9 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       setState(() {
         _nameCtrl.text = s.fullName;
         _dob = s.dateOfBirth.year == 2000 && s.dateOfBirth.month == 1 && s.dateOfBirth.day == 1
-            ? null // placeholder DOB from enquiry — let admin pick a real one
+            ? null
             : s.dateOfBirth;
-        _gender = _genders.contains(s.gender) ? s.gender : null; // guard non-standard values
+        _gender = _genders.contains(s.gender) ? s.gender : null;
         _bloodCtrl.text = s.bloodGroup;
         _nationalityCtrl.text = s.nationality;
         _religionCtrl.text = s.religion;
@@ -134,17 +153,72 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
     );
   }
 
-  Future<void> _pickDate(void Function(DateTime) onPicked) async {
+  Future<void> _pickDate(DateTime? current, void Function(DateTime) onPicked) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: current ?? DateTime.now(),
       firstDate: DateTime(1950),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => onPicked(picked));
   }
 
+  bool _validateCurrentStep() {
+    if (_step == 0) {
+      if (_nameCtrl.text.trim().isEmpty) {
+        _showSnack('Please enter student\'s full name.', isError: true);
+        return false;
+      }
+      if (_dob == null) {
+        _showSnack('Please select date of birth.', isError: true);
+        return false;
+      }
+      if (_gender == null) {
+        _showSnack('Please select gender.', isError: true);
+        return false;
+      }
+    } else if (_step == 1) {
+      if (_baseClass == null) {
+        _showSnack('Please select class for admission.', isError: true);
+        return false;
+      }
+      if (_year == null) {
+        _showSnack('Please select academic year.', isError: true);
+        return false;
+      }
+      if (_doa == null) {
+        _showSnack('Please select admission date.', isError: true);
+        return false;
+      }
+    } else if (_step == 2) {
+      if (_fatherNameCtrl.text.trim().isEmpty) {
+        _showSnack('Please enter father\'s name.', isError: true);
+        return false;
+      }
+      if (_fatherMobCtrl.text.trim().isEmpty) {
+        _showSnack('Please enter father\'s mobile number.', isError: true);
+        return false;
+      }
+    } else if (_step == 3) {
+      if (_permAddrCtrl.text.trim().isEmpty) {
+        _showSnack('Please enter permanent address.', isError: true);
+        return false;
+      }
+      final corr = _sameAddr ? _permAddrCtrl.text.trim() : _corrAddrCtrl.text.trim();
+      if (corr.isEmpty) {
+        _showSnack('Please enter correspondence address.', isError: true);
+        return false;
+      }
+      if (_primaryCtrl.text.trim().isEmpty) {
+        _showSnack('Please enter primary contact number.', isError: true);
+        return false;
+      }
+    }
+    return true;
+  }
+
   Future<void> _submit() async {
+    if (!_validateCurrentStep()) return;
     if (!_formKey.currentState!.validate() || _dob == null || _gender == null || _baseClass == null || _year == null || _doa == null) {
       _showSnack('Please fill all required fields.', isError: true);
       return;
@@ -171,9 +245,6 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       dateOfAdmission: _doa!,
       admissionNumber: _admNoCtrl.text.trim(),
       rollNumber: _rollNumber,
-      // admitMode: converting enquiry → force ACTIVE
-      // new record: always ACTIVE
-      // regular edit: preserve existing status
       status: _isAdmitMode ? 'ACTIVE' : (_isEdit ? _existingStatus : 'ACTIVE'),
       parentDetails: ParentDetails(
         fatherName: _fatherNameCtrl.text.trim(),
@@ -223,257 +294,67 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
     }
   }
 
-  InputDecoration _dec(String label, {String? hint}) => InputDecoration(
+  InputDecoration _dec(String label, {String? hint, IconData? prefixIcon}) => InputDecoration(
         labelText: label,
         hintText: hint,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 19, color: AppColors.textSecondary) : null,
         filled: true,
-        fillColor: AppColors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-            borderSide: const BorderSide(color: AppColors.border)),
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppColors.navy, width: 2)),
-        labelStyle: GoogleFonts.nunitoSans(color: AppColors.textSecondary),
+        labelStyle: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 13.5),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       );
 
-  Widget _dateRow(String label, DateTime? date, void Function(DateTime) onPicked) {
-    return Row(children: [
-      Expanded(
-        child: Text(
-          date == null ? '$label *' : '$label: ${_fmt.format(date)}',
-          style: GoogleFonts.nunitoSans(
-              color: date == null ? AppColors.textSecondary : AppColors.textPrimary),
+  Widget _datePickerTile({
+    required String label,
+    required DateTime? date,
+    required IconData icon,
+    required void Function(DateTime) onPicked,
+  }) {
+    return InkWell(
+      onTap: () => _pickDate(date, onPicked),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFD1D5DB)),
         ),
-      ),
-      TextButton.icon(
-        icon: Icon(Icons.calendar_today_outlined, color: AppColors.navy, size: 18),
-        label: Text(date == null ? 'Select' : 'Change',
-            style: GoogleFonts.nunitoSans(color: AppColors.navy)),
-        onPressed: () => _pickDate(onPicked),
-      ),
-    ]);
-  }
-
-  List<Step> get _steps => [
-        // Step 0 — Student Details
-        Step(
-          title: Text('Student Details', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
-          isActive: _step >= 0,
-          state: _step > 0 ? StepState.complete : StepState.indexed,
-          content: Column(children: [
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: _dec('Full Name *'),
-              validator: (v) => v!.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
-            _dateRow('Date of Birth', _dob, (d) => _dob = d),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              decoration: _dec('Gender *'),
-              value: _gender,
-              items: _genders.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-              onChanged: (v) => setState(() => _gender = v),
-              validator: (v) => v == null ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(controller: _bloodCtrl, decoration: _dec('Blood Group')),
-            const SizedBox(height: 12),
-            TextFormField(controller: _nationalityCtrl, decoration: _dec('Nationality')),
-            const SizedBox(height: 12),
-            TextFormField(controller: _religionCtrl, decoration: _dec('Religion')),
-            const SizedBox(height: 12),
-            TextFormField(controller: _motherTongueCtrl, decoration: _dec('Mother Tongue')),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _aadharCtrl,
-              decoration: _dec('Aadhar Number'),
-              keyboardType: TextInputType.number,
-            ),
-          ]),
-        ),
-        // Step 1 — Admission Details
-        Step(
-          title: Text('Admission Details', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
-          isActive: _step >= 1,
-          state: _step > 1 ? StepState.complete : StepState.indexed,
-          content: Column(children: [
-            const SizedBox(height: 8),
-            // Class + Section row
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(
-                flex: 3,
-                child: DropdownButtonFormField<String>(
-                  decoration: _dec('Class *'),
-                  value: _baseClass,
-                  items: SchoolConstants.baseClasses
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (v) => setState(() {
-                    _baseClass = v;
-                    // Reset to 'A' when switching to pre-primary (no section)
-                    if (SchoolConstants.noSectionClasses.contains(v)) {
-                      _section = SchoolConstants.sections.first;
-                    }
-                  }),
-                  validator: (v) => v == null ? 'Required' : null,
-                ),
-              ),
-              if (_baseClass != null &&
-                  !SchoolConstants.noSectionClasses.contains(_baseClass)) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: DropdownButtonFormField<String>(
-                    decoration: _dec('Section *'),
-                    value: _section,
-                    items: SchoolConstants.sections
-                        .map((s) => DropdownMenuItem(value: s, child: Text('Section $s')))
-                        .toList(),
-                    onChanged: (v) => setState(() => _section = v!),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: AppColors.textSecondary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label, style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 11)),
+                  const SizedBox(height: 2),
+                  Text(
+                    date == null ? 'Select date' : _fmt.format(date),
+                    style: GoogleFonts.nunitoSans(
+                      color: date == null ? const Color(0xFF9CA3AF) : AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: date == null ? FontWeight.w400 : FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
-            ]),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              decoration: _dec('Academic Year *'),
-              value: _year,
-              items: _years.map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
-              onChanged: (v) => setState(() => _year = v),
-              validator: (v) => v == null ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
-            _dateRow('Date of Admission', _doa, (d) => _doa = d),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _admNoCtrl,
-              decoration: _dec('Admission Number', hint: 'Auto-generated if empty'),
-            ),
-          ]),
-        ),
-        // Step 2 — Parent/Guardian
-        Step(
-          title: Text('Parent / Guardian', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
-          isActive: _step >= 2,
-          state: _step > 2 ? StepState.complete : StepState.indexed,
-          content: Column(children: [
-            const SizedBox(height: 8),
-            Text('Father\'s Details', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _fatherNameCtrl,
-              decoration: _dec('Father\'s Name *'),
-              validator: (v) => v!.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(controller: _fatherOccCtrl, decoration: _dec('Father\'s Occupation')),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _fatherMobCtrl,
-              decoration: _dec('Father\'s Mobile *', hint: '+91 XXXXXXXXXX'),
-              keyboardType: TextInputType.phone,
-              validator: (v) => v!.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _fatherEmailCtrl,
-              decoration: _dec('Father\'s Email'),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 16),
-            Text('Mother\'s Details', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _motherNameCtrl,
-              decoration: _dec('Mother\'s Name *'),
-              validator: (v) => v!.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(controller: _motherOccCtrl, decoration: _dec('Mother\'s Occupation')),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _motherMobCtrl,
-              decoration: _dec('Mother\'s Mobile'),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _motherEmailCtrl,
-              decoration: _dec('Mother\'s Email'),
-              keyboardType: TextInputType.emailAddress,
-            ),
-          ]),
-        ),
-        // Step 3 — Contact
-        Step(
-          title: Text('Contact Information', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
-          isActive: _step >= 3,
-          state: _step > 3 ? StepState.complete : StepState.indexed,
-          content: Column(children: [
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _permAddrCtrl,
-              decoration: _dec('Permanent Address *'),
-              maxLines: 3,
-              validator: (v) => v!.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
-            CheckboxListTile(
-              value: _sameAddr,
-              title: Text('Correspondence address same as permanent',
-                  style: GoogleFonts.nunitoSans(fontSize: 14)),
-              onChanged: (v) {
-                setState(() {
-                  _sameAddr = v ?? false;
-                  if (_sameAddr) _corrAddrCtrl.text = _permAddrCtrl.text;
-                });
-              },
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-            ),
-            if (!_sameAddr) ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _corrAddrCtrl,
-                decoration: _dec('Correspondence Address *'),
-                maxLines: 3,
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+                ],
               ),
-            ],
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _primaryCtrl,
-              decoration: _dec('Primary Contact *', hint: '+91 XXXXXXXXXX'),
-              keyboardType: TextInputType.phone,
-              validator: (v) => v!.isEmpty ? 'Required' : (v.length < 10 ? 'Invalid' : null),
             ),
-          ]),
+            const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+          ],
         ),
-        // Step 4 — Previous School
-        Step(
-          title: Text('Previous School', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
-          isActive: _step >= 4,
-          state: _step > 4 ? StepState.complete : StepState.indexed,
-          content: Column(children: [
-            const SizedBox(height: 8),
-            TextFormField(controller: _prevSchoolCtrl, decoration: _dec('Previous School Name')),
-            const SizedBox(height: 12),
-            TextFormField(controller: _prevClassCtrl, decoration: _dec('Last Class Attended')),
-            const SizedBox(height: 12),
-            TextFormField(controller: _prevBoardCtrl, decoration: _dec('Board (e.g., CBSE, ICSE)')),
-            const SizedBox(height: 24),
-            Text(
-              'Note: Document uploads (TC, Report Card) can be added after the student profile is created.',
-              style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12),
-            ),
-          ]),
-        ),
-      ];
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -483,79 +364,915 @@ class _NewAdmissionScreenState extends State<NewAdmissionScreen> {
       _fatherEmailCtrl, _motherNameCtrl, _motherOccCtrl, _motherMobCtrl,
       _motherEmailCtrl, _permAddrCtrl, _corrAddrCtrl, _primaryCtrl,
       _prevSchoolCtrl, _prevClassCtrl, _prevBoardCtrl,
-    ]) c.dispose();
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
         backgroundColor: AppColors.navy,
         foregroundColor: Colors.white,
-        title: Text(
-          _isAdmitMode
-              ? 'Admit Student'
-              : (_isEdit ? 'Edit Student Profile' : 'New Student Admission'),
-          style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700, fontSize: 20),
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 1,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _isAdmitMode
+                  ? 'Admit Student'
+                  : (_isEdit ? 'Edit Student Profile' : 'New Student Admission'),
+              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+            ),
+            if (_nameCtrl.text.isNotEmpty)
+              Text(
+                'Candidate: ${_nameCtrl.text.trim()}',
+                style: GoogleFonts.nunitoSans(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+              ),
+          ],
         ),
       ),
       body: _loading && _isEdit
           ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: Stepper(
-                currentStep: _step,
-                onStepTapped: (s) => setState(() => _step = s),
-                onStepContinue: () {
-                  if (_step < _steps.length - 1) {
-                    setState(() => _step++);
-                  } else {
-                    _submit();
-                  }
-                },
-                onStepCancel: () {
-                  if (_step > 0) setState(() => _step--);
-                },
-                steps: _steps,
-                controlsBuilder: (context, details) => Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Row(children: [
-                    if (_step < _steps.length - 1)
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.navy, foregroundColor: Colors.white),
-                        onPressed: details.onStepContinue,
-                        child: const Text('Next'),
-                      )
-                    else
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.navy, foregroundColor: Colors.white),
-                        icon: _loading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : Icon(_isEdit ? Icons.save : Icons.person_add_alt_1),
-                        label: Text(_loading
-                            ? 'Saving…'
-                            : (_isAdmitMode
-                                ? 'Confirm Admission'
-                                : (_isEdit ? 'Update' : 'Submit Admission'))),
-                        onPressed: _loading ? null : _submit,
+          : SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 16 : 24,
+                vertical: 24,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 960),
+                  child: Column(
+                    children: [
+                      // Top Progress Stepper
+                      _buildStepperHeader(isMobile),
+                      const SizedBox(height: 20),
+                      // Form Card
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0A101828),
+                              blurRadius: 20,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Step Header
+                              _buildStepTitleBanner(),
+                              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                              // Step Content
+                              Padding(
+                                padding: EdgeInsets.all(isMobile ? 20 : 32),
+                                child: _buildCurrentStepContent(isMobile),
+                              ),
+                              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                              // Action Buttons
+                              _buildBottomActions(),
+                            ],
+                          ),
+                        ),
                       ),
-                    const SizedBox(width: 12),
-                    if (_step > 0)
-                      TextButton(
-                        onPressed: details.onStepCancel,
-                        child: const Text('Back'),
-                      ),
-                  ]),
+                    ],
+                  ),
                 ),
               ),
             ),
+    );
+  }
+
+  // ==========================================
+  // TOP STEPPER HEADER
+  // ==========================================
+  Widget _buildStepperHeader(bool isMobile) {
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: AppColors.navy,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${_step + 1}',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Step ${_step + 1} of 5',
+                    style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 11),
+                  ),
+                  Text(
+                    _stepTitles[_step],
+                    style: GoogleFonts.poppins(color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: List.generate(_stepTitles.length, (i) {
+          final isCompleted = _step > i;
+          final isActive = _step == i;
+          final title = _stepTitles[i];
+
+          return Expanded(
+            child: InkWell(
+              onTap: () {
+                if (i <= _step || _validateCurrentStep()) {
+                  setState(() => _step = i);
+                }
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? AppColors.success
+                            : (isActive ? AppColors.navy : const Color(0xFFF1F5F9)),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isActive ? AppColors.navy : const Color(0xFFCBD5E1),
+                          width: 1.5,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: isCompleted
+                          ? const Icon(Icons.check, size: 16, color: Colors.white)
+                          : Text(
+                              '${i + 1}',
+                              style: TextStyle(
+                                color: isActive ? Colors.white : AppColors.textSecondary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.nunitoSans(
+                          color: isActive
+                              ? AppColors.navy
+                              : (isCompleted ? AppColors.textPrimary : AppColors.textSecondary),
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // ==========================================
+  // STEP TITLE BANNER
+  // ==========================================
+  Widget _buildStepTitleBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.navy.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(_stepIcons[_step], color: AppColors.navy, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Step ${_step + 1} of 5: ${_stepTitles[_step]}',
+                  style: GoogleFonts.poppins(color: AppColors.navy, fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  _getStepSubtitle(_step),
+                  style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12.5),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getStepSubtitle(int step) {
+    switch (step) {
+      case 0:
+        return 'Personal information, demographic details, and identification.';
+      case 1:
+        return 'Class assignment, academic session, and admission date.';
+      case 2:
+        return 'Father and mother contact details and occupational information.';
+      case 3:
+        return 'Residential addresses and primary emergency contact numbers.';
+      case 4:
+        return 'Prior academic history and document upload guidelines.';
+      default:
+        return '';
+    }
+  }
+
+  // ==========================================
+  // STEP CONTENT BUILDER
+  // ==========================================
+  Widget _buildCurrentStepContent(bool isMobile) {
+    switch (_step) {
+      case 0:
+        return _buildStep0Student(isMobile);
+      case 1:
+        return _buildStep1Admission(isMobile);
+      case 2:
+        return _buildStep2Parent(isMobile);
+      case 3:
+        return _buildStep3Contact(isMobile);
+      case 4:
+        return _buildStep4PreviousSchool(isMobile);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  // Step 0: Student Details
+  Widget _buildStep0Student(bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isMobile) ...[
+          TextFormField(
+            controller: _nameCtrl,
+            decoration: _dec('Student Full Name *', prefixIcon: Icons.badge_outlined),
+            validator: (v) => (v == null || v.trim().isEmpty) ? 'Full Name is required' : null,
+          ),
+          const SizedBox(height: 16),
+          SearchableDropdownFormField<String>(
+            labelText: 'Gender *',
+            hintText: 'Select gender...',
+            initialValue: _gender,
+            items: _genders,
+            onChanged: (v) => setState(() => _gender = v),
+            validator: (v) => v == null ? 'Gender is required' : null,
+          ),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: _nameCtrl,
+                  decoration: _dec('Student Full Name *', prefixIcon: Icons.badge_outlined),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Full Name is required' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: SearchableDropdownFormField<String>(
+                  labelText: 'Gender *',
+                  hintText: 'Select gender...',
+                  initialValue: _gender,
+                  items: _genders,
+                  onChanged: (v) => setState(() => _gender = v),
+                  validator: (v) => v == null ? 'Gender is required' : null,
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (isMobile) ...[
+          _datePickerTile(
+            label: 'Date of Birth *',
+            date: _dob,
+            icon: Icons.cake_outlined,
+            onPicked: (d) => _dob = d,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(controller: _bloodCtrl, decoration: _dec('Blood Group', hint: 'e.g. O+, B+, A+')),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                child: _datePickerTile(
+                  label: 'Date of Birth *',
+                  date: _dob,
+                  icon: Icons.cake_outlined,
+                  onPicked: (d) => _dob = d,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(controller: _bloodCtrl, decoration: _dec('Blood Group', hint: 'e.g. O+, B+, A+')),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (isMobile) ...[
+          TextFormField(controller: _nationalityCtrl, decoration: _dec('Nationality')),
+          const SizedBox(height: 16),
+          TextFormField(controller: _religionCtrl, decoration: _dec('Religion', hint: 'e.g. Hindu, Muslim, Christian')),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(controller: _nationalityCtrl, decoration: _dec('Nationality')),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(controller: _religionCtrl, decoration: _dec('Religion', hint: 'e.g. Hindu, Muslim, Christian')),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (isMobile) ...[
+          TextFormField(controller: _motherTongueCtrl, decoration: _dec('Mother Tongue', hint: 'e.g. Hindi, English')),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _aadharCtrl,
+            decoration: _dec('Aadhar Number', hint: '12-digit UIDAI number'),
+            keyboardType: TextInputType.number,
+          ),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(controller: _motherTongueCtrl, decoration: _dec('Mother Tongue', hint: 'e.g. Hindi, English')),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: _aadharCtrl,
+                  decoration: _dec('Aadhar Number', hint: '12-digit UIDAI number'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Step 1: Admission Details
+  Widget _buildStep1Admission(bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isMobile) ...[
+          SearchableDropdownFormField<String>(
+            labelText: 'Class for Admission *',
+            hintText: 'Select or type class...',
+            initialValue: _baseClass,
+            items: SchoolConstants.baseClasses,
+            onChanged: (v) => setState(() {
+              _baseClass = v;
+              if (SchoolConstants.noSectionClasses.contains(v)) {
+                _section = SchoolConstants.sections.first;
+              }
+            }),
+            validator: (v) => v == null ? 'Required' : null,
+          ),
+          if (_baseClass != null && !SchoolConstants.noSectionClasses.contains(_baseClass)) ...[
+            const SizedBox(height: 16),
+            SearchableDropdownFormField<String>(
+              labelText: 'Section *',
+              initialValue: _section,
+              items: SchoolConstants.sections,
+              itemLabel: (s) => 'Section $s',
+              onChanged: (v) => setState(() => _section = v!),
+            ),
+          ],
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: SearchableDropdownFormField<String>(
+                  labelText: 'Class for Admission *',
+                  hintText: 'Select or type class...',
+                  initialValue: _baseClass,
+                  items: SchoolConstants.baseClasses,
+                  onChanged: (v) => setState(() {
+                    _baseClass = v;
+                    if (SchoolConstants.noSectionClasses.contains(v)) {
+                      _section = SchoolConstants.sections.first;
+                    }
+                  }),
+                  validator: (v) => v == null ? 'Required' : null,
+                ),
+              ),
+              if (_baseClass != null && !SchoolConstants.noSectionClasses.contains(_baseClass)) ...[
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: SearchableDropdownFormField<String>(
+                    labelText: 'Section *',
+                    initialValue: _section,
+                    items: SchoolConstants.sections,
+                    itemLabel: (s) => 'Section $s',
+                    onChanged: (v) => setState(() => _section = v!),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (isMobile) ...[
+          SearchableDropdownFormField<String>(
+            labelText: 'Academic Year *',
+            initialValue: _year,
+            items: _years,
+            onChanged: (v) => setState(() => _year = v),
+            validator: (v) => v == null ? 'Required' : null,
+          ),
+          const SizedBox(height: 16),
+          _datePickerTile(
+            label: 'Date of Admission *',
+            date: _doa,
+            icon: Icons.event_available_outlined,
+            onPicked: (d) => _doa = d,
+          ),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                child: SearchableDropdownFormField<String>(
+                  labelText: 'Academic Year *',
+                  initialValue: _year,
+                  items: _years,
+                  onChanged: (v) => setState(() => _year = v),
+                  validator: (v) => v == null ? 'Required' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _datePickerTile(
+                  label: 'Date of Admission *',
+                  date: _doa,
+                  icon: Icons.event_available_outlined,
+                  onPicked: (d) => _doa = d,
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _admNoCtrl,
+          decoration: _dec('Admission Number', hint: 'Auto-generated systematically if left blank'),
+        ),
+      ],
+    );
+  }
+
+  // Step 2: Parent / Guardian
+  Widget _buildStep2Parent(bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Father Box
+        Container(
+          padding: EdgeInsets.all(isMobile ? 16 : 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.person_outline_rounded, color: AppColors.navy, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Father\'s Information',
+                    style: GoogleFonts.poppins(color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (isMobile) ...[
+                TextFormField(
+                  controller: _fatherNameCtrl,
+                  decoration: _dec('Father\'s Name *'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Father\'s Name is required' : null,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _fatherOccCtrl,
+                  decoration: _dec('Father\'s Occupation', hint: 'e.g. Business, Engineer, Doctor'),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _fatherMobCtrl,
+                  decoration: _dec('Father\'s Mobile Number *', hint: '+91 98765 43210'),
+                  keyboardType: TextInputType.phone,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Mobile number is required' : null,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _fatherEmailCtrl,
+                  decoration: _dec('Father\'s Email Address', hint: 'father@example.com'),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _fatherNameCtrl,
+                        decoration: _dec('Father\'s Name *'),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Father\'s Name is required' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _fatherOccCtrl,
+                        decoration: _dec('Father\'s Occupation', hint: 'e.g. Business, Engineer, Doctor'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _fatherMobCtrl,
+                        decoration: _dec('Father\'s Mobile Number *', hint: '+91 98765 43210'),
+                        keyboardType: TextInputType.phone,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Mobile number is required' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _fatherEmailCtrl,
+                        decoration: _dec('Father\'s Email Address', hint: 'father@example.com'),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        // Mother Box
+        Container(
+          padding: EdgeInsets.all(isMobile ? 16 : 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.face_3_outlined, color: AppColors.navy, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Mother\'s Information',
+                    style: GoogleFonts.poppins(color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (isMobile) ...[
+                TextFormField(
+                  controller: _motherNameCtrl,
+                  decoration: _dec('Mother\'s Name *'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Mother\'s Name is required' : null,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _motherOccCtrl,
+                  decoration: _dec('Mother\'s Occupation', hint: 'e.g. Homemaker, Teacher, IT'),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _motherMobCtrl,
+                  decoration: _dec('Mother\'s Mobile Number', hint: '+91 98765 43210'),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _motherEmailCtrl,
+                  decoration: _dec('Mother\'s Email Address', hint: 'mother@example.com'),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _motherNameCtrl,
+                        decoration: _dec('Mother\'s Name *'),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Mother\'s Name is required' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _motherOccCtrl,
+                        decoration: _dec('Mother\'s Occupation', hint: 'e.g. Homemaker, Teacher, IT'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _motherMobCtrl,
+                        decoration: _dec('Mother\'s Mobile Number', hint: '+91 98765 43210'),
+                        keyboardType: TextInputType.phone,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _motherEmailCtrl,
+                        decoration: _dec('Mother\'s Email Address', hint: 'mother@example.com'),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Step 3: Contact Information
+  Widget _buildStep3Contact(bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _permAddrCtrl,
+          decoration: _dec('Permanent Address *', hint: 'House/Street, Locality, City, State, PIN Code'),
+          maxLines: 2,
+          validator: (v) => (v == null || v.trim().isEmpty) ? 'Permanent Address is required' : null,
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: CheckboxListTile(
+            value: _sameAddr,
+            title: Text(
+              'Correspondence address is the same as permanent address',
+              style: GoogleFonts.nunitoSans(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.navy),
+            ),
+            onChanged: (v) {
+              setState(() {
+                _sameAddr = v ?? false;
+                if (_sameAddr) _corrAddrCtrl.text = _permAddrCtrl.text;
+              });
+            },
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        if (!_sameAddr) ...[
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _corrAddrCtrl,
+            decoration: _dec('Correspondence Address *', hint: 'Local address if different from permanent'),
+            maxLines: 2,
+            validator: (v) => (v == null || v.trim().isEmpty) ? 'Correspondence Address is required' : null,
+          ),
+        ],
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _primaryCtrl,
+          decoration: _dec('Primary Contact Number *', hint: '+91 98765 43210 (SMS / WhatsApp Alerts)'),
+          keyboardType: TextInputType.phone,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Primary Contact Number is required';
+            if (v.trim().length < 10) return 'Enter a valid 10-digit phone number';
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  // Step 4: Previous School
+  Widget _buildStep4PreviousSchool(bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isMobile) ...[
+          TextFormField(controller: _prevSchoolCtrl, decoration: _dec('Previous School Name')),
+          const SizedBox(height: 16),
+          TextFormField(controller: _prevClassCtrl, decoration: _dec('Last Class / Grade Attended')),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextFormField(controller: _prevSchoolCtrl, decoration: _dec('Previous School Name')),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: TextFormField(controller: _prevClassCtrl, decoration: _dec('Last Class / Grade Attended')),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        TextFormField(controller: _prevBoardCtrl, decoration: _dec('Affiliated Board', hint: 'e.g. CBSE, ICSE, State Board')),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.navy.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.navy.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, color: AppColors.navy, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Document Verification Note',
+                      style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, color: AppColors.navy, fontSize: 13),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Original Transfer Certificate (TC), previous report cards, birth certificate, and student passport photos can be uploaded and verified directly under the student profile after admission confirmation.',
+                      style: GoogleFonts.nunitoSans(color: AppColors.textSecondary, fontSize: 12.5, height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // BOTTOM ACTIONS
+  // ==========================================
+  Widget _buildBottomActions() {
+    final isLastStep = _step == _stepTitles.length - 1;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+      child: Row(
+        children: [
+          if (_step > 0)
+            OutlinedButton.icon(
+              onPressed: _loading ? null : () => setState(() => _step--),
+              icon: const Icon(Icons.arrow_back, size: 16),
+              label: const Text('Back'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.navy,
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          const Spacer(),
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          const SizedBox(width: 12),
+          if (!isLastStep)
+            ElevatedButton.icon(
+              onPressed: () {
+                if (_validateCurrentStep()) {
+                  setState(() => _step++);
+                }
+              },
+              icon: const Icon(Icons.arrow_forward, size: 16),
+              label: const Text('Next Step'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                textStyle: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: _loading ? null : _submit,
+              icon: _loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Icon(_isEdit ? Icons.save : Icons.check_circle_rounded, size: 18),
+              label: Text(_loading
+                  ? 'Saving…'
+                  : (_isAdmitMode
+                      ? 'Confirm Admission'
+                      : (_isEdit ? 'Update Profile' : 'Complete Admission'))),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                textStyle: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

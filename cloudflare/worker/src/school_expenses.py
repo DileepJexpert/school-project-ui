@@ -84,6 +84,44 @@ async def add_expense(
     return _wire(await _one(db, f"SELECT {_COLUMNS} FROM expenses WHERE tenant_id = ? AND id = ?", tenant, expense_id))
 
 
+@router.get("/{expense_id}")
+async def get_expense(
+    expense_id: str,
+    db=Depends(_db),
+    user: dict = Depends(get_current_user),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+):
+    _permission(user, "read")
+    tenant = await _tenant(db, user, x_tenant_id)
+    expense = await _one(db, f"SELECT {_COLUMNS} FROM expenses WHERE tenant_id = ? AND id = ? AND voided_at IS NULL", tenant, expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return _wire(expense)
+
+
+@router.put("/{expense_id}")
+async def update_expense(
+    expense_id: str,
+    item: ExpenseInput,
+    db=Depends(_db),
+    user: dict = Depends(get_current_user),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+):
+    _permission(user, "write")
+    tenant = await _tenant(db, user, x_tenant_id)
+    expense = await _one(db, "SELECT id FROM expenses WHERE tenant_id = ? AND id = ? AND voided_at IS NULL", tenant, expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    amount = item.amount * 100
+    if amount != amount.to_integral_value() or amount > 999999999999:
+        raise HTTPException(status_code=422, detail="Amount must have at most two decimal places")
+    title, category, paid_to = item.title.strip(), item.category.strip(), item.paidTo.strip()
+    if not all((title, category, paid_to)):
+        raise HTTPException(status_code=422, detail="Title, category, and payee are required")
+    await db.prepare("UPDATE expenses SET title = ?, category = ?, amount = ?, date = ?, paid_to = ?, remarks = ? WHERE tenant_id = ? AND id = ? AND voided_at IS NULL").bind(title, category, int(amount), item.date.isoformat(), paid_to, item.remarks, tenant, expense_id).run()
+    return _wire(await _one(db, f"SELECT {_COLUMNS} FROM expenses WHERE tenant_id = ? AND id = ?", tenant, expense_id))
+
+
 @router.delete("/{expense_id}", status_code=204)
 async def void_expense(
     expense_id: str,
@@ -98,3 +136,4 @@ async def void_expense(
         raise HTTPException(status_code=404, detail="Expense not found")
     await db.prepare("UPDATE expenses SET voided_at = ? WHERE tenant_id = ? AND id = ? AND voided_at IS NULL").bind(datetime.now(timezone.utc).isoformat(), tenant, expense_id).run()
     return Response(status_code=204)
+

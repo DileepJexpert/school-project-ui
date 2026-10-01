@@ -44,6 +44,18 @@ def generate_bootstrap_sql(
     # Use scrypt hash by default, or optional legacy bcrypt hash for compatibility testing
     p_hash = legacy_bcrypt_hash if legacy_bcrypt_hash else password_hash(admin_password)
 
+    class_list = ['Nursery', 'LKG', 'UKG'] + [f'Class {i} - A' for i in range(1, 13)]
+    class_sqls = []
+    for idx, c in enumerate(class_list):
+        base = c.split(' - ')[0] if ' - ' in c else c
+        sec = c.split(' - ')[1] if ' - ' in c else 'A'
+        cid = f"cls_{school_id}_{secrets.token_hex(4)}"
+        class_sqls.append(
+            f"INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) "
+            f"VALUES ('{cid}', '{school_id}', '{c}', '{base}', '{sec}', {idx + 1}, 1) "
+            f"ON CONFLICT(tenant_id, class_name) DO NOTHING;"
+        )
+
     lines = [
         "-- Private bootstrap script generated at " + now_iso,
         f"INSERT INTO tenants (id, name, active, city, board) "
@@ -57,6 +69,9 @@ def generate_bootstrap_sql(
         f"INSERT INTO users (id, scope, tenant_id, email, password_hash, full_name, phone, role, linked_entity_id, extra_permissions, active, created_at) "
         f"VALUES ('{user_id}', '{school_id}', '{school_id}', '{admin_email}', '{p_hash}', '{admin_name}', '+919876543210', 'SCHOOL_ADMIN', NULL, '[]', {1 if active else 0}, '{now_iso}') "
         f"ON CONFLICT(scope, email) DO UPDATE SET password_hash = excluded.password_hash, active = excluded.active;",
+        "",
+        "-- Default classes (Nursery to Class 12)",
+        *class_sqls,
     ]
     return "\n".join(lines) + "\n"
 

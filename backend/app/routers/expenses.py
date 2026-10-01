@@ -66,6 +66,33 @@ def add_expense(data: ExpenseInput, session: Db, tenant: TenantId) -> dict:
     return result
 
 
+@router.get("/{expense_id}")
+def get_expense(expense_id: str, session: Db, tenant: TenantId) -> dict:
+    require_tenant(session, tenant)
+    expense = session.get(Expense, expense_id)
+    if expense is None or expense.tenant_id != tenant or expense.voided_at is not None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return _wire(expense)
+
+
+@router.put("/{expense_id}")
+def update_expense(expense_id: str, data: ExpenseInput, session: Db, tenant: TenantId) -> dict:
+    with session.begin():
+        require_tenant(session, tenant)
+        expense = session.get(Expense, expense_id)
+        if expense is None or expense.tenant_id != tenant or expense.voided_at is not None:
+            raise HTTPException(status_code=404, detail="Expense not found")
+        expense.title = data.title.strip()
+        expense.category = data.category.strip()
+        expense.amount = data.amount
+        expense.date = data.date
+        expense.paid_to = data.paid_to.strip()
+        expense.remarks = data.remarks
+        session.flush()
+        result = _wire(expense)
+    return result
+
+
 @router.delete("/{expense_id}", status_code=204)
 def void_expense(expense_id: str, session: Db, tenant: TenantId) -> Response:
     with session.begin():

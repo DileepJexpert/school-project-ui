@@ -13,6 +13,7 @@ import '../../models/school_data.dart';
 import '../../core/constants/academic_year.dart';
 import '../../models/admission_data.dart';
 import '../../services/admission_api_service.dart';
+import '../../core/widgets/searchable_dropdown.dart';
 
 class AdmissionsPage extends StatelessWidget {
   const AdmissionsPage({super.key});
@@ -416,12 +417,19 @@ class _OnlineApplicationSectionState extends State<_OnlineApplicationSection> {
           const SizedBox(height: 32),
           Center(
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 720),
-              padding: EdgeInsets.all(isMobile ? 20 : 32),
+              constraints: const BoxConstraints(maxWidth: 760),
+              padding: EdgeInsets.all(isMobile ? 24 : 36),
               decoration: BoxDecoration(
-                color: PublicColors.cream,
-                borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-                border: Border.all(color: PublicColors.border),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0A101828),
+                    blurRadius: 24,
+                    offset: Offset(0, 8),
+                  ),
+                ],
               ),
               child: _submitted
                   ? _buildSuccessCard()
@@ -435,11 +443,11 @@ class _OnlineApplicationSectionState extends State<_OnlineApplicationSection> {
                               padding: const EdgeInsets.all(12),
                               margin: const EdgeInsets.only(bottom: 16),
                               decoration: BoxDecoration(
-                                color: PublicColors.error.withOpacity(0.08),
+                                color: PublicColors.error.withValues(alpha: 0.08),
                                 borderRadius:
                                     BorderRadius.circular(AppSizes.radiusMD),
                                 border: Border.all(
-                                    color: PublicColors.error.withOpacity(0.3)),
+                                    color: PublicColors.error.withValues(alpha: 0.3)),
                               ),
                               child: Row(children: [
                                 const Icon(Icons.error_outline,
@@ -462,44 +470,63 @@ class _OnlineApplicationSectionState extends State<_OnlineApplicationSection> {
                                 : null,
                           ),
                           const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _selectedClass,
-                                  decoration: _dec(
-                                      'Grade / Class Applying For *',
-                                      'Select Grade',
-                                      Icons.school_outlined),
-                                  items: SchoolConstants.baseClasses
-                                      .map((c) => DropdownMenuItem(
-                                          value: c, child: Text(c)))
-                                      .toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _selectedClass = v),
-                                  validator: (v) => v == null
-                                      ? 'Please select a class'
-                                      : null,
+                          if (isMobile) ...[
+                            SearchableDropdownFormField<String>(
+                              labelText: 'Grade / Class Applying For *',
+                              hintText: 'Select or type class...',
+                              initialValue: _selectedClass,
+                              items: SchoolConstants.allClasses,
+                              onChanged: (v) =>
+                                  setState(() => _selectedClass = v),
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? 'Please select a class'
+                                  : null,
+                            ),
+                            const SizedBox(height: 16),
+                            SearchableDropdownFormField<String>(
+                              labelText: 'Academic Year *',
+                              initialValue: _selectedYear,
+                              items: AcademicYear.choices(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => _selectedYear = v);
+                                }
+                              },
+                            ),
+                          ] else ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: SearchableDropdownFormField<String>(
+                                    labelText: 'Grade / Class Applying For *',
+                                    hintText: 'Select or type class...',
+                                    initialValue: _selectedClass,
+                                    items: SchoolConstants.allClasses,
+                                    onChanged: (v) =>
+                                        setState(() => _selectedClass = v),
+                                    validator: (v) => (v == null || v.isEmpty)
+                                        ? 'Please select a class'
+                                        : null,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 2,
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _selectedYear,
-                                  decoration: _dec('Academic Year *', '',
-                                      Icons.calendar_today_outlined),
-                                  items: AcademicYear.choices()
-                                      .map((y) => DropdownMenuItem(
-                                          value: y, child: Text(y)))
-                                      .toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _selectedYear = v!),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: SearchableDropdownFormField<String>(
+                                    labelText: 'Academic Year *',
+                                    initialValue: _selectedYear,
+                                    items: AcademicYear.choices(),
+                                    onChanged: (v) {
+                                      if (v != null) {
+                                        setState(() => _selectedYear = v);
+                                      }
+                                    },
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _parentCtrl,

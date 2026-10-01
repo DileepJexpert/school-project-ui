@@ -121,6 +121,14 @@ class _StudentOverviewScreenState extends State<StudentOverviewScreen> {
                     () => widget.onNavigate(4),
                   ),
                   _overviewCard(
+                    'Paid Fees',
+                    'Rs ${paidFees.toStringAsFixed(0)}',
+                    Icons.check_circle_outline_rounded,
+                    Colors.green,
+                    cardWidth,
+                    () => widget.onNavigate(4),
+                  ),
+                  _overviewCard(
                     'Pending Fees',
                     'Rs ${pendingFees.toStringAsFixed(0)}',
                     Icons.payment_outlined,

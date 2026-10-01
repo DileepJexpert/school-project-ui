@@ -57,11 +57,29 @@ class _AcademicsPageState extends State<AcademicsPage> {
                       onTap: () => setState(() => _selectedTab = i),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
+                            horizontal: 22, vertical: 12),
                         decoration: BoxDecoration(
                           color:
-                              isActive ? PublicColors.navy : PublicColors.cream,
-                          border: Border.all(color: PublicColors.border),
+                              isActive ? PublicColors.navy : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isActive ? PublicColors.navy : const Color(0xFFE2E8F0),
+                          ),
+                          boxShadow: isActive
+                              ? [
+                                  BoxShadow(
+                                    color: PublicColors.navy.withValues(alpha: 0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : const [
+                                  BoxShadow(
+                                    color: Color(0x06000000),
+                                    blurRadius: 6,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -158,8 +176,16 @@ class _AcademicsPageState extends State<AcademicsPage> {
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: PublicColors.cream,
-        border: Border.all(color: PublicColors.border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A101828),
+            blurRadius: 16,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,8 +205,9 @@ class _AcademicsPageState extends State<AcademicsPage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: PublicColors.white,
-                        border: Border.all(color: PublicColors.border),
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -190,7 +217,9 @@ class _AcademicsPageState extends State<AcademicsPage> {
                           const SizedBox(width: 8),
                           Text(c.name,
                               style: GoogleFonts.nunitoSans(
-                                  fontSize: 13, fontWeight: FontWeight.w500)),
+                                  color: PublicColors.navy,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ))

@@ -9,6 +9,244 @@ import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/responsive.dart';
 import '../../core/widgets/school_image.dart';
 import '../../models/school_data.dart';
+import '../../core/constants/academic_year.dart';
+import '../../models/admission_data.dart';
+import '../../services/admission_api_service.dart';
+import '../../core/widgets/searchable_dropdown.dart';
+
+void _showQuickApplyDialog(BuildContext context) {
+  final nameCtrl = TextEditingController();
+  final parentCtrl = TextEditingController();
+  final phoneCtrl = TextEditingController();
+  final emailCtrl = TextEditingController();
+  String? selectedClass = SchoolConstants.allClasses.contains('Class 1 - A')
+      ? 'Class 1 - A'
+      : SchoolConstants.allClasses.first;
+  final formKey = GlobalKey<FormState>();
+  bool submitting = false;
+  bool submitted = false;
+  String? error;
+
+  showDialog(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSt) {
+        if (submitted) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 36),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Application Received!',
+                    style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.navy),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Thank you for applying to ${AppStrings.schoolName}. Our admissions team will review your application and reach out within 24 hours.',
+                    style: GoogleFonts.nunitoSans(fontSize: 13.5, color: AppColors.textSecondary, height: 1.5),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.navy,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.gold.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.school_outlined, color: AppColors.gold, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Apply for Admission', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.navy)),
+                    Text('Academic Year 2026–2027', style: GoogleFonts.nunitoSans(fontSize: 12, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (error != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(error!, style: const TextStyle(color: AppColors.error, fontSize: 12.5)),
+                      ),
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(labelText: "Child's Full Name *", border: OutlineInputBorder()),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: parentCtrl,
+                      decoration: const InputDecoration(labelText: 'Parent / Guardian Name *', border: OutlineInputBorder()),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: phoneCtrl,
+                            decoration: const InputDecoration(labelText: 'Phone Number *', border: OutlineInputBorder()),
+                            keyboardType: TextInputType.phone,
+                            validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: emailCtrl,
+                            decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder()),
+                            keyboardType: TextInputType.emailAddress,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SearchableDropdownFormField<String>(
+                      labelText: 'Class of Interest *',
+                      initialValue: selectedClass,
+                      items: SchoolConstants.allClasses,
+                      onChanged: (v) => setSt(() => selectedClass = v),
+                      validator: (v) => v == null ? 'Required' : null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setSt(() {
+                        submitting = true;
+                        error = null;
+                      });
+                      try {
+                        final student = Student(
+                          fullName: nameCtrl.text.trim(),
+                          dateOfBirth: DateTime(2018, 1, 1),
+                          gender: 'OTHER',
+                          bloodGroup: '',
+                          nationality: 'Indian',
+                          religion: '',
+                          motherTongue: '',
+                          aadharNumber: '',
+                          classForAdmission: selectedClass ?? 'Class 1 - A',
+                          academicYear: AcademicYear.currentLong(),
+                          dateOfAdmission: DateTime.now(),
+                          admissionNumber: '',
+                          rollNumber: '',
+                          status: 'ENQUIRY',
+                          parentDetails: ParentDetails(
+                            fatherName: parentCtrl.text.trim(),
+                            fatherOccupation: '',
+                            fatherMobile: phoneCtrl.text.trim(),
+                            fatherEmail: emailCtrl.text.trim(),
+                            motherName: '',
+                            motherOccupation: '',
+                            motherMobile: '',
+                            motherEmail: '',
+                          ),
+                          contactDetails: ContactDetails(
+                            permanentAddress: '',
+                            correspondenceAddress: '',
+                            primaryContactNumber: phoneCtrl.text.trim(),
+                          ),
+                          previousSchoolDetails: PreviousSchoolDetails(
+                            schoolName: '',
+                            lastClass: '',
+                            board: '',
+                          ),
+                        );
+                        await AdmissionApiService.submitEnquiry(student);
+                        setSt(() {
+                          submitting = false;
+                          submitted = true;
+                        });
+                      } catch (e) {
+                        setSt(() {
+                          submitting = false;
+                          error = 'Failed to submit application: $e';
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: submitting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Submit Application'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -189,13 +427,20 @@ class _HeroSection extends StatelessWidget {
                       spacing: 16,
                       runSpacing: 12,
                       children: [
-                        if (SchoolData.admissionCtaTitle.isNotEmpty)
-                          ElevatedButton.icon(
-                            onPressed: () => Navigator.pushReplacementNamed(
-                                context, AppRouter.admissions),
-                            icon: const Icon(Icons.arrow_forward, size: 18),
-                            label: const Text('Apply Now'),
+                        ElevatedButton.icon(
+                          onPressed: () => _showQuickApplyDialog(context),
+                          icon: const Icon(Icons.edit_note_rounded, size: 20),
+                          label: const Text('Apply Now'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: PublicColors.navyDark,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            textStyle: GoogleFonts.nunitoSans(fontSize: 15, fontWeight: FontWeight.w700),
+                            elevation: 4,
+                            shadowColor: const Color(0x33000000),
                           ),
+                        ),
                         OutlinedButton.icon(
                           onPressed: () => Navigator.pushReplacementNamed(
                               context, AppRouter.about),
@@ -230,23 +475,41 @@ class _StatsStrip extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: PublicColors.white,
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        border: Border.symmetric(
+          horizontal: BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 28),
       child: ContentContainer(
         child: Wrap(
           alignment: WrapAlignment.spaceEvenly,
-          spacing: 16,
-          runSpacing: 16,
+          spacing: 24,
+          runSpacing: 20,
           children: SchoolData.stats
-              .map((stat) => SizedBox(
-                    width: isMobile ? 140 : null,
+              .map((stat) => Container(
+                    width: isMobile ? 150 : 200,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x06000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       children: [
                         Text(
                           stat.value,
-                          style: GoogleFonts.cormorantGaramond(
-                            color: PublicColors.gold,
-                            fontSize: isMobile ? 22 : 32,
+                          style: GoogleFonts.poppins(
+                            color: PublicColors.navyDark,
+                            fontSize: isMobile ? 22 : 28,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -254,10 +517,10 @@ class _StatsStrip extends StatelessWidget {
                         Text(
                           stat.label.toUpperCase(),
                           style: GoogleFonts.nunitoSans(
-                            color: PublicColors.textSecondary,
+                            color: PublicColors.gold,
                             fontSize: 11,
-                            letterSpacing: 1.0,
-                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],

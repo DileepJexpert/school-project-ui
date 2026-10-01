@@ -8,6 +8,7 @@ import '../../../core/constants/academic_year.dart';
 import '../../../models/admission_data.dart';
 import '../../../services/admission_api_service.dart';
 import '../../../services/csv_export_service.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 import 'new_admission_screen.dart';
 import 'student_detail_screen.dart';
 
@@ -206,24 +207,18 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                           (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      decoration: _inputDec('Class / Section Interested In *'),
-                      value: selectedClass,
-                      items: SchoolConstants.allClasses
-                          .map(
-                              (c) => DropdownMenuItem(value: c, child: Text(c)))
-                          .toList(),
+                    SearchableDropdownFormField<String>(
+                      labelText: 'Class / Section Interested In *',
+                      initialValue: selectedClass,
+                      items: SchoolConstants.allClasses,
                       onChanged: (v) => setSt(() => selectedClass = v),
                       validator: (v) => v == null ? 'Required' : null,
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedYear,
-                      decoration: _inputDec('Academic Year *'),
-                      items: AcademicYear.choices()
-                          .map(
-                              (y) => DropdownMenuItem(value: y, child: Text(y)))
-                          .toList(),
+                    SearchableDropdownFormField<String>(
+                      labelText: 'Academic Year *',
+                      initialValue: selectedYear,
+                      items: AcademicYear.choices(),
                       onChanged: (v) => setSt(() => selectedYear = v!),
                     ),
                     const SizedBox(height: 12),

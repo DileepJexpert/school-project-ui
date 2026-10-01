@@ -285,23 +285,23 @@ class _NavButtonState extends State<_NavButton> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: widget.isActive
-                ? PublicColors.gold.withOpacity(0.15)
+                ? PublicColors.gold.withValues(alpha: 0.18)
                 : _hovering
-                    ? Colors.white.withOpacity(0.05)
+                    ? Colors.white.withValues(alpha: 0.08)
                     : Colors.transparent,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
             widget.label,
             style: GoogleFonts.nunitoSans(
               color: widget.isActive
                   ? PublicColors.goldLight
-                  : Colors.white.withOpacity(0.85),
-              fontSize: 13,
-              fontWeight: widget.isActive ? FontWeight.w700 : FontWeight.w400,
+                  : Colors.white.withValues(alpha: 0.9),
+              fontSize: 13.5,
+              fontWeight: widget.isActive ? FontWeight.w700 : FontWeight.w500,
               letterSpacing: 0.3,
             ),
           ),
@@ -333,14 +333,14 @@ class _StaffLoginButtonState extends State<_StaffLoginButton> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: _hovering ? PublicColors.gold : Colors.transparent,
-            border: Border.all(color: PublicColors.gold.withOpacity(0.5)),
-            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: PublicColors.gold.withValues(alpha: 0.7)),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
             'Staff Login',
             style: GoogleFonts.nunitoSans(
               color: _hovering ? Colors.white : PublicColors.goldLight,
-              fontSize: 12,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
             ),
@@ -539,7 +539,10 @@ class _Footer extends StatelessWidget {
             Container(
               width: 32,
               height: 32,
-              color: PublicColors.gold,
+              decoration: BoxDecoration(
+                color: PublicColors.gold,
+                borderRadius: BorderRadius.circular(8),
+              ),
               alignment: Alignment.center,
               child: Text('S',
                   style: GoogleFonts.cormorantGaramond(

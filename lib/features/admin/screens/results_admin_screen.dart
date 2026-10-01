@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/academic_year.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../models/result_models.dart';
 import '../../../models/student_model.dart';
 import '../../../services/result_api_service.dart';
@@ -60,17 +61,18 @@ class _ResultsAdminScreenState extends State<ResultsAdminScreen>
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: palette.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.navy,
+        backgroundColor: palette.brand,
         foregroundColor: Colors.white,
         title: Text('Results Management',
             style: GoogleFonts.cormorantGaramond(
                 fontWeight: FontWeight.w700, fontSize: 20)),
         bottom: TabBar(
           controller: _tabs,
-          indicatorColor: AppColors.gold,
+          indicatorColor: palette.accent,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
           labelStyle:
@@ -80,7 +82,9 @@ class _ResultsAdminScreenState extends State<ResultsAdminScreen>
             Tab(icon: Icon(Icons.edit_note, size: 18), text: 'Enter Marks'),
             Tab(icon: Icon(Icons.table_chart, size: 18), text: 'Result Sheet'),
             Tab(icon: Icon(Icons.bar_chart, size: 18), text: 'Analytics'),
-            Tab(icon: Icon(Icons.badge_outlined, size: 18), text: 'Report Card'),
+            Tab(
+                icon: Icon(Icons.badge_outlined, size: 18),
+                text: 'Report Card'),
           ],
         ),
       ),
@@ -107,8 +111,7 @@ InputDecoration _fieldDec(String label) => InputDecoration(
       fillColor: AppColors.white,
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
 
 Widget _sectionTitle(String text) => Padding(
@@ -160,9 +163,7 @@ Widget _statCard(String title, String value, IconData icon, Color color) =>
           const SizedBox(height: 8),
           Text(value,
               style: GoogleFonts.nunitoSans(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: color)),
+                  fontSize: 26, fontWeight: FontWeight.w800, color: color)),
           Text(title,
               style: GoogleFonts.nunitoSans(
                   fontSize: 12,
@@ -261,9 +262,10 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
         _loadedClass = className;
         _loadedYear = year;
       });
-    } catch (e) {
+    } catch (_) {
       if (mounted && generation == _rosterGeneration) {
-        _snack('Failed to load students: $e', AppColors.error);
+        _snack('Students could not be loaded for this class and year.',
+            AppColors.error);
       }
     } finally {
       if (mounted && generation == _rosterGeneration) {
@@ -273,21 +275,23 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
   }
 
   Future<void> _submitAll() async {
-    if (_year == null || _className == null || _examType == null ||
+    if (_year == null ||
+        _className == null ||
+        _examType == null ||
         _subjectCtrl.text.isEmpty) {
       _snack('Fill all required fields above.', AppColors.warning);
       return;
     }
     if (!_hasCurrentRoster) {
-      _snack('Load students for the selected class and year first.', AppColors.warning);
+      _snack('Load students for the selected class and year first.',
+          AppColors.warning);
       return;
     }
     final className = _loadedClass!;
     final year = _loadedYear!;
     final generation = _rosterGeneration;
 
-    final double maxM =
-        double.tryParse(_maxMarksCtrl.text) ?? 100;
+    final double maxM = double.tryParse(_maxMarksCtrl.text) ?? 100;
 
     final entries = _students
         .where((s) => (_marksCtrls[s.id!]?.text ?? '').isNotEmpty)
@@ -295,8 +299,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
               'studentId': s.id,
               'studentName': s.fullName,
               'rollNumber': s.rollNumber ?? '',
-              'marksObtained':
-                  double.tryParse(_marksCtrls[s.id!]!.text) ?? 0.0,
+              'marksObtained': double.tryParse(_marksCtrls[s.id!]!.text) ?? 0.0,
               'teacherRemarks': _remarksCtrls[s.id!]?.text ?? '',
             })
         .toList();
@@ -317,8 +320,8 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
         enteredBy: 'Admin',
         entries: entries,
       );
-      _snack('Marks submitted for ${entries.length} students!',
-          AppColors.success);
+      _snack(
+          'Marks submitted for ${entries.length} students!', AppColors.success);
       // A different roster may have been loaded while the request was in flight.
       if (mounted && generation == _rosterGeneration) {
         for (final c in _marksCtrls.values) {
@@ -328,8 +331,8 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
           c.clear();
         }
       }
-    } catch (e) {
-      _snack('Submit failed: $e', AppColors.error);
+    } catch (_) {
+      _snack('Marks could not be submitted. Please retry.', AppColors.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -337,8 +340,8 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
 
   void _snack(String msg, Color color) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: color));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   @override
@@ -348,7 +351,8 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _sectionTitle('Enter Class Marks'),
             Text(
                 'Select class + exam + subject → load students → enter marks → submit.',
@@ -361,7 +365,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
               SizedBox(
                 width: 180,
                 child: DropdownButtonFormField<String>(
-                  value: _year,
+                  initialValue: _year,
                   decoration: _fieldDec('Academic Year *'),
                   items: _kYears
                       .map((y) => DropdownMenuItem(value: y, child: Text(y)))
@@ -375,7 +379,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
               SizedBox(
                 width: 220,
                 child: DropdownButtonFormField<String>(
-                  value: _className,
+                  initialValue: _className,
                   decoration: _fieldDec('Class *'),
                   items: SchoolConstants.allClasses
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -389,7 +393,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
               SizedBox(
                 width: 200,
                 child: DropdownButtonFormField<String>(
-                  value: _examType,
+                  initialValue: _examType,
                   decoration: _fieldDec('Exam Type *'),
                   items: _kExamTypes
                       .map((e) => DropdownMenuItem(
@@ -439,9 +443,10 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                 Text('${_students.length} Students — ',
                     style: GoogleFonts.nunitoSans(
                         fontWeight: FontWeight.w700, color: AppColors.navy)),
-                Text('${_className ?? ''} · ${_kExamLabels[_examType] ?? ''} · ${_subjectCtrl.text}',
-                    style: GoogleFonts.nunitoSans(
-                        color: AppColors.textSecondary)),
+                Text(
+                    '${_className ?? ''} · ${_kExamLabels[_examType] ?? ''} · ${_subjectCtrl.text}',
+                    style:
+                        GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
               ]),
               const SizedBox(height: 12),
               Card(
@@ -455,9 +460,8 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                     final s = entry.value;
                     return Container(
                       decoration: BoxDecoration(
-                        color: idx.isEven
-                            ? AppColors.white
-                            : AppColors.creamDark,
+                        color:
+                            idx.isEven ? AppColors.white : AppColors.creamDark,
                         borderRadius: idx == 0
                             ? const BorderRadius.vertical(
                                 top: Radius.circular(AppSizes.radiusLG))
@@ -498,8 +502,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                               isDense: true,
                               hintText: 'Marks',
                               hintStyle: GoogleFonts.nunitoSans(
-                                  fontSize: 12,
-                                  color: AppColors.textLight),
+                                  fontSize: 12, color: AppColors.textLight),
                               filled: true,
                               fillColor: AppColors.white,
                               border: OutlineInputBorder(
@@ -508,8 +511,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                               contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 8),
                             ),
-                            style:
-                                GoogleFonts.nunitoSans(fontSize: 14),
+                            style: GoogleFonts.nunitoSans(fontSize: 14),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -522,8 +524,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                               isDense: true,
                               hintText: 'Remarks (optional)',
                               hintStyle: GoogleFonts.nunitoSans(
-                                  fontSize: 12,
-                                  color: AppColors.textLight),
+                                  fontSize: 12, color: AppColors.textLight),
                               filled: true,
                               fillColor: AppColors.white,
                               border: OutlineInputBorder(
@@ -532,8 +533,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
                               contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 8),
                             ),
-                            style:
-                                GoogleFonts.nunitoSans(fontSize: 12),
+                            style: GoogleFonts.nunitoSans(fontSize: 12),
                           ),
                         ),
                       ]),
@@ -593,6 +593,15 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
   List<StudentResult> _results = [];
   bool _loading = false;
   bool _publishing = false;
+  String? _loadedYear;
+  String? _loadedClass;
+  String? _loadedExam;
+
+  bool get _hasCurrentSheet =>
+      _results.isNotEmpty &&
+      _loadedYear == _year &&
+      _loadedClass == _className &&
+      _loadedExam == _examType;
 
   Future<void> _load() async {
     if (_year == null || _className == null || _examType == null) {
@@ -603,22 +612,41 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
     try {
       final r = await ResultApiService.getClassResultSheet(
           _className!, _examType!, _year!);
-      setState(() => _results = r);
-    } catch (e) {
-      _snack('Load failed: $e', AppColors.error);
+      setState(() {
+        _results = r;
+        _loadedYear = _year;
+        _loadedClass = _className;
+        _loadedExam = _examType;
+      });
+    } catch (_) {
+      _snack(
+          'Results could not be loaded for this selection.', AppColors.error);
+      if (mounted) {
+        setState(() {
+          _results = [];
+          _loadedYear = null;
+          _loadedClass = null;
+          _loadedExam = null;
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _publish() async {
+    if (!_hasCurrentSheet) {
+      _snack('Reload the result sheet after changing the year, class, or exam.',
+          AppColors.warning);
+      return;
+    }
     setState(() => _publishing = true);
     try {
       await ResultApiService.publishResults(_className!, _examType!, _year!);
       _snack('Results published & parents notified!', AppColors.success);
       await _load();
-    } catch (e) {
-      _snack('Publish failed: $e', AppColors.error);
+    } catch (_) {
+      _snack('Results could not be published. Please retry.', AppColors.error);
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
@@ -638,7 +666,8 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
 
   @override
   Widget build(BuildContext context) {
-    final unpublished = _results.where((r) => !r.isPublished).length;
+    final unpublished =
+        _hasCurrentSheet ? _results.where((r) => !r.isPublished).length : 0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -649,43 +678,55 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
           SizedBox(
             width: 160,
             child: DropdownButtonFormField<String>(
-              value: _year,
+              initialValue: _year,
               decoration: _fieldDec('Year'),
               items: _kYears
                   .map((y) => DropdownMenuItem(value: y, child: Text(y)))
                   .toList(),
-              onChanged: (v) => setState(() => _year = v),
+              onChanged: (v) => setState(() {
+                _year = v;
+                _results = [];
+                _loadedYear = null;
+              }),
             ),
           ),
           SizedBox(
             width: 210,
             child: DropdownButtonFormField<String>(
-              value: _className,
+              initialValue: _className,
               decoration: _fieldDec('Class'),
               items: SchoolConstants.allClasses
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),
-              onChanged: (v) => setState(() => _className = v),
+              onChanged: (v) => setState(() {
+                _className = v;
+                _results = [];
+                _loadedClass = null;
+              }),
             ),
           ),
           SizedBox(
             width: 190,
             child: DropdownButtonFormField<String>(
-              value: _examType,
+              initialValue: _examType,
               decoration: _fieldDec('Exam Type'),
               items: _kExamTypes
-                  .map((e) => DropdownMenuItem(
-                      value: e, child: Text(_kExamLabels[e]!)))
+                  .map((e) =>
+                      DropdownMenuItem(value: e, child: Text(_kExamLabels[e]!)))
                   .toList(),
-              onChanged: (v) => setState(() => _examType = v),
+              onChanged: (v) => setState(() {
+                _examType = v;
+                _results = [];
+                _loadedExam = null;
+              }),
             ),
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.navyLight,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
             icon: _loading
                 ? const SizedBox(
                     width: 16,
@@ -702,8 +743,8 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 14)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
               icon: _publishing
                   ? const SizedBox(
                       width: 16,
@@ -712,16 +753,13 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
                           color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.publish_outlined),
               label: Text(
-                  _publishing
-                      ? 'Publishing…'
-                      : 'Publish ($unpublished draft)',
-                  style:
-                      GoogleFonts.nunitoSans(fontWeight: FontWeight.w700)),
+                  _publishing ? 'Publishing…' : 'Publish ($unpublished draft)',
+                  style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700)),
               onPressed: _publishing ? null : _publish,
             ),
         ]),
         const SizedBox(height: 20),
-        if (_results.isNotEmpty) ...[
+        if (_hasCurrentSheet) ...[
           // Summary strip
           Wrap(spacing: 12, runSpacing: 12, children: [
             _statCard(
@@ -734,16 +772,10 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
                 '${(_results.map((r) => r.percentage).reduce((a, b) => a + b) / _results.length).toStringAsFixed(1)} %',
                 Icons.trending_up,
                 AppColors.info),
-            _statCard(
-                'Pass',
-                '${_results.where((r) => r.isPassed).length}',
-                Icons.check_circle_outline,
-                AppColors.success),
-            _statCard(
-                'Fail',
-                '${_results.where((r) => !r.isPassed).length}',
-                Icons.cancel_outlined,
-                AppColors.error),
+            _statCard('Pass', '${_results.where((r) => r.isPassed).length}',
+                Icons.check_circle_outline, AppColors.success),
+            _statCard('Fail', '${_results.where((r) => !r.isPassed).length}',
+                Icons.cancel_outlined, AppColors.error),
           ]),
           const SizedBox(height: 16),
           // Table
@@ -755,11 +787,20 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                headingRowColor:
-                    WidgetStateProperty.all(AppColors.navy.withValues(alpha: 0.07)),
+                headingRowColor: WidgetStateProperty.all(
+                    AppColors.navy.withValues(alpha: 0.07)),
                 columnSpacing: 18,
-                columns: ['Rank', 'Name', 'Roll', 'Subject', 'Marks', '%',
-                    'Grade', 'Status', 'Published']
+                columns: [
+                  'Rank',
+                  'Name',
+                  'Roll',
+                  'Subject',
+                  'Marks',
+                  '%',
+                  'Grade',
+                  'Status',
+                  'Published'
+                ]
                     .map((h) => DataColumn(
                         label: Text(h,
                             style: GoogleFonts.nunitoSans(
@@ -777,8 +818,8 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
                               fontWeight: FontWeight.w600))),
                       DataCell(Text(r.rollNumber ?? '-',
                           style: GoogleFonts.nunitoSans())),
-                      DataCell(Text(r.subject,
-                          style: GoogleFonts.nunitoSans())),
+                      DataCell(
+                          Text(r.subject, style: GoogleFonts.nunitoSans())),
                       DataCell(Text(
                           '${r.marksObtained.toStringAsFixed(0)}/${r.maxMarks.toStringAsFixed(0)}',
                           style: GoogleFonts.nunitoSans())),
@@ -793,10 +834,9 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: (r.isPassed
-                                  ? AppColors.success
-                                  : AppColors.error)
-                              .withValues(alpha: 0.1),
+                          color:
+                              (r.isPassed ? AppColors.success : AppColors.error)
+                                  .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(r.isPassed ? 'PASS' : 'FAIL',
@@ -830,8 +870,8 @@ class _ResultSheetTabState extends State<_ResultSheetTab> {
                     size: 56, color: AppColors.textLight),
                 const SizedBox(height: 12),
                 Text('Select filters and tap Load to see results.',
-                    style: GoogleFonts.nunitoSans(
-                        color: AppColors.textSecondary)),
+                    style:
+                        GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
               ]),
             ),
           ),
@@ -868,8 +908,9 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
       final a = await ResultApiService.getClassAnalytics(_className!, _year!,
           examType: _examType);
       setState(() => _analytics = a);
-    } catch (e) {
-      _snack('Load failed: $e', AppColors.error);
+    } catch (_) {
+      _snack(
+          'Analytics could not be loaded for this selection.', AppColors.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -892,7 +933,7 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
           SizedBox(
             width: 160,
             child: DropdownButtonFormField<String>(
-              value: _year,
+              initialValue: _year,
               decoration: _fieldDec('Year'),
               items: _kYears
                   .map((y) => DropdownMenuItem(value: y, child: Text(y)))
@@ -903,7 +944,7 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
           SizedBox(
             width: 210,
             child: DropdownButtonFormField<String>(
-              value: _className,
+              initialValue: _className,
               decoration: _fieldDec('Class'),
               items: SchoolConstants.allClasses
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -914,11 +955,10 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
           SizedBox(
             width: 190,
             child: DropdownButtonFormField<String>(
-              value: _examType,
+              initialValue: _examType,
               decoration: _fieldDec('Exam (optional)'),
               items: [
-                const DropdownMenuItem(
-                    value: null, child: Text('All Exams')),
+                const DropdownMenuItem(value: null, child: Text('All Exams')),
                 ..._kExamTypes.map((e) =>
                     DropdownMenuItem(value: e, child: Text(_kExamLabels[e]!))),
               ],
@@ -929,8 +969,8 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.navyLight,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
             icon: _loading
                 ? const SizedBox(
                     width: 16,
@@ -949,14 +989,11 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
           Wrap(spacing: 12, runSpacing: 12, children: [
             _statCard('Students', '${a.totalStudents}',
                 Icons.people_alt_outlined, AppColors.navy),
-            _statCard('Class Avg',
-                '${a.classAverage.toStringAsFixed(1)} %',
+            _statCard('Class Avg', '${a.classAverage.toStringAsFixed(1)} %',
                 Icons.trending_up, AppColors.info),
-            _statCard('Highest',
-                '${a.highestPercentage.toStringAsFixed(1)} %',
+            _statCard('Highest', '${a.highestPercentage.toStringAsFixed(1)} %',
                 Icons.emoji_events_outlined, AppColors.gold),
-            _statCard('Pass %',
-                '${a.passPercentage.toStringAsFixed(1)} %',
+            _statCard('Pass %', '${a.passPercentage.toStringAsFixed(1)} %',
                 Icons.check_circle_outline, AppColors.success),
           ]),
           const SizedBox(height: 24),
@@ -992,8 +1029,7 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
                               top: Radius.circular(AppSizes.radiusLG))
                           : i == a.subjectHeatmap.length - 1
                               ? const BorderRadius.vertical(
-                                  bottom:
-                                      Radius.circular(AppSizes.radiusLG))
+                                  bottom: Radius.circular(AppSizes.radiusLG))
                               : BorderRadius.zero,
                     ),
                     padding: const EdgeInsets.symmetric(
@@ -1023,8 +1059,7 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
                                   value: s.classAverage / 100,
                                   backgroundColor:
                                       perfColor.withValues(alpha: 0.15),
-                                  valueColor:
-                                      AlwaysStoppedAnimation(perfColor),
+                                  valueColor: AlwaysStoppedAnimation(perfColor),
                                   minHeight: 8,
                                 ),
                               ),
@@ -1033,8 +1068,7 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
                       const SizedBox(width: 12),
                       SizedBox(
                         width: 52,
-                        child: Text(
-                            '${s.classAverage.toStringAsFixed(1)} %',
+                        child: Text('${s.classAverage.toStringAsFixed(1)} %',
                             style: GoogleFonts.nunitoSans(
                                 fontWeight: FontWeight.w700,
                                 color: perfColor,
@@ -1147,29 +1181,24 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppSizes.radiusMD),
                   side: BorderSide(
-                      color: (isCritical
-                              ? AppColors.error
-                              : AppColors.warning)
+                      color: (isCritical ? AppColors.error : AppColors.warning)
                           .withValues(alpha: 0.3)),
                 ),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: (isCritical
-                            ? AppColors.error
-                            : AppColors.warning)
-                        .withValues(alpha: 0.15),
+                    backgroundColor:
+                        (isCritical ? AppColors.error : AppColors.warning)
+                            .withValues(alpha: 0.15),
                     child: Icon(
                         isCritical
                             ? Icons.dangerous_outlined
                             : Icons.warning_outlined,
-                        color: isCritical
-                            ? AppColors.error
-                            : AppColors.warning,
+                        color: isCritical ? AppColors.error : AppColors.warning,
                         size: 20),
                   ),
                   title: Text(ar.studentName,
-                      style: GoogleFonts.nunitoSans(
-                          fontWeight: FontWeight.w700)),
+                      style:
+                          GoogleFonts.nunitoSans(fontWeight: FontWeight.w700)),
                   subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1178,19 +1207,17 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
                               style: GoogleFonts.nunitoSans(
                                   fontSize: 12, color: AppColors.error)),
                         if (ar.droppingSubjects.isNotEmpty)
-                          Text(
-                              'Declining: ${ar.droppingSubjects.join(', ')}',
+                          Text('Declining: ${ar.droppingSubjects.join(', ')}',
                               style: GoogleFonts.nunitoSans(
                                   fontSize: 12, color: AppColors.warning)),
                         Text(
                             'Overall: ${ar.overallPercentage.toStringAsFixed(1)} %',
                             style: GoogleFonts.nunitoSans(
-                                fontSize: 12,
-                                color: AppColors.textSecondary)),
+                                fontSize: 12, color: AppColors.textSecondary)),
                       ]),
                   trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: (isCritical ? AppColors.error : AppColors.warning)
                           .withValues(alpha: 0.15),
@@ -1217,8 +1244,8 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
                     size: 56, color: AppColors.textLight),
                 const SizedBox(height: 12),
                 Text('Select class and tap Analyse.',
-                    style: GoogleFonts.nunitoSans(
-                        color: AppColors.textSecondary)),
+                    style:
+                        GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
               ]),
             ),
           ),
@@ -1260,8 +1287,9 @@ class _ReportCardTabState extends State<_ReportCardTab> {
       final c = await ResultApiService.getStudentReportCard(
           _studentIdCtrl.text.trim(), _year!);
       setState(() => _card = c);
-    } catch (e) {
-      _snack('Load failed: $e', AppColors.error);
+    } catch (_) {
+      _snack('The report card could not be loaded. Please retry.',
+          AppColors.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1279,8 +1307,8 @@ class _ReportCardTabState extends State<_ReportCardTab> {
         const Icon(Icons.trending_up, color: AppColors.success, size: 16),
       'DECLINING' =>
         const Icon(Icons.trending_down, color: AppColors.error, size: 16),
-      _ => const Icon(Icons.trending_flat,
-          color: AppColors.textLight, size: 16),
+      _ =>
+        const Icon(Icons.trending_flat, color: AppColors.textLight, size: 16),
     };
   }
 
@@ -1289,10 +1317,7 @@ class _ReportCardTabState extends State<_ReportCardTab> {
     final card = _card;
     // Collect all exam types across all subjects for column headers
     final examTypes = card != null
-        ? (card.subjects
-            .expand((s) => s.examResults.keys)
-            .toSet()
-            .toList()
+        ? (card.subjects.expand((s) => s.examResults.keys).toSet().toList()
           ..sort((a, b) =>
               _kExamTypes.indexOf(a).compareTo(_kExamTypes.indexOf(b))))
         : <String>[];
@@ -1305,7 +1330,7 @@ class _ReportCardTabState extends State<_ReportCardTab> {
           SizedBox(
             width: 160,
             child: DropdownButtonFormField<String>(
-              value: _year,
+              initialValue: _year,
               decoration: _fieldDec('Academic Year'),
               items: _kYears
                   .map((y) => DropdownMenuItem(value: y, child: Text(y)))
@@ -1324,8 +1349,8 @@ class _ReportCardTabState extends State<_ReportCardTab> {
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.navyLight,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
             icon: _loading
                 ? const SizedBox(
                     width: 16,
@@ -1382,16 +1407,14 @@ class _ReportCardTabState extends State<_ReportCardTab> {
                 Column(children: [
                   _gradeChip(card.overallGrade),
                   const SizedBox(height: 4),
-                  Text(
-                      '${card.cumulativePercentage.toStringAsFixed(1)} %',
+                  Text('${card.cumulativePercentage.toStringAsFixed(1)} %',
                       style: GoogleFonts.nunitoSans(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
                           color: AppColors.navy)),
                   Text('Class Rank #${card.classRank}',
                       style: GoogleFonts.nunitoSans(
-                          fontSize: 12,
-                          color: AppColors.textSecondary)),
+                          fontSize: 12, color: AppColors.textSecondary)),
                 ]),
               ]),
             ),
@@ -1514,8 +1537,7 @@ class _ReportCardTabState extends State<_ReportCardTab> {
                                       color: AppColors.navy)),
                               const SizedBox(height: 8),
                               ...coscho.areas.map((area) => Padding(
-                                    padding:
-                                        const EdgeInsets.only(bottom: 6),
+                                    padding: const EdgeInsets.only(bottom: 6),
                                     child: Row(children: [
                                       Expanded(
                                           child: Text(area.name,
@@ -1539,8 +1561,8 @@ class _ReportCardTabState extends State<_ReportCardTab> {
                     size: 56, color: AppColors.textLight),
                 const SizedBox(height: 12),
                 Text('Enter student ID and tap Load Report Card.',
-                    style: GoogleFonts.nunitoSans(
-                        color: AppColors.textSecondary)),
+                    style:
+                        GoogleFonts.nunitoSans(color: AppColors.textSecondary)),
               ]),
             ),
           ),

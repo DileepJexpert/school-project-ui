@@ -49,8 +49,20 @@ class _GalleryPageState extends State<GalleryPage> {
                             horizontal: 20, vertical: 8),
                         decoration: BoxDecoration(
                           color:
-                              isActive ? PublicColors.navy : PublicColors.cream,
-                          border: Border.all(color: PublicColors.border),
+                              isActive ? PublicColors.navy : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isActive ? PublicColors.navy : const Color(0xFFCBD5E1),
+                          ),
+                          boxShadow: isActive
+                              ? [
+                                  BoxShadow(
+                                    color: PublicColors.navy.withValues(alpha: 0.25),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: Text(cat,
                             style: GoogleFonts.nunitoSans(
@@ -110,11 +122,11 @@ class _GalleryTileState extends State<_GalleryTile> {
         color: Color(widget.item.color),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.image_outlined,
-              color: Colors.white.withOpacity(0.4), size: 36),
+              color: Colors.white.withValues(alpha: 0.4), size: 36),
           const SizedBox(height: 8),
           Text(widget.item.label,
               style: GoogleFonts.nunitoSans(
-                  color: Colors.white.withOpacity(0.6),
+                  color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 12,
                   fontWeight: FontWeight.w500)),
         ]),
@@ -125,34 +137,49 @@ class _GalleryTileState extends State<_GalleryTile> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
-      child: AspectRatio(
-        aspectRatio: 4 / 3,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Show real image if the file has been added, else color placeholder
-            if (widget.item.imagePath != null)
-              SchoolImage(
-                path: widget.item.imagePath!,
-                fallback: _placeholder(),
-              )
-            else
-              _placeholder(),
-            // Hover overlay with label
-            AnimatedOpacity(
-              opacity: _hovering ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
-              child: Container(
-                color: PublicColors.navy.withOpacity(0.7),
-                alignment: Alignment.center,
-                child: Text(widget.item.label,
-                    style: GoogleFonts.nunitoSans(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14)),
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A101828),
+              blurRadius: 10,
+              offset: Offset(0, 2),
             ),
           ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: AspectRatio(
+          aspectRatio: 4 / 3,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Show real image if the file has been added, else color placeholder
+              if (widget.item.imagePath != null)
+                SchoolImage(
+                  path: widget.item.imagePath!,
+                  fallback: _placeholder(),
+                )
+              else
+                _placeholder(),
+              // Hover overlay with label
+              AnimatedOpacity(
+                opacity: _hovering ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  color: PublicColors.navyDark.withValues(alpha: 0.8),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(12),
+                  child: Text(widget.item.label,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.nunitoSans(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

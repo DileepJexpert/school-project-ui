@@ -181,6 +181,80 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Future<void> _fillAdminCredentials({bool autoSubmit = true}) async {
+    setState(() {
+      _isPlatformAdmin = false;
+      _schoolCodeCtrl.text = 'risingstar';
+      _schoolValidated = true;
+      _schoolName = 'Rising Star International School';
+      _emailCtrl.text = 'admin@risingstar.edu';
+      _passwordCtrl.text = 'Admin123!';
+      _error = null;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('tenant_id', 'risingstar');
+
+    if (autoSubmit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _submit();
+      });
+    }
+  }
+
+  Widget _buildQuickLoginChips() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.navy.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.navy.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.bolt, color: AppColors.gold, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  'Quick Demo Login',
+                  style: GoogleFonts.nunitoSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navy,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.flash_on, size: 16, color: Colors.white),
+                  label: Text('1-Click Admin Login',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                  backgroundColor: AppColors.navy,
+                  side: BorderSide.none,
+                  onPressed: _loading ? null : () => _fillAdminCredentials(autoSubmit: true),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.edit_note, size: 16, color: AppColors.textPrimary),
+                  label: Text('Fill Admin Info',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: AppColors.border),
+                  onPressed: _loading ? null : () => _fillAdminCredentials(autoSubmit: false),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
   Widget _buildLoginCard(bool showBrandPanel) => Card(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -191,7 +265,9 @@ class _LoginPageState extends State<LoginPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildHeader(showBrandPanel),
-                const SizedBox(height: 22),
+                const SizedBox(height: 16),
+                _buildQuickLoginChips(),
+                const SizedBox(height: 14),
                 _buildPlatformToggle(),
                 const SizedBox(height: 16),
                 if (!_isPlatformAdmin) ...[
@@ -302,7 +378,7 @@ class _LoginPageState extends State<LoginPage> {
         children: [
           Switch.adaptive(
             value: _isPlatformAdmin,
-            activeColor: AppColors.navy,
+            activeTrackColor: AppColors.navy,
             onChanged: (v) => setState(() {
               _isPlatformAdmin = v;
               _schoolValidated = false;

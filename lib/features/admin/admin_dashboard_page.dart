@@ -453,44 +453,48 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildMenuItem(_MenuItem item, int index) {
     final isActive = _selectedIndex == index;
+    final brandColor = context.palette.brand;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
           setState(() => _selectedIndex = index);
-          // Close the drawer when a section is selected -- only on mobile
           if (Responsive.isMobile(context)) Navigator.pop(context);
         },
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
           decoration: BoxDecoration(
             color: isActive
-                ? context.palette.brand.withValues(alpha: 0.08)
+                ? brandColor.withValues(alpha: 0.12)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+            borderRadius: BorderRadius.circular(10),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           child: Row(
             children: [
-              Icon(item.icon,
-                  size: 18,
-                  color: isActive ? AppColors.navy : AppColors.textSecondary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(item.label,
-                    style: GoogleFonts.nunitoSans(
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                      color:
-                          isActive ? AppColors.navy : AppColors.textSecondary,
-                      fontSize: 12.5,
-                    )),
+              Icon(
+                item.icon,
+                size: 19,
+                color: isActive ? brandColor : const Color(0xFF64748B),
               ),
-              if (item.isLive)
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: GoogleFonts.nunitoSans(
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? brandColor : const Color(0xFF334155),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              if (isActive)
                 Container(
                   width: 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: isActive ? AppColors.gold : AppColors.success,
+                    color: brandColor,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -550,24 +554,47 @@ class _OverviewContentState extends State<_OverviewContent> {
       _loading = true;
       _error = null;
     });
+    var failedRequests = 0;
+
+    Future<SchoolSummary?> loadSummary() async {
+      try {
+        return await FeeApiService.getSchoolSummary();
+      } catch (_) {
+        failedRequests++;
+        return null;
+      }
+    }
+
+    Future<Map<String, dynamic>?> loadStaffDashboard() async {
+      try {
+        return await StaffApiService.getStaffDashboard();
+      } catch (_) {
+        failedRequests++;
+        return null;
+      }
+    }
+
     try {
       final results = await Future.wait([
-        FeeApiService.getSchoolSummary(),
-        StaffApiService.getStaffDashboard(),
+        loadSummary(),
+        loadStaffDashboard(),
       ]);
       if (mounted) {
         setState(() {
-          _schoolSummary = results[0] as SchoolSummary;
-          _staffDashboard = results[1] as Map<String, dynamic>;
-          _error = null;
+          if (results[0] != null) {
+            _schoolSummary = results[0] as SchoolSummary;
+          }
+          if (results[1] != null) {
+            _staffDashboard = results[1] as Map<String, dynamic>;
+          }
+          _error = failedRequests == 0
+              ? null
+              : 'Some dashboard metrics are temporarily unavailable.';
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e.toString());
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load dashboard: $e')),
-        );
+        setState(() => _error = 'Dashboard metrics could not be loaded.');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -607,321 +634,456 @@ class _OverviewContentState extends State<_OverviewContent> {
     final revenue = _schoolSummary?.totalFeesCollected ?? 0.0;
     final checklist = SchoolData.setupChecklist;
     final completedChecklistCount = checklist.where((c) => c.isComplete).length;
+    final palette = context.palette;
+    final now = DateTime.now();
+    final academicYearStart = now.month >= 4 ? now.year : now.year - 1;
+    final academicYear = '$academicYearStart–${academicYearStart + 1}';
+
+    final user = AuthService.instance.currentUser;
+    final userName = user?.fullName.split(' ').first ?? 'Admin';
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(Responsive.contentPadding(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome Back, ${AuthService.instance.currentUser?.fullName.split(' ').first ?? 'Admin'}!',
-                      style: GoogleFonts.poppins(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navy),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Here's a quick overview of your school.",
-                      style: GoogleFonts.poppins(
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400),
+              // ── Modern Hero Banner ──────────────────────────────────
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      context.palette.brand,
+                      context.palette.brandDark,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: context.palette.brand.withValues(alpha: 0.22),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
-              ),
-              IconButton(
-                tooltip: 'Refresh metrics',
-                onPressed: _loading ? null : _loadData,
-                icon: const Icon(Icons.refresh_rounded, color: AppColors.navy),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          if (_error != null) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-                border: Border.all(color: AppColors.error.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline_rounded,
-                      color: AppColors.error, size: 28),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Unable to Load Metrics',
-                            style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.error)),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Displaying defaults. Server connection error: $_error',
-                          style: GoogleFonts.nunitoSans(
-                              fontSize: 12, color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: _loadData,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Retry'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.error,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = Responsive.gridColumns(context);
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
+                child: Row(
                   children: [
-                    _statCard(
-                        context,
-                        'Total Students',
-                        _formatNumber(totalStudents),
-                        Icons.people_alt_rounded,
-                        AppColors.navy,
-                        constraints.maxWidth,
-                        columns,
-                        onTap: () => widget.onNavigate?.call(1)),
-                    _statCard(
-                        context,
-                        'Total Staff',
-                        _formatNumber(totalStaff),
-                        Icons.badge_rounded,
-                        const Color(0xFF0D9488),
-                        constraints.maxWidth,
-                        columns,
-                        onTap: () => widget.onNavigate?.call(15)),
-                    _statCard(
-                        context,
-                        'Pending Leaves',
-                        '$pendingLeaves',
-                        Icons.event_busy_rounded,
-                        AppColors.gold,
-                        constraints.maxWidth,
-                        columns,
-                        onTap: () => widget.onNavigate?.call(15)),
-                    _statCard(
-                        context,
-                        'Revenue (Total)',
-                        _formatRevenue(revenue),
-                        Icons.monetization_on_rounded,
-                        const Color(0xFFDB2777),
-                        constraints.maxWidth,
-                        columns,
-                        onTap: () => widget.onNavigate?.call(5)),
-                  ],
-                );
-              },
-            ),
-          const SizedBox(height: 24),
-          Text('Quick Actions',
-              style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy)),
-          const SizedBox(height: 4),
-          Text('Jump directly to frequent workflows and operations.',
-              style: GoogleFonts.poppins(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400)),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _actionCard('New Enquiry', Icons.person_add_alt_1_outlined, 2, AppColors.navy),
-              _actionCard('Enroll Student', Icons.school_outlined, 1, const Color(0xFF0D9488)),
-              _actionCard('Collect Fees', Icons.receipt_long_outlined, 5, const Color(0xFFDB2777)),
-              _actionCard('Mark Attendance', Icons.how_to_reg_outlined, 8, AppColors.gold),
-              _actionCard('Assign Homework', Icons.menu_book_outlined, 3, AppColors.info),
-              _actionCard('Send Notice', Icons.campaign_outlined, 13, AppColors.warning),
-            ],
-          ),
-          if (completedChecklistCount < checklist.length) ...[
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.checklist_rounded, color: AppColors.navy, size: 22),
-                      const SizedBox(width: 8),
-                      Text('School Setup Progress',
-                          style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.navy)),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.navy.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '$completedChecklistCount / ${checklist.length} Complete',
-                          style: GoogleFonts.nunitoSans(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.verified_rounded,
+                                    size: 14, color: Colors.white),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Academic Year $academicYear • ${AppStrings.schoolName}',
+                                  style: GoogleFonts.nunitoSans(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Welcome Back, $userName!',
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.navy,
-                              fontSize: 12),
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Manage students, admissions, attendance, and finances from one unified workspace.',
+                            style: GoogleFonts.nunitoSans(
+                              fontSize: 13.5,
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!Responsive.isMobile(context)) ...[
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: _loading ? null : _loadData,
+                        icon: _loading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Refresh'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.18),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              if (_error != null) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: palette.surface,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                    border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.28)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded,
+                          color: AppColors.error, size: 28),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Some metrics need attention',
+                                style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.error)),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$_error You can retry without leaving this page.',
+                              style: GoogleFonts.nunitoSans(
+                                  fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: _loadData,
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Retry'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  ...checklist.map((item) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Icon(
-                              item.isComplete
-                                  ? Icons.check_circle_rounded
-                                  : Icons.radio_button_unchecked_rounded,
-                              size: 18,
-                              color: item.isComplete
-                                  ? AppColors.success
-                                  : AppColors.textLight,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.title,
-                                      style: GoogleFonts.nunitoSans(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: item.isComplete
-                                              ? AppColors.textPrimary
-                                              : AppColors.navy)),
-                                  Text(item.description,
-                                      style: GoogleFonts.nunitoSans(
-                                          fontSize: 11,
-                                          color: AppColors.textSecondary)),
-                                ],
-                              ),
-                            ),
-                            if (!item.isComplete)
-                              TextButton(
-                                onPressed: () =>
-                                    widget.onNavigate?.call(item.targetIndex),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text('Configure →',
-                                    style: TextStyle(fontSize: 12)),
-                              ),
-                          ],
-                        ),
-                      )),
+                ),
+              ],
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = Responsive.gridColumns(context);
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _statCard(
+                            context,
+                            'Total Students',
+                            _formatNumber(totalStudents),
+                            Icons.people_alt_rounded,
+                            palette.brand,
+                            constraints.maxWidth,
+                            columns,
+                            onTap: () => widget.onNavigate?.call(1)),
+                        _statCard(
+                            context,
+                            'Total Staff',
+                            _formatNumber(totalStaff),
+                            Icons.badge_rounded,
+                            const Color(0xFF0D9488),
+                            constraints.maxWidth,
+                            columns,
+                            onTap: () => widget.onNavigate?.call(15)),
+                        _statCard(
+                            context,
+                            'Pending Leaves',
+                            '$pendingLeaves',
+                            Icons.event_busy_rounded,
+                            palette.accent,
+                            constraints.maxWidth,
+                            columns,
+                            onTap: () => widget.onNavigate?.call(15)),
+                        _statCard(
+                            context,
+                            'Revenue (Total)',
+                            _formatRevenue(revenue),
+                            Icons.monetization_on_rounded,
+                            const Color(0xFFDB2777),
+                            constraints.maxWidth,
+                            columns,
+                            onTap: () => widget.onNavigate?.call(5)),
+                      ],
+                    );
+                  },
+                ),
+              const SizedBox(height: 24),
+              Text('Quick Actions',
+                  style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: palette.brand)),
+              const SizedBox(height: 4),
+              Text('Jump directly to frequent workflows and operations.',
+                  style: GoogleFonts.poppins(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _actionCard('New Enquiry', 'Register admission lead',
+                      Icons.person_add_alt_1_outlined, 2, palette.brand),
+                  _actionCard('Enroll Student', 'Full student registration',
+                      Icons.school_outlined, 1, const Color(0xFF0D9488)),
+                  _actionCard('Collect Fees', 'Record cash / online fee',
+                      Icons.receipt_long_outlined, 5, const Color(0xFFDB2777)),
+                  _actionCard('Mark Attendance', 'Daily class roll call',
+                      Icons.how_to_reg_outlined, 8, palette.accent),
+                  _actionCard('Assign Homework', 'Class assignments & notes',
+                      Icons.menu_book_outlined, 3, const Color(0xFF6366F1)),
+                  _actionCard('Send Notice', 'Broadcast announcements',
+                      Icons.campaign_outlined, 13, const Color(0xFFEA580C)),
                 ],
               ),
-            ),
-          ],
-          const SizedBox(height: 24),
-          Text('Live Modules',
-              style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy)),
-          const SizedBox(height: 4),
-          Text('Click any module chip to open it directly.',
-              style: GoogleFonts.poppins(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400)),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            _liveChip(Icons.people_alt_outlined, 'Students'),
-            _liveChip(Icons.person_add_alt_1_outlined, 'Admissions'),
-            _liveChip(Icons.receipt_long_outlined, 'Fees'),
-            _liveChip(Icons.money_off_outlined, 'Expenses'),
-            _liveChip(Icons.assessment_outlined, 'Reports'),
-            _liveChip(Icons.rule_folder_outlined, 'Attendance'),
-            _liveChip(Icons.table_chart_outlined, 'Timetable'),
-            _liveChip(Icons.emoji_events_outlined, 'Results'),
-            _liveChip(Icons.directions_bus_outlined, 'Transport'),
-            _liveChip(Icons.notifications_active_outlined, 'Notifications'),
-            _liveChip(Icons.settings_outlined, 'Settings'),
-            _liveChip(Icons.gavel_outlined, 'Discipline'),
-            _liveChip(Icons.chat_outlined, 'Chat'),
-            _liveChip(Icons.badge_outlined, 'HR & Staff'),
-            _liveChip(Icons.description_outlined, 'Certificates'),
-            _liveChip(Icons.menu_book_outlined, 'Homework'),
-            _liveChip(Icons.video_library_outlined, 'Video Tutorials'),
-            _liveChip(Icons.smart_toy_outlined, 'AI Settings'),
-          ]),
-        ],
+              if (completedChecklistCount < checklist.length) ...[
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: palette.surface,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.checklist_rounded,
+                              color: palette.brand, size: 22),
+                          const SizedBox(width: 8),
+                          Text('School Setup Progress',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: palette.brand)),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: palette.brand.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '$completedChecklistCount / ${checklist.length} Complete',
+                              style: GoogleFonts.nunitoSans(
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.brand,
+                                  fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ...checklist.map((item) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  item.isComplete
+                                      ? Icons.check_circle_rounded
+                                      : Icons.radio_button_unchecked_rounded,
+                                  size: 18,
+                                  color: item.isComplete
+                                      ? AppColors.success
+                                      : AppColors.textLight,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(item.title,
+                                          style: GoogleFonts.nunitoSans(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                              color: item.isComplete
+                                                  ? AppColors.textPrimary
+                                                  : AppColors.navy)),
+                                      Text(item.description,
+                                          style: GoogleFonts.nunitoSans(
+                                              fontSize: 11,
+                                              color: AppColors.textSecondary)),
+                                    ],
+                                  ),
+                                ),
+                                if (!item.isComplete)
+                                  TextButton(
+                                    onPressed: () => widget.onNavigate
+                                        ?.call(item.targetIndex),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: const Text('Configure →',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                              ],
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              Text('Live Modules',
+                  style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: palette.brand)),
+              const SizedBox(height: 4),
+              Text('Click any module chip to open it directly.',
+                  style: GoogleFonts.poppins(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400)),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                _liveChip(Icons.people_alt_outlined, 'Students'),
+                _liveChip(Icons.person_add_alt_1_outlined, 'Admissions'),
+                _liveChip(Icons.receipt_long_outlined, 'Fees'),
+                _liveChip(Icons.money_off_outlined, 'Expenses'),
+                _liveChip(Icons.assessment_outlined, 'Reports'),
+                _liveChip(Icons.rule_folder_outlined, 'Attendance'),
+                _liveChip(Icons.table_chart_outlined, 'Timetable'),
+                _liveChip(Icons.emoji_events_outlined, 'Results'),
+                _liveChip(Icons.directions_bus_outlined, 'Transport'),
+                _liveChip(Icons.notifications_active_outlined, 'Notifications'),
+                _liveChip(Icons.settings_outlined, 'Settings'),
+                _liveChip(Icons.gavel_outlined, 'Discipline'),
+                _liveChip(Icons.chat_outlined, 'Chat'),
+                _liveChip(Icons.badge_outlined, 'HR & Staff'),
+                _liveChip(Icons.description_outlined, 'Certificates'),
+                _liveChip(Icons.menu_book_outlined, 'Homework'),
+                _liveChip(Icons.video_library_outlined, 'Video Tutorials'),
+                _liveChip(Icons.smart_toy_outlined, 'AI Settings'),
+              ]),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _actionCard(String label, IconData icon, int targetIndex, Color color) {
-    return InkWell(
-      onTap: () => widget.onNavigate?.call(targetIndex),
-      borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+  Widget _actionCard(String title, String subtitle, IconData icon,
+      int targetIndex, Color color) {
+    return SizedBox(
+      width: 210,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 8),
-            Text(label,
-                style: GoogleFonts.nunitoSans(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: AppColors.navy)),
-            const SizedBox(width: 4),
-            const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.textLight),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEAECF0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x06101828),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
           ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => widget.onNavigate?.call(targetIndex),
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.all(13),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, size: 20, color: color),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.nunitoSans(
+                            fontSize: 11,
+                            color: const Color(0xFF64748B),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 17, color: Color(0xFF94A3B8)),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -935,9 +1097,9 @@ class _OverviewContentState extends State<_OverviewContent> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.success.withOpacity(0.08),
+          color: AppColors.success.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.success.withOpacity(0.3)),
+          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 15, color: AppColors.success),
@@ -966,43 +1128,95 @@ class _OverviewContentState extends State<_OverviewContent> {
     Color color,
     double maxWidth,
     int columns, {
+    String? subtitle,
     VoidCallback? onTap,
   }) {
     return SizedBox(
-      width: (maxWidth - (columns - 1) * 12) / columns,
-      child: Card(
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: color.withOpacity(0.12),
-                  child: Icon(icon, size: 22, color: color),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      width: (maxWidth - (columns - 1) * 14) / columns,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEAECF0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A101828),
+              blurRadius: 14,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(value,
-                          style: GoogleFonts.poppins(
-                              fontSize: 21,
-                              fontWeight: FontWeight.w700,
-                              color: color)),
-                      const SizedBox(height: 2),
-                      Text(title,
-                          style: GoogleFonts.poppins(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500)),
+                      Text(
+                        title,
+                        style: GoogleFonts.nunitoSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(icon, size: 20, color: color),
+                      ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    value,
+                    style: GoogleFonts.poppins(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          subtitle ?? 'Active System',
+                          style: GoogleFonts.nunitoSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 15,
+                        color: Colors.grey.shade400,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

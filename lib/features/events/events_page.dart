@@ -40,10 +40,18 @@ class _NoticesSection extends StatelessWidget {
           const SectionTitle(title: 'Notice Board'),
           const SizedBox(height: 20),
           ...SchoolData.notices.map((n) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
+                margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
                   color: PublicColors.white,
-                  border: Border.all(color: PublicColors.border),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x06000000),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: ListTile(
                   leading: Icon(
@@ -129,7 +137,7 @@ class _EventsSection extends StatelessWidget {
                               child: SchoolImage(
                                 path: e.imagePath!,
                                 fallback: Container(
-                                  color: PublicColors.navy.withOpacity(0.08),
+                                  color: PublicColors.navy.withValues(alpha: 0.08),
                                   child: const Icon(Icons.event,
                                       color: PublicColors.textLight, size: 40),
                                 ),
@@ -168,7 +176,7 @@ class _EventsSection extends StatelessWidget {
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 8, vertical: 2),
-                                        color: PublicColors.goldPale,
+                                        decoration: BoxDecoration(color: PublicColors.goldPale, borderRadius: BorderRadius.circular(4)),
                                         child: Text(e.category,
                                             style: GoogleFonts.nunitoSans(
                                                 color: PublicColors.navy,

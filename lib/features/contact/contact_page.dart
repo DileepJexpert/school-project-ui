@@ -10,6 +10,7 @@ import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/responsive.dart';
 import '../../services/dio_client.dart';
 import '../../models/school_data.dart';
+import '../../core/widgets/searchable_dropdown.dart';
 
 class ContactPage extends StatefulWidget {
   const ContactPage({super.key});
@@ -108,118 +109,204 @@ class _ContactPageState extends State<ContactPage> {
   }
 
   Widget _form(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle(title: 'Send an Inquiry'),
-        const SizedBox(height: 20),
-        if (_submitted)
-          Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: PublicColors.success.withOpacity(0.08),
-              border: Border.all(color: PublicColors.success.withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle,
-                    color: PublicColors.success, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    "Thank you! Your inquiry has been submitted. We'll respond within 24 hours.",
-                    style: GoogleFonts.nunitoSans(
-                        color: PublicColors.success,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
+    final isMobile = Responsive.isMobile(context);
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 20 : 32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A101828),
+            blurRadius: 20,
+            offset: Offset(0, 6),
           ),
-        Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              Row(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Send an Inquiry'),
+          const SizedBox(height: 20),
+          if (_submitted)
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: PublicColors.success.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: PublicColors.success.withValues(alpha: 0.3)),
+              ),
+              child: Row(
                 children: [
+                  const Icon(Icons.check_circle_rounded,
+                      color: PublicColors.success, size: 22),
+                  const SizedBox(width: 10),
                   Expanded(
-                      child: TextFormField(
+                    child: Text(
+                      "Thank you! Your inquiry has been submitted. We'll respond within 24 hours.",
+                      style: GoogleFonts.nunitoSans(
+                          color: PublicColors.success,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                if (isMobile) ...[
+                  TextFormField(
                     controller: _nameController,
-                    decoration: const InputDecoration(hintText: 'Full Name *'),
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name *',
+                      border: OutlineInputBorder(),
+                    ),
                     validator: (v) => (v?.isEmpty ?? true) ? 'Required' : null,
-                  )),
-                  const SizedBox(width: 16),
-                  Expanded(
-                      child: TextFormField(
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
                     controller: _emailController,
-                    decoration:
-                        const InputDecoration(hintText: 'Email Address *'),
+                    decoration: const InputDecoration(
+                      labelText: 'Email Address *',
+                      border: OutlineInputBorder(),
+                    ),
                     validator: (v) {
                       if (v?.isEmpty ?? true) return 'Required';
                       if (!v!.contains('@')) return 'Invalid email';
                       return null;
                     },
-                  )),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                      child: TextFormField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(hintText: 'Phone Number'),
-                  )),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedGrade.isEmpty ? null : _selectedGrade,
-                      decoration:
-                          const InputDecoration(hintText: 'Select Grade'),
-                      items: [
-                        'Kindergarten',
-                        'Grade 1–5',
-                        'Grade 6–8',
-                        'Grade 9–10',
-                        'Grade 11–12'
-                      ]
-                          .map(
-                              (g) => DropdownMenuItem(value: g, child: Text(g)))
-                          .toList(),
-                      onChanged: (v) =>
-                          setState(() => _selectedGrade = v ?? ''),
-                    ),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Full Name *',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (v) => (v?.isEmpty ?? true) ? 'Required' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _emailController,
+                          decoration: const InputDecoration(
+                            labelText: 'Email Address *',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (v) {
+                            if (v?.isEmpty ?? true) return 'Required';
+                            if (!v!.contains('@')) return 'Invalid email';
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _messageController,
-                maxLines: 5,
-                decoration: const InputDecoration(hintText: 'Your Message *'),
-                validator: (v) => (v?.isEmpty ?? true) ? 'Required' : null,
-              ),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: ElevatedButton.icon(
-                  onPressed: _submitting ? null : _handleSubmit,
-                  icon: _submitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.send, size: 16),
-                  label: Text(_submitting ? 'Submitting…' : 'Submit Inquiry'),
+                const SizedBox(height: 16),
+                if (isMobile) ...[
+                  TextFormField(
+                    controller: _phoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SearchableDropdownFormField<String>(
+                    labelText: 'Grade / Class of Interest',
+                    hintText: 'Select or type class...',
+                    initialValue: _selectedGrade.isEmpty ? null : _selectedGrade,
+                    items: const [
+                      'Kindergarten',
+                      'Grade 1–5',
+                      'Grade 6–8',
+                      'Grade 9–10',
+                      'Grade 11–12'
+                    ],
+                    onChanged: (v) => setState(() => _selectedGrade = v ?? ''),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _phoneController,
+                          decoration: const InputDecoration(
+                            labelText: 'Phone Number',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: SearchableDropdownFormField<String>(
+                          labelText: 'Grade / Class of Interest',
+                          hintText: 'Select or type class...',
+                          initialValue: _selectedGrade.isEmpty ? null : _selectedGrade,
+                          items: const [
+                            'Kindergarten',
+                            'Grade 1–5',
+                            'Grade 6–8',
+                            'Grade 9–10',
+                            'Grade 11–12'
+                          ],
+                          onChanged: (v) => setState(() => _selectedGrade = v ?? ''),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _messageController,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    labelText: 'Your Message *',
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => (v?.isEmpty ?? true) ? 'Required' : null,
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ElevatedButton.icon(
+                    onPressed: _submitting ? null : _handleSubmit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: PublicColors.navy,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: _submitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send_rounded, size: 18),
+                    label: Text(
+                      _submitting ? 'Submitting…' : 'Submit Inquiry',
+                      style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -281,16 +368,32 @@ class _ContactRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: PublicColors.cream,
-        border: Border.all(color: PublicColors.border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: PublicColors.gold, size: 20),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: PublicColors.gold.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: PublicColors.gold, size: 20),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

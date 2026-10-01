@@ -50,36 +50,51 @@ class TransportPage extends StatelessWidget {
       children: [
         const SectionTitle(title: 'Zone-wise Routes & Fees'),
         const SizedBox(height: 20),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            headingRowColor: WidgetStateProperty.all(PublicColors.navy),
-            headingTextStyle: GoogleFonts.nunitoSans(
-                color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-            dataTextStyle: GoogleFonts.nunitoSans(
-                fontSize: 13, color: PublicColors.textPrimary),
-            border: TableBorder.all(color: PublicColors.border, width: 0.5),
-            columnSpacing: 24,
-            columns: const [
-              DataColumn(label: Text('Zone')),
-              DataColumn(label: Text('Areas Covered')),
-              DataColumn(label: Text('Distance')),
-              DataColumn(label: Text('Monthly Fee')),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x08101828),
+                blurRadius: 16,
+                offset: Offset(0, 4),
+              ),
             ],
-            rows: SchoolData.transportZones
-                .map((z) => DataRow(cells: [
-                      DataCell(Text(z.zone,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: PublicColors.navy))),
-                      DataCell(Text(z.area)),
-                      DataCell(Text(z.distance)),
-                      DataCell(Text('₹ ${z.fee}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: PublicColors.gold))),
-                    ]))
-                .toList(),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(PublicColors.navy),
+              headingTextStyle: GoogleFonts.nunitoSans(
+                  color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+              dataTextStyle: GoogleFonts.nunitoSans(
+                  fontSize: 13, color: PublicColors.textPrimary),
+              border: TableBorder.all(color: const Color(0xFFE2E8F0), width: 0.5),
+              columnSpacing: 28,
+              columns: const [
+                DataColumn(label: Text('Zone')),
+                DataColumn(label: Text('Areas Covered')),
+                DataColumn(label: Text('Distance')),
+                DataColumn(label: Text('Monthly Fee')),
+              ],
+              rows: SchoolData.transportZones
+                  .map((z) => DataRow(cells: [
+                        DataCell(Text(z.zone,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: PublicColors.navy))),
+                        DataCell(Text(z.area)),
+                        DataCell(Text(z.distance)),
+                        DataCell(Text('₹ ${z.fee}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: PublicColors.gold))),
+                      ]))
+                  .toList(),
+            ),
           ),
         ),
       ],
@@ -115,7 +130,8 @@ class TransportPage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: PublicColors.goldPale,
-            border: Border.all(color: PublicColors.gold),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: PublicColors.gold.withValues(alpha: 0.6)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
