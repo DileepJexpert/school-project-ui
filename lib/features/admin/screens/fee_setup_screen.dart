@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -526,9 +527,19 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                         }
                       } catch (e) {
                         if (mounted) {
+                          String errorMsg = e.toString();
+                          if (e is DioException) {
+                            final detail = e.response?.data;
+                            if (detail is Map && detail['detail'] != null) {
+                              errorMsg = detail['detail'].toString();
+                            } else if (e.type == DioExceptionType.connectionError) {
+                              errorMsg =
+                                  'Network connection error. Please refresh the page and verify your session.';
+                            }
+                          }
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Save failed: $e'),
+                              content: Text('Save failed: $errorMsg'),
                               backgroundColor: AppColors.error,
                             ),
                           );

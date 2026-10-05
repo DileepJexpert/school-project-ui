@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'token_storage.dart';
@@ -6,11 +7,14 @@ import 'token_storage.dart';
 class DioClient {
   static late Dio _dio;
 
+  static const String _defaultProdUrl =
+      'https://school-api-staging.todileepmaurya.workers.dev/api';
+
   // Set at build time via: flutter build web --dart-define=API_BASE_URL=https://your-app.koyeb.app/api
-  // Falls back to localhost for local development.
+  // Falls back to production worker in release mode, localhost for local debug.
   static const String _buildBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:8000/api',
+    defaultValue: kReleaseMode ? _defaultProdUrl : 'http://localhost:8000/api',
   );
   static const String _publicTenantId = String.fromEnvironment(
     'PUBLIC_TENANT_ID', defaultValue: 'default',
@@ -25,12 +29,23 @@ class DioClient {
   static Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('api_base_url');
-    if (saved != null && saved != 'http://localhost:8080/api') {
-      try {
-        _baseUrl = _validatedBaseUrl(saved);
-      } on FormatException {
+    if (saved != null) {
+      final isLocalhost =
+          saved.contains('localhost') || saved.contains('127.0.0.1');
+      final isHttps = kIsWeb && Uri.base.scheme == 'https';
+      if ((kReleaseMode && isLocalhost) || (isHttps && isLocalhost)) {
         await prefs.remove('api_base_url');
+        _baseUrl = _buildBaseUrl;
+      } else {
+        try {
+          _baseUrl = _validatedBaseUrl(saved);
+        } on FormatException {
+          await prefs.remove('api_base_url');
+          _baseUrl = _buildBaseUrl;
+        }
       }
+    } else {
+      _baseUrl = _buildBaseUrl;
     }
     _dio = Dio(
       BaseOptions(
@@ -76,8 +91,7 @@ class DioClient {
             final refreshed = await _tryRefreshToken();
             if (refreshed) {
               // Retry the original request with the new token
-              final prefs = await SharedPreferences.getInstance();
-              final newToken = prefs.getString('auth_token');
+              final newToken = await TokenStorage.getToken() ?? prefs.getString('auth_token');
               error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
               error.requestOptions.extra['retriedAfterRefresh'] = true;
               try {
