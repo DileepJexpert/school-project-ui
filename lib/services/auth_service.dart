@@ -38,6 +38,13 @@ class AuthService {
     if (userJson != null) {
       try {
         _currentUser = AuthUser.fromJson(jsonDecode(userJson));
+        final storedTenant = prefs.getString('tenant_id');
+        if (_currentUser?.tenantId != null &&
+            storedTenant != null &&
+            _currentUser!.tenantId != storedTenant) {
+          debugPrint('[AuthService] Stale tenant mismatch, resetting session');
+          await _clearStorage(prefs);
+        }
       } catch (e) {
         debugPrint('[AuthService] Corrupt stored user, clearing session: $e');
         await _clearStorage(prefs);
@@ -89,6 +96,10 @@ class AuthService {
       await TokenStorage.saveRefreshToken(_refreshToken!);
     }
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', _token!);
+    if (_refreshToken != null) {
+      await prefs.setString('auth_refresh_token', _refreshToken!);
+    }
     await prefs.setString(_userKey, jsonEncode(_currentUser!.toJson()));
 
     // Persist tenant from the response (for future requests)
@@ -116,6 +127,11 @@ class AuthService {
       if (_refreshToken != null) {
         await TokenStorage.saveRefreshToken(_refreshToken!);
       }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', _token!);
+      if (_refreshToken != null) {
+        await prefs.setString('auth_refresh_token', _refreshToken!);
+      }
       return true;
     } catch (e) {
       debugPrint('[AuthService] Token refresh failed: $e');
@@ -142,6 +158,8 @@ class AuthService {
 
   Future<void> _clearStorage(SharedPreferences prefs) async {
     await TokenStorage.clear();
+    await prefs.remove('auth_token');
+    await prefs.remove('auth_refresh_token');
     await prefs.remove(_userKey);
     await prefs.remove('tenant_id');
     await prefs.remove('school_name');

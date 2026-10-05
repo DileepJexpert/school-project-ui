@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'token_storage.dart';
+
 class DioClient {
   static late Dio _dio;
 
@@ -52,10 +54,12 @@ class DioClient {
           final tenantId = prefs.getString('tenant_id') ?? _publicTenantId;
           options.headers['X-Tenant-ID'] = tenantId;
 
-          // Bearer token (when logged in)
-          final token = prefs.getString('auth_token');
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
+          // Never send stale Authorization header on login endpoints
+          if (!options.path.endsWith('/auth/login')) {
+            final token = await TokenStorage.getToken() ?? prefs.getString('auth_token');
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
           }
 
           return handler.next(options);
@@ -112,8 +116,7 @@ class DioClient {
   }
 
   static Future<bool> _tryRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('auth_refresh_token');
+    final refreshToken = await TokenStorage.getRefreshToken();
     if (refreshToken == null) return false;
     try {
       final response = await Dio().post(
@@ -124,8 +127,8 @@ class DioClient {
       final token = response.data['token'] as String?;
       final newRefresh = response.data['refreshToken'] as String?;
       if (token != null) {
-        await prefs.setString('auth_token', token);
-        if (newRefresh != null) await prefs.setString('auth_refresh_token', newRefresh);
+        await TokenStorage.saveToken(token);
+        if (newRefresh != null) await TokenStorage.saveRefreshToken(newRefresh);
         return true;
       }
     } catch (_) {}
