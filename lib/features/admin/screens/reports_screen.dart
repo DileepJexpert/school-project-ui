@@ -8,7 +8,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../../models/fee_models.dart';
+import '../../../models/transport_models.dart';
 import '../../../services/fee_api_service.dart';
+import '../../../services/transport_api_service.dart';
 import '../../../services/csv_export_service.dart';
 import '../../../services/receipt_print_service.dart';
 import '../../../services/whatsapp_share_service.dart';
@@ -31,6 +33,9 @@ class _ReportsScreenState extends State<ReportsScreen>
   FeeReportResponse? _feeReport;
   List<StudentFeeProfile> _dues = [];
   List<Expense> _expenses = [];
+  List<TransportRoute> _routes = [];
+  List<TransportBus> _buses = [];
+  List<StudentTransportAssignment> _transportAssignments = [];
 
   bool _loading = true;
   String? _error;
@@ -44,9 +49,13 @@ class _ReportsScreenState extends State<ReportsScreen>
   String _defaulterClassFilter = 'All Classes';
   String _txnSearch = '';
   String _txnModeFilter = 'All';
+  String _transportRouteSearch = '';
+  String _transportExpenseSearch = '';
 
   final _defaulterSearchCtrl = TextEditingController();
   final _txnSearchCtrl = TextEditingController();
+  final _transportRouteSearchCtrl = TextEditingController();
+  final _transportExpenseSearchCtrl = TextEditingController();
 
   static const _datePresets = [
     'All Time',
@@ -60,12 +69,18 @@ class _ReportsScreenState extends State<ReportsScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
     _defaulterSearchCtrl.addListener(() {
       setState(() => _defaulterSearch = _defaulterSearchCtrl.text.trim().toLowerCase());
     });
     _txnSearchCtrl.addListener(() {
       setState(() => _txnSearch = _txnSearchCtrl.text.trim().toLowerCase());
+    });
+    _transportRouteSearchCtrl.addListener(() {
+      setState(() => _transportRouteSearch = _transportRouteSearchCtrl.text.trim().toLowerCase());
+    });
+    _transportExpenseSearchCtrl.addListener(() {
+      setState(() => _transportExpenseSearch = _transportExpenseSearchCtrl.text.trim().toLowerCase());
     });
     _loadAllData();
   }
@@ -75,6 +90,8 @@ class _ReportsScreenState extends State<ReportsScreen>
     _tabCtrl.dispose();
     _defaulterSearchCtrl.dispose();
     _txnSearchCtrl.dispose();
+    _transportRouteSearchCtrl.dispose();
+    _transportExpenseSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -95,6 +112,9 @@ class _ReportsScreenState extends State<ReportsScreen>
         FeeApiService.getFeeReport(startDate: startStr, endDate: endStr),
         FeeApiService.getOutstandingDues(),
         FeeApiService.getExpenses(from: startStr, to: endStr).catchError((_) => <Expense>[]),
+        TransportApiService.getAllRoutes().catchError((_) => <TransportRoute>[]),
+        TransportApiService.getAllBuses().catchError((_) => <TransportBus>[]),
+        TransportApiService.getAllAssignments().catchError((_) => <StudentTransportAssignment>[]),
       ]);
 
       if (!mounted) return;
@@ -103,6 +123,9 @@ class _ReportsScreenState extends State<ReportsScreen>
         _feeReport = results[1] as FeeReportResponse;
         _dues = results[2] as List<StudentFeeProfile>;
         _expenses = results[3] as List<Expense>;
+        _routes = results[4] as List<TransportRoute>;
+        _buses = results[5] as List<TransportBus>;
+        _transportAssignments = results[6] as List<StudentTransportAssignment>;
       });
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -442,6 +465,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 Tab(icon: Icon(Icons.class_outlined, size: 18), text: 'Class-wise Matrix'),
                 Tab(icon: Icon(Icons.warning_amber_rounded, size: 18), text: 'Dues & Defaulters'),
                 Tab(icon: Icon(Icons.receipt_long_outlined, size: 18), text: 'Transaction Ledger'),
+                Tab(icon: Icon(Icons.directions_bus_rounded, size: 18), text: 'Transport & Dept P&L'),
               ],
             ),
           ),
@@ -530,6 +554,7 @@ class _ReportsScreenState extends State<ReportsScreen>
           1 => _buildClassWiseMatrixTab(),
           2 => _buildDuesDefaultersTab(),
           3 => _buildTransactionLedgerTab(),
+          4 => _buildTransportAndDeptPlTab(),
           _ => _buildExecutiveOverviewTab(),
         };
       },
@@ -661,6 +686,8 @@ class _ReportsScreenState extends State<ReportsScreen>
             ],
           );
         }),
+        const SizedBox(height: 18),
+        _buildTransportExecutiveCard(),
         const SizedBox(height: 60),
       ],
     );
@@ -1809,6 +1836,1391 @@ class _ReportsScreenState extends State<ReportsScreen>
         'CHALLAN' => 'Challan',
         _ => mode,
       };
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // TRANSPORT & DEPARTMENTAL P&L FINANCIAL INTELLIGENCE
+  // ═════════════════════════════════════════════════════════════════════════════
+
+  double _getPeriodMultiplier() {
+    return switch (_datePreset) {
+      'Today' => 1.0 / 30.0,
+      'This Week' => 7.0 / 30.0,
+      'This Month' => 1.0,
+      'Last 30 Days' => 1.0,
+      'This Quarter' => 3.0,
+      'This Year' => 12.0,
+      'All Time' => 12.0,
+      'Custom Range' => _customRange != null
+          ? (_customRange!.duration.inDays / 30.0).clamp(0.1, 36.0)
+          : 1.0,
+      _ => 1.0,
+    };
+  }
+
+  double _getTransportMonthlyDemand() {
+    return _routes.fold<double>(0.0, (sum, r) => sum + (r.monthlyFee * r.assignedCount));
+  }
+
+  double _getTransportEarned() {
+    return _getTransportMonthlyDemand() * _getPeriodMultiplier();
+  }
+
+  List<Expense> _getTransportExpenses() {
+    return _expenses.where((e) {
+      final cat = e.category.toLowerCase().trim();
+      final title = e.title.toLowerCase().trim();
+      return cat == 'transport' ||
+          cat == 'transportation' ||
+          cat == 'vehicle' ||
+          cat == 'fleet' ||
+          title.contains('fuel') ||
+          title.contains('diesel') ||
+          title.contains('petrol') ||
+          title.contains('bus') ||
+          title.contains('driver') ||
+          title.contains('conductor') ||
+          title.contains('van') ||
+          title.contains('rto') ||
+          title.contains('transport');
+    }).toList();
+  }
+
+  double _getTransportExpended() {
+    return _getTransportExpenses().fold<double>(0.0, (sum, e) => sum + e.amount);
+  }
+
+  double _getTransportNetProfit() {
+    return _getTransportEarned() - _getTransportExpended();
+  }
+
+  double _getTransportOperatingMargin() {
+    final earned = _getTransportEarned();
+    if (earned <= 0) return 0.0;
+    return (_getTransportNetProfit() / earned) * 100.0;
+  }
+
+  double _getTransportCostToIncomeRatio() {
+    final earned = _getTransportEarned();
+    if (earned <= 0) return 0.0;
+    return (_getTransportExpended() / earned) * 100.0;
+  }
+
+  // ─── Tab 1 Transport Snapshot Card ──────────────────────────────────────────
+  Widget _buildTransportExecutiveCard() {
+    final earned = _getTransportEarned();
+    final expended = _getTransportExpended();
+    final net = earned - expended;
+    final margin = earned <= 0 ? 0.0 : (net / earned * 100);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        side: BorderSide(color: context.palette.border),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF0284C7).withValues(alpha: 0.06),
+              context.palette.surface,
+            ],
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                  ),
+                  child: const Icon(Icons.directions_bus_rounded, color: Color(0xFF0284C7), size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Transport Fleet & Departmental P&L Snapshot',
+                        style: GoogleFonts.cormorantGaramond(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 20,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_buses.length} Active Bus(es) • ${_routes.length} Route(s) • ${_transportAssignments.length} Enrolled Riders',
+                        style: GoogleFonts.nunitoSans(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _tabCtrl.animateTo(4),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0284C7),
+                    side: const BorderSide(color: Color(0xFF0284C7)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('View Full Transport P&L'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 14,
+              runSpacing: 12,
+              children: [
+                _buildTransportMiniMetric(
+                  label: 'Transport Earned (Revenue)',
+                  value: _currency.format(earned),
+                  subtitle: '${_currency.format(_getTransportMonthlyDemand())}/month run rate',
+                  color: AppColors.success,
+                  icon: Icons.arrow_downward_rounded,
+                ),
+                _buildTransportMiniMetric(
+                  label: 'Transport Expended (Fuel/Ops)',
+                  value: _currency.format(expended),
+                  subtitle: '${_getTransportExpenses().length} expense voucher(s)',
+                  color: const Color(0xFFE11D48),
+                  icon: Icons.arrow_upward_rounded,
+                ),
+                _buildTransportMiniMetric(
+                  label: 'Net Operating Margin',
+                  value: _currency.format(net),
+                  subtitle: '${margin.toStringAsFixed(1)}% operating margin',
+                  color: net >= 0 ? AppColors.success : AppColors.error,
+                  icon: net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                ),
+                _buildTransportMiniMetric(
+                  label: 'Fleet Cost Recovery',
+                  value: '${(earned <= 0 ? 0.0 : (expended / earned * 100)).toStringAsFixed(1)}%',
+                  subtitle: expended <= earned ? 'Operating at surplus' : 'Operating at deficit',
+                  color: expended <= earned ? const Color(0xFF0284C7) : AppColors.error,
+                  icon: Icons.donut_small_rounded,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransportMiniMetric({
+    required String label,
+    required String value,
+    required String subtitle,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 190),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+        border: Border.all(color: context.palette.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text(value,
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              Text(subtitle,
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 10, color: color, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // TAB 5: TRANSPORT & DEPARTMENTAL P&L TAB
+  // ═════════════════════════════════════════════════════════════════════════════
+  Widget _buildTransportAndDeptPlTab() {
+    final earned = _getTransportEarned();
+    final expended = _getTransportExpended();
+    final net = _getTransportNetProfit();
+    final margin = _getTransportOperatingMargin();
+    final recoveryRatio = _getTransportCostToIncomeRatio();
+    final monthlyDemand = _getTransportMonthlyDemand();
+    final transportExpenses = _getTransportExpenses();
+
+    // Filter routes by search
+    final filteredRoutes = _routes.where((r) {
+      if (_transportRouteSearch.isEmpty) return true;
+      final q = _transportRouteSearch;
+      final matchZone = r.zoneName.toLowerCase().contains(q);
+      final matchDisplay = (r.displayName ?? '').toLowerCase().contains(q);
+      final matchAreas = r.areasCovered.toLowerCase().contains(q);
+      return matchZone || matchDisplay || matchAreas;
+    }).toList();
+
+    // Filter expenses by search
+    final filteredExpenses = transportExpenses.where((e) {
+      if (_transportExpenseSearch.isEmpty) return true;
+      final q = _transportExpenseSearch;
+      final matchTitle = e.title.toLowerCase().contains(q);
+      final matchVendor = e.paidTo.toLowerCase().contains(q);
+      final matchCategory = e.category.toLowerCase().contains(q);
+      final matchRemarks = (e.remarks ?? '').toLowerCase().contains(q);
+      return matchTitle || matchVendor || matchCategory || matchRemarks;
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Tab Header & Action Bar
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+            side: BorderSide(color: context.palette.border),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 10,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                      ),
+                      child: const Icon(Icons.directions_bus_rounded, color: Color(0xFF0284C7), size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Transport & Departmental Financial Performance',
+                            style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w800, fontSize: 14)),
+                        Text('Period: $_datePreset • Multiplier: ${_getPeriodMultiplier().toStringAsFixed(1)}x',
+                            style: GoogleFonts.nunitoSans(fontSize: 11, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ],
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _openAddTransportExpenseDialog,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: const Text('Record Transport Expense'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _exportTransportReportCsv,
+                      icon: const Icon(Icons.download_rounded, size: 16),
+                      label: const Text('Export Transport CSV'),
+                    ),
+                    IconButton(
+                      tooltip: 'Refresh Transport Data',
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      onPressed: _loadAllData,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // 4 Key Transport Financial KPIs
+        LayoutBuilder(builder: (context, constraints) {
+          final columns = Responsive.isDesktop(context)
+              ? 4
+              : constraints.maxWidth > 700
+                  ? 2
+                  : 1;
+          final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
+          final kpis = [
+            AdminMetricCard(
+              title: 'Transport Earned',
+              value: _currency.format(earned),
+              icon: Icons.payments_rounded,
+              color: AppColors.success,
+              caption: '${_transportAssignments.length} student riders • ${_currency.format(monthlyDemand)}/mo rate',
+            ),
+            AdminMetricCard(
+              title: 'Transport Expended',
+              value: _currency.format(expended),
+              icon: Icons.local_gas_station_rounded,
+              color: const Color(0xFFE11D48),
+              caption: '${transportExpenses.length} expense voucher(s) logged',
+            ),
+            AdminMetricCard(
+              title: 'Net Transport P&L',
+              value: _currency.format(net),
+              icon: net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+              color: net >= 0 ? AppColors.success : AppColors.error,
+              caption: '${margin.toStringAsFixed(1)}% operating margin (${net >= 0 ? "Surplus" : "Deficit"})',
+            ),
+            AdminMetricCard(
+              title: 'Fleet Cost Recovery',
+              value: '${recoveryRatio.toStringAsFixed(1)}%',
+              icon: Icons.pie_chart_rounded,
+              color: recoveryRatio <= 75
+                  ? AppColors.success
+                  : recoveryRatio <= 100
+                      ? AppColors.warning
+                      : AppColors.error,
+              caption: recoveryRatio <= 100 ? 'Healthy operating coverage' : 'Operating at net deficit',
+            ),
+          ];
+
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: kpis.map((card) => SizedBox(width: width, child: card)).toList(),
+          );
+        }),
+        const SizedBox(height: 24),
+
+        // Departmental Operating Margin Breakdown ("like this")
+        _buildDepartmentalPlBreakdownCard(earned, expended),
+        const SizedBox(height: 24),
+
+        // Route-by-Route Economics & Recovery Matrix
+        _buildRouteEconomicsMatrixCard(filteredRoutes),
+        const SizedBox(height: 24),
+
+        // Transport Operational Expenses Audit Ledger
+        _buildTransportExpensesLedgerCard(filteredExpenses),
+        const SizedBox(height: 60),
+      ],
+    );
+  }
+
+  // ─── Departmental Operating Breakdown ("like this") ───────────────────────────
+  Widget _buildDepartmentalPlBreakdownCard(double transportEarned, double transportExpended) {
+    // Total school fee collections
+    final totalFeeCollected = _summary?.totalFeesCollected ?? 0.0;
+    final totalExpenses = _expenses.fold<double>(0.0, (sum, e) => sum + e.amount);
+
+    // 1. Transport Operations
+    final tNet = transportEarned - transportExpended;
+    final tMargin = transportEarned <= 0 ? 0.0 : (tNet / transportEarned * 100);
+
+    // 2. Academic & Instruction (Tuition, exams, faculty payroll)
+    final academicExpenses = _expenses.where((e) {
+      final c = e.category.toLowerCase();
+      final t = e.title.toLowerCase();
+      return c == 'academic' ||
+          c == 'salary' ||
+          c == 'payroll' ||
+          c == 'tuition' ||
+          t.contains('teacher') ||
+          t.contains('salary') ||
+          t.contains('book') ||
+          t.contains('exam') ||
+          t.contains('lab');
+    }).fold<double>(0.0, (sum, e) => sum + e.amount);
+    // Estimated academic tuition collections (total collections minus transport)
+    final academicEarned = (totalFeeCollected - transportEarned).clamp(0.0, double.infinity);
+    final aNet = academicEarned - academicExpenses;
+    final aMargin = academicEarned <= 0 ? 0.0 : (aNet / academicEarned * 100);
+
+    // 3. Campus Facilities & Infrastructure (Utilities, cleaning, maintenance)
+    final facilityExpenses = _expenses.where((e) {
+      final c = e.category.toLowerCase();
+      final t = e.title.toLowerCase();
+      final isTransport = c == 'transport' || t.contains('bus') || t.contains('fuel');
+      return !isTransport &&
+          (c == 'maintenance' ||
+              c == 'facility' ||
+              c == 'utilities' ||
+              t.contains('electricity') ||
+              t.contains('power') ||
+              t.contains('cleaning') ||
+              t.contains('water') ||
+              t.contains('repair'));
+    }).fold<double>(0.0, (sum, e) => sum + e.amount);
+    // Allocated facility revenue (estimated 15% of collections or baseline)
+    final facilityEarned = totalFeeCollected * 0.15;
+    final fNet = facilityEarned - facilityExpenses;
+    final fMargin = facilityEarned <= 0 ? 0.0 : (fNet / facilityEarned * 100);
+
+    // 4. Administration & General Operations (Office, software, admin)
+    final otherExpended = (totalExpenses - transportExpended - academicExpenses - facilityExpenses)
+        .clamp(0.0, double.infinity);
+    final adminEarned = totalFeeCollected * 0.10;
+    final admNet = adminEarned - otherExpended;
+    final admMargin = adminEarned <= 0 ? 0.0 : (admNet / adminEarned * 100);
+
+    final departments = [
+      _DeptPlItem(
+        name: 'Transport Operations',
+        subtitle: 'Student bus fare collections vs fuel, fleet repairs & driver payouts',
+        icon: Icons.directions_bus_rounded,
+        color: const Color(0xFF0284C7),
+        earned: transportEarned,
+        expended: transportExpended,
+        net: tNet,
+        margin: tMargin,
+      ),
+      _DeptPlItem(
+        name: 'Academic & Instruction',
+        subtitle: 'Tuition & examination fees vs teacher payroll, books & instructional lab',
+        icon: Icons.school_rounded,
+        color: const Color(0xFF0D9488),
+        earned: academicEarned,
+        expended: academicExpenses,
+        net: aNet,
+        margin: aMargin,
+      ),
+      _DeptPlItem(
+        name: 'Campus & Facilities',
+        subtitle: 'Infrastructure & campus fees vs electricity, building repairs & sanitation',
+        icon: Icons.apartment_rounded,
+        color: const Color(0xFF7C3AED),
+        earned: facilityEarned,
+        expended: facilityExpenses,
+        net: fNet,
+        margin: fMargin,
+      ),
+      _DeptPlItem(
+        name: 'Administration & Central',
+        subtitle: 'Registration/misc fees vs software licensing, office supplies & compliance',
+        icon: Icons.admin_panel_settings_rounded,
+        color: const Color(0xFFD97706),
+        earned: adminEarned,
+        expended: otherExpended,
+        net: admNet,
+        margin: admMargin,
+      ),
+    ];
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        side: BorderSide(color: context.palette.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _cardHeader(
+                  title: 'Departmental Operating Financials (P&L Breakdown)',
+                  subtitle:
+                      'Comparative analysis of revenue generation versus operating expenditure outflows across school departments',
+                  icon: Icons.account_tree_outlined,
+                  color: context.palette.brand,
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: context.palette.brand.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                  ),
+                  child: Text(
+                    'Multi-Department View',
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: context.palette.brand,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            LayoutBuilder(builder: (context, constraints) {
+              final wide = constraints.maxWidth > 900;
+              final width = wide ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: departments
+                    .map((dept) => SizedBox(width: width, child: _buildDeptPlCard(dept)))
+                    .toList(),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeptPlCard(_DeptPlItem dept) {
+    final isSurplus = dept.net >= 0;
+    final maxVal = dept.earned > dept.expended ? dept.earned : dept.expended;
+    final earnedRatio = maxVal <= 0 ? 0.0 : (dept.earned / maxVal);
+    final expendedRatio = maxVal <= 0 ? 0.0 : (dept.expended / maxVal);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+        border: Border.all(color: context.palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: dept.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                ),
+                child: Icon(dept.icon, size: 20, color: dept.color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(dept.name,
+                        style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w800, fontSize: 15)),
+                    Text(dept.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.nunitoSans(fontSize: 11, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (isSurplus ? AppColors.success : AppColors.error).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                ),
+                child: Text(
+                  isSurplus ? 'Surplus' : 'Deficit',
+                  style: GoogleFonts.nunitoSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: isSurplus ? AppColors.success : AppColors.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Inflow vs Outflow bars
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Earned (Inflow)',
+                            style: GoogleFonts.nunitoSans(fontSize: 11, color: AppColors.textSecondary)),
+                        Text(_currency.format(dept.earned),
+                            style: GoogleFonts.nunitoSans(
+                                fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.success)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: earnedRatio.clamp(0.0, 1.0),
+                        backgroundColor: AppColors.border,
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+                        minHeight: 6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Expended (Outflow)',
+                            style: GoogleFonts.nunitoSans(fontSize: 11, color: AppColors.textSecondary)),
+                        Text(_currency.format(dept.expended),
+                            style: GoogleFonts.nunitoSans(
+                                fontSize: 13, fontWeight: FontWeight.w800, color: const Color(0xFFE11D48))),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: expendedRatio.clamp(0.0, 1.0),
+                        backgroundColor: AppColors.border,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE11D48)),
+                        minHeight: 6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+
+          // Net Margin Summary
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Net Operating P&L:',
+                style: GoogleFonts.nunitoSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+              ),
+              Row(
+                children: [
+                  Text(
+                    _currency.format(dept.net),
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: isSurplus ? AppColors.success : AppColors.error,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (isSurplus ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                    ),
+                    child: Text(
+                      '${dept.margin.toStringAsFixed(1)}%',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: isSurplus ? AppColors.success : AppColors.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Route-by-Route Transport Economics Matrix ──────────────────────────────
+  Widget _buildRouteEconomicsMatrixCard(List<TransportRoute> routes) {
+    final periodMultiplier = _getPeriodMultiplier();
+    final totalTransportExpenses = _getTransportExpended();
+    final totalRiders = _transportAssignments.length;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        side: BorderSide(color: context.palette.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _cardHeader(
+                  title: 'Route-by-Route Transport Economics & Recovery',
+                  subtitle:
+                      'Granular route revenue, assigned vehicle, driver details, seat occupancy & operating margins',
+                  icon: Icons.alt_route_rounded,
+                  color: const Color(0xFF0284C7),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                  ),
+                  child: Text(
+                    '${routes.length} Route(s) Monitored',
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0284C7),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Route Search Field
+            TextField(
+              controller: _transportRouteSearchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Search routes by zone, name, or covered areas...',
+                prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                suffixIcon: _transportRouteSearch.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: () => _transportRouteSearchCtrl.clear(),
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (routes.isEmpty)
+              _noData('No transport routes matching search criteria')
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: routes.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, i) {
+                  final r = routes[i];
+                  // Find assigned bus
+                  final bus = _buses.where((b) => b.routeId == r.id).firstOrNull;
+                  final riders = r.assignedCount;
+                  final capacity = bus?.capacity ?? 0;
+                  final occupancy = capacity <= 0 ? 0.0 : (riders / capacity);
+
+                  // Economics
+                  final monthlyRevenue = r.monthlyFee * riders;
+                  final periodRevenue = monthlyRevenue * periodMultiplier;
+
+                  // Allocated expense share based on riders ratio
+                  final expenseShare = totalRiders <= 0
+                      ? (routes.isNotEmpty ? totalTransportExpenses / routes.length : 0.0)
+                      : (totalTransportExpenses * (riders / totalRiders));
+                  final routeNet = periodRevenue - expenseShare;
+                  final routeMargin = periodRevenue <= 0 ? 0.0 : (routeNet / periodRevenue * 100);
+
+                  final isProfitable = routeNet >= 0;
+
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: context.palette.surface,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                      border: Border.all(color: context.palette.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                              ),
+                              child: const Icon(Icons.directions_bus_filled_rounded,
+                                  color: Color(0xFF0284C7), size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        r.zoneName,
+                                        style: GoogleFonts.nunitoSans(
+                                            fontWeight: FontWeight.w800, fontSize: 16),
+                                      ),
+                                      if (r.displayName != null && r.displayName!.isNotEmpty) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.border,
+                                            borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                                          ),
+                                          child: Text(
+                                            r.displayName!,
+                                            style: GoogleFonts.nunitoSans(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textSecondary),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Areas: ${r.areasCovered.isEmpty ? "All designated sector stops" : r.areasCovered} • First Pickup: ${r.firstPickupTime}',
+                                    style: GoogleFonts.nunitoSans(
+                                        fontSize: 12, color: AppColors.textSecondary),
+                                  ),
+                                  if (bus != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Bus #${bus.busNumber} • Driver: ${bus.driverName} (${bus.driverMobile})',
+                                      style: GoogleFonts.nunitoSans(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.palette.brand),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: (isProfitable ? AppColors.success : AppColors.error)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                                  ),
+                                  child: Text(
+                                    riders == 0
+                                        ? 'No Riders'
+                                        : isProfitable
+                                            ? '+${routeMargin.toStringAsFixed(1)}% Margin'
+                                            : 'Deficit (${routeMargin.toStringAsFixed(1)}%)',
+                                    style: GoogleFonts.nunitoSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: riders == 0
+                                          ? AppColors.textSecondary
+                                          : isProfitable
+                                              ? AppColors.success
+                                              : AppColors.error,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  _currency.format(routeNet),
+                                  style: GoogleFonts.nunitoSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: isProfitable ? AppColors.success : AppColors.error,
+                                  ),
+                                ),
+                                Text(
+                                  'Net P&L',
+                                  style: GoogleFonts.nunitoSans(
+                                      fontSize: 10, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        const Divider(height: 1),
+                        const SizedBox(height: 12),
+
+                        // Route Financial Metrics Row
+                        Wrap(
+                          spacing: 20,
+                          runSpacing: 10,
+                          children: [
+                            _buildRouteMetricPill(
+                              label: 'Riders / Capacity',
+                              value: capacity > 0 ? '$riders / $capacity' : '$riders rider(s)',
+                              caption: capacity > 0
+                                  ? '${(occupancy * 100).toStringAsFixed(0)}% Occupancy'
+                                  : 'Capacity unassigned',
+                              color: occupancy > 0.85
+                                  ? AppColors.warning
+                                  : const Color(0xFF0284C7),
+                            ),
+                            _buildRouteMetricPill(
+                              label: 'Fare / Student',
+                              value: '${_currency.format(r.monthlyFee)}/mo',
+                              caption: 'Per rider subscription',
+                              color: AppColors.textPrimary,
+                            ),
+                            _buildRouteMetricPill(
+                              label: 'Period Inflow (Earned)',
+                              value: _currency.format(periodRevenue),
+                              caption: '${_currency.format(monthlyRevenue)}/month',
+                              color: AppColors.success,
+                            ),
+                            _buildRouteMetricPill(
+                              label: 'Allocated Outflow (Expended)',
+                              value: _currency.format(expenseShare),
+                              caption: 'Fleet expense share',
+                              color: const Color(0xFFE11D48),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRouteMetricPill({
+    required String label,
+    required String value,
+    required String caption,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.nunitoSans(fontSize: 11, color: AppColors.textSecondary)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: GoogleFonts.nunitoSans(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
+        Text(caption,
+            style: GoogleFonts.nunitoSans(fontSize: 10, color: AppColors.textLight)),
+      ],
+    );
+  }
+
+  // ─── Transport Operational Expenses Audit Ledger ─────────────────────────────
+  Widget _buildTransportExpensesLedgerCard(List<Expense> expenses) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        side: BorderSide(color: context.palette.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _cardHeader(
+                  title: 'Transport Operational Expenses Audit Ledger',
+                  subtitle:
+                      'Diesel, fuel, maintenance, driver salaries, vehicle repairs & insurance disbursements',
+                  icon: Icons.receipt_long_rounded,
+                  color: const Color(0xFFE11D48),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _openAddTransportExpenseDialog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE11D48),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('Add Expense Voucher'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Expense Search Bar
+            TextField(
+              controller: _transportExpenseSearchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Search expenses by title, payee vendor, or remarks...',
+                prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                suffixIcon: _transportExpenseSearch.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: () => _transportExpenseSearchCtrl.clear(),
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (expenses.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 36),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.local_gas_station_outlined,
+                          size: 48, color: AppColors.textLight.withValues(alpha: 0.5)),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No transport operational expenses logged for this period',
+                        style: GoogleFonts.nunitoSans(
+                            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Record diesel, maintenance, driver salaries, or insurance vouchers to see real-time P&L analytics.',
+                        style: GoogleFonts.nunitoSans(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _openAddTransportExpenseDialog,
+                        icon: const Icon(Icons.add_rounded, size: 16),
+                        label: const Text('Log First Transport Expense'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: expenses.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, idx) {
+                  final e = expenses[idx];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE11D48).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                          ),
+                          child: const Icon(Icons.receipt_rounded, color: Color(0xFFE11D48), size: 18),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(e.title,
+                                  style: GoogleFonts.nunitoSans(
+                                      fontWeight: FontWeight.w800, fontSize: 14)),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_dateFmt.format(e.date)} • Paid To: ${e.paidTo}${e.remarks != null && e.remarks!.isNotEmpty ? " • ${e.remarks}" : ""}',
+                                style: GoogleFonts.nunitoSans(
+                                    fontSize: 11, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                          ),
+                          child: Text(
+                            e.category,
+                            style: GoogleFonts.nunitoSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textSecondary),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          _currency.format(e.amount),
+                          style: GoogleFonts.nunitoSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFFE11D48),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Dialog: Add Transport Expense ──────────────────────────────────────────
+  void _openAddTransportExpenseDialog() {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    final paidToCtrl = TextEditingController();
+    final remarksCtrl = TextEditingController();
+    String category = 'Transport';
+    DateTime expenseDate = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (dlgContext) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add_shopping_cart_rounded, color: Color(0xFF0284C7), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Record Transport Expense',
+                      style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700, fontSize: 18)),
+                  Text('Disbursement for fuel, repairs, maintenance or driver',
+                      style: GoogleFonts.nunitoSans(fontSize: 11, color: AppColors.textSecondary)),
+                ],
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Expense Purpose / Title *',
+                      hintText: 'e.g. Diesel Bus #1, Engine Oil & Service',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Amount (₹) *',
+                      hintText: 'e.g. 4500',
+                      prefixText: '₹ ',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: paidToCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Paid To / Vendor *',
+                      hintText: 'e.g. Indian Oil, Sharma Motors',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'Transport', child: Text('Transport (Fleet Operations)')),
+                      DropdownMenuItem(value: 'Fuel', child: Text('Fuel & Diesel')),
+                      DropdownMenuItem(value: 'Maintenance', child: Text('Vehicle Maintenance & Repairs')),
+                      DropdownMenuItem(value: 'Driver Salary', child: Text('Driver & Crew Salary')),
+                      DropdownMenuItem(value: 'Insurance', child: Text('RTO, Permit & Insurance')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setDlgState(() => category = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: remarksCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Remarks / Vehicle No (Optional)',
+                      hintText: 'e.g. Bus DL-01-AB-1234, 45 Liters @ ₹92',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0284C7),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final title = titleCtrl.text.trim();
+                final amt = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
+                final paidTo = paidToCtrl.text.trim();
+
+                if (title.isEmpty || amt <= 0 || paidTo.isEmpty) {
+                  _showToast('Please enter title, valid amount, and vendor name');
+                  return;
+                }
+
+                Navigator.pop(dlgContext);
+                try {
+                  final expense = Expense(
+                    title: title,
+                    category: category,
+                    amount: amt,
+                    date: expenseDate,
+                    paidTo: paidTo,
+                    remarks: remarksCtrl.text.trim().isNotEmpty ? remarksCtrl.text.trim() : null,
+                  );
+                  await FeeApiService.addExpense(expense);
+                  _showToast('Transport expense recorded successfully');
+                  _loadAllData();
+                } catch (e) {
+                  _showToast('Failed to record expense: $e');
+                }
+              },
+              child: const Text('Save Expense'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Export Transport CSV ───────────────────────────────────────────────────
+  void _exportTransportReportCsv() {
+    final periodMultiplier = _getPeriodMultiplier();
+    final totalTransportExpenses = _getTransportExpended();
+    final totalRiders = _transportAssignments.length;
+
+    final routeHeaders = [
+      'Route Zone',
+      'Display Name',
+      'Areas Covered',
+      'Bus Number',
+      'Driver Name',
+      'Driver Contact',
+      'Enrolled Riders',
+      'Bus Capacity',
+      'Monthly Fare (INR)',
+      'Period Earned (INR)',
+      'Allocated Cost (INR)',
+      'Net Profit / Loss (INR)',
+      'Operating Margin %',
+    ];
+
+    final routeRows = _routes.map((r) {
+      final bus = _buses.where((b) => b.routeId == r.id).firstOrNull;
+      final riders = r.assignedCount;
+      final capacity = bus?.capacity ?? 0;
+      final monthlyRevenue = r.monthlyFee * riders;
+      final periodRevenue = monthlyRevenue * periodMultiplier;
+      final expenseShare = totalRiders <= 0
+          ? (_routes.isNotEmpty ? totalTransportExpenses / _routes.length : 0.0)
+          : (totalTransportExpenses * (riders / totalRiders));
+      final net = periodRevenue - expenseShare;
+      final margin = periodRevenue <= 0 ? 0.0 : (net / periodRevenue * 100);
+
+      return [
+        r.zoneName,
+        r.displayName ?? '',
+        r.areasCovered,
+        bus?.busNumber ?? 'Unassigned',
+        bus?.driverName ?? '',
+        bus?.driverMobile ?? '',
+        riders.toString(),
+        capacity.toString(),
+        r.monthlyFee.toStringAsFixed(0),
+        periodRevenue.toStringAsFixed(0),
+        expenseShare.toStringAsFixed(0),
+        net.toStringAsFixed(0),
+        '${margin.toStringAsFixed(1)}%',
+      ];
+    }).toList();
+
+    CsvExportService.exportCustomCsv(
+      filename: 'transport_economics_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
+      headers: routeHeaders,
+      rows: routeRows,
+    );
+    _showToast('Transport Economics Report exported as CSV');
+  }
+}
+
+class _DeptPlItem {
+  final String name;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final double earned;
+  final double expended;
+  final double net;
+  final double margin;
+
+  const _DeptPlItem({
+    required this.name,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.earned,
+    required this.expended,
+    required this.net,
+    required this.margin,
+  });
 }
 
 class _ClassMatrixItem {
