@@ -5,23 +5,26 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/academic_year.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/shared_widgets.dart';
 import '../../../models/student_model.dart';
 import '../../../services/attendance_api_service.dart';
 import '../../../services/student_api_service.dart';
 import '../../../services/csv_export_service.dart';
+import '../../../services/whatsapp_share_service.dart';
 
 // ── Per-student monthly summary (local only) ───────────────────────────────
 class _StudentSummary {
   final String studentId;
   final String studentName;
   int present = 0;
-  int absent  = 0;
-  int late    = 0;
+  int absent = 0;
+  int late = 0;
   int halfDay = 0;
 
   _StudentSummary({required this.studentId, required this.studentName});
 
-  int    get total      => present + absent + late + halfDay;
+  int get total => present + absent + late + halfDay;
   double get percentage => total == 0 ? 0 : (present + late) / total * 100;
 }
 
@@ -34,19 +37,18 @@ class AttendanceScreen extends StatefulWidget {
 
 class _AttendanceScreenState extends State<AttendanceScreen>
     with SingleTickerProviderStateMixin {
-
   late final TabController _tabController;
 
   // ── Mark tab state ────────────────────────────────────────────────────
-  String? _markClass;
-  final _yearCtrl     = TextEditingController(text: AcademicYear.currentShort());
+  String? _markClass = 'Class 1 - A';
+  final _yearCtrl = TextEditingController(text: AcademicYear.currentShort());
   late final TextEditingController _dateCtrl;
   final _markedByCtrl = TextEditingController(text: 'Admin');
   final _markSearchCtrl = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   List<StudentModel> _students = [];
   final Map<String, String> _statuses = {};
-  bool _loading   = false;
+  bool _loading = false;
   bool _submitting = false;
   String? _error;
   bool _loaded = false;
@@ -66,13 +68,13 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       _loadedDate == _fmtDate(_selectedDate);
 
   // ── Reports tab state ─────────────────────────────────────────────────
-  String? _rClass;
+  String? _rClass = 'Class 1 - A';
   final _rYearCtrl = TextEditingController(text: AcademicYear.currentShort());
   final _reportSearchCtrl = TextEditingController();
   DateTime _rMonth = DateTime.now();
   List<_StudentSummary> _summaries = [];
   bool _rLoading = false;
-  bool _rLoaded  = false;
+  bool _rLoaded = false;
   String? _rError;
   String _reportFilter = 'ALL'; // ALL, AT_RISK, CRITICAL, GOOD
 
@@ -82,6 +84,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _dateCtrl = TextEditingController(text: _fmtDate(_selectedDate));
     _yearCtrl.addListener(_onMarkYearChanged);
     _markSearchCtrl.addListener(() => setState(() {}));
@@ -120,32 +125,25 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   void _onMarkYearChanged() => setState(_invalidateMarkData);
 
   void _setToday() {
-    final now = DateTime.now();
-    if (!DateUtils.isSameDay(_selectedDate, now)) {
-      setState(() {
-        _selectedDate = now;
-        _dateCtrl.text = _fmtDate(now);
-        _invalidateMarkData();
-      });
-    }
+    setState(() {
+      _selectedDate = DateTime.now();
+      _dateCtrl.text = _fmtDate(_selectedDate);
+      _invalidateMarkData();
+    });
   }
 
   void _setYesterday() {
-    final yest = DateTime.now().subtract(const Duration(days: 1));
-    if (!DateUtils.isSameDay(_selectedDate, yest)) {
-      setState(() {
-        _selectedDate = yest;
-        _dateCtrl.text = _fmtDate(yest);
-        _invalidateMarkData();
-      });
-    }
+    setState(() {
+      _selectedDate = DateTime.now().subtract(const Duration(days: 1));
+      _dateCtrl.text = _fmtDate(_selectedDate);
+      _invalidateMarkData();
+    });
   }
 
   void _prevDay() {
-    final prev = _selectedDate.subtract(const Duration(days: 1));
     setState(() {
-      _selectedDate = prev;
-      _dateCtrl.text = _fmtDate(prev);
+      _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+      _dateCtrl.text = _fmtDate(_selectedDate);
       _invalidateMarkData();
     });
   }
@@ -155,7 +153,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     if (next.isAfter(DateTime.now())) return;
     setState(() {
       _selectedDate = next;
-      _dateCtrl.text = _fmtDate(next);
+      _dateCtrl.text = _fmtDate(_selectedDate);
       _invalidateMarkData();
     });
   }
@@ -174,8 +172,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         child: child!,
       ),
     );
-    if (!mounted) return;
-    if (picked != null && !DateUtils.isSameDay(picked, _selectedDate)) {
+    if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
         _dateCtrl.text = _fmtDate(picked);
@@ -199,8 +196,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     final generation = ++_markLoadGeneration;
     setState(() {
       _loading = true;
-      _error   = null;
-      _loaded  = false;
+      _error = null;
+      _loaded = false;
       _loadedClass = null;
       _loadedYear = null;
       _loadedDate = null;
@@ -211,7 +208,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       final allStudents = await StudentApiService.getAllStudents();
       final students = allStudents
           .where((s) =>
-              s.classForAdmission?.toLowerCase() == className.toLowerCase())
+              s.classForAdmission?.trim().toLowerCase() ==
+              className.trim().toLowerCase())
           .toList();
       students.sort((a, b) {
         final rA = int.tryParse(a.rollNumber ?? '');
@@ -221,7 +219,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         if (rB != null) return 1;
         return a.fullName.compareTo(b.fullName);
       });
-      // A failed read must not turn a previously marked class into all-present.
+
       final existing =
           await AttendanceApiService.getClassAttendance(className, dateStr);
       if (!mounted || generation != _markLoadGeneration) return;
@@ -308,19 +306,19 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       final entries = _students
           .where((s) => s.id != null)
           .map((s) => {
-                'studentId':   s.id!,
+                'studentId': s.id!,
                 'studentName': s.fullName,
-                'status':      _statuses[s.id] ?? 'PRESENT',
-                'remarks':     '',
+                'status': _statuses[s.id] ?? 'PRESENT',
+                'remarks': '',
               })
           .toList();
 
       await AttendanceApiService.markBulkAttendance(
-        className:    className,
+        className: className,
         academicYear: academicYear,
-        date:         dateStr,
-        markedBy:     _markedByCtrl.text.trim(),
-        entries:      entries,
+        date: dateStr,
+        markedBy: _markedByCtrl.text.trim(),
+        entries: entries,
       );
       if (mounted) _showSnack('Attendance saved successfully!');
     } catch (e) {
@@ -348,25 +346,49 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       ),
     );
     if (picked != null) {
-      setState(() => _rMonth = DateTime(picked.year, picked.month));
+      setState(() {
+        _rMonth = DateTime(picked.year, picked.month);
+        _rLoaded = false;
+        _summaries = [];
+        _rError = null;
+      });
     }
   }
 
+  void _prevMonth() {
+    setState(() {
+      _rMonth = DateTime(_rMonth.year, _rMonth.month - 1);
+      _rLoaded = false;
+      _summaries = [];
+      _rError = null;
+    });
+  }
+
+  void _nextMonth() {
+    final next = DateTime(_rMonth.year, _rMonth.month + 1);
+    if (next.isAfter(DateTime.now())) return;
+    setState(() {
+      _rMonth = next;
+      _rLoaded = false;
+      _summaries = [];
+      _rError = null;
+    });
+  }
+
   Future<void> _loadReport() async {
-    if (_rClass == null) {
-      _showSnack('Please select a class.', isError: true);
+    if (_rClass == null || _rClass!.isEmpty) {
+      _showSnack('Please select a class for the report.', isError: true);
       return;
     }
     setState(() {
       _rLoading = true;
-      _rError   = null;
-      _rLoaded  = false;
-      _summaries.clear();
+      _rError = null;
+      _rLoaded = false;
+      _summaries = [];
     });
     try {
       final from = DateTime(_rMonth.year, _rMonth.month, 1);
-      // last day of month: month+1, day 0 rolls back to last day of month
-      final to   = DateTime(_rMonth.year, _rMonth.month + 1, 0);
+      final to = DateTime(_rMonth.year, _rMonth.month + 1, 0);
 
       final records = await AttendanceApiService.getClassAttendanceRange(
         _rClass!,
@@ -383,10 +405,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               studentId: r.studentId, studentName: r.studentName),
         );
         switch (r.status) {
-          case 'PRESENT':  s.present++;  break;
-          case 'ABSENT':   s.absent++;   break;
-          case 'LATE':     s.late++;     break;
-          case 'HALF_DAY': s.halfDay++;  break;
+          case 'PRESENT':
+            s.present++;
+            break;
+          case 'ABSENT':
+            s.absent++;
+            break;
+          case 'LATE':
+            s.late++;
+            break;
+          case 'HALF_DAY':
+            s.halfDay++;
+            break;
         }
       }
       _summaries = map.values.toList()
@@ -400,47 +430,43 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     }
   }
 
-  void _prevMonth() {
-    setState(() {
-      _rMonth = DateTime(_rMonth.year, _rMonth.month - 1);
-    });
-    _loadReport();
-  }
-
-  void _nextMonth() {
-    final next = DateTime(_rMonth.year, _rMonth.month + 1);
-    if (next.isAfter(DateTime.now())) return;
-    setState(() {
-      _rMonth = next;
-    });
-    _loadReport();
-  }
-
   List<_StudentSummary> get _filteredSummaries {
     final q = _reportSearchCtrl.text.trim().toLowerCase();
     return _summaries.where((s) {
-      final pct = s.percentage;
-      if (_reportFilter == 'AT_RISK' && pct >= 75) return false;
-      if (_reportFilter == 'CRITICAL' && pct >= 60) return false;
-      if (_reportFilter == 'GOOD' && pct < 75) return false;
-      if (q.isNotEmpty && !s.studentName.toLowerCase().contains(q)) return false;
-      return true;
+      if (q.isNotEmpty && !s.studentName.toLowerCase().contains(q)) {
+        return false;
+      }
+      switch (_reportFilter) {
+        case 'AT_RISK':
+          return s.percentage < 75;
+        case 'CRITICAL':
+          return s.percentage < 60;
+        case 'GOOD':
+          return s.percentage >= 75;
+        default:
+          return true;
+      }
     }).toList();
   }
 
+  double get _reportAvgPercentage {
+    if (_summaries.isEmpty) return 0.0;
+    final sum = _summaries.fold<double>(0, (acc, s) => acc + s.percentage);
+    return sum / _summaries.length;
+  }
+
   int get _reportAtRiskCount =>
-      _summaries.where((s) => s.percentage < 75 && s.percentage >= 60).length;
+      _summaries.where((s) => s.percentage < 75).length;
   int get _reportCriticalCount =>
       _summaries.where((s) => s.percentage < 60).length;
   int get _reportGoodCount =>
       _summaries.where((s) => s.percentage >= 75).length;
-  double get _reportAvgPercentage => _summaries.isEmpty
-      ? 0.0
-      : _summaries.fold<double>(0.0, (acc, s) => acc + s.percentage) /
-          _summaries.length;
 
   void _exportReportCsv() {
-    if (_summaries.isEmpty) return;
+    if (_summaries.isEmpty) {
+      _showSnack('No report data to export.', isError: true);
+      return;
+    }
     final headers = [
       'Student Name',
       'Present Days',
@@ -452,19 +478,19 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       'Health Status',
     ];
     final rows = _summaries.map((s) => [
-      s.studentName,
-      s.present.toString(),
-      s.absent.toString(),
-      s.late.toString(),
-      s.halfDay.toString(),
-      s.total.toString(),
-      '${s.percentage.toStringAsFixed(1)}%',
-      s.percentage >= 75
-          ? 'Regular (>=75%)'
-          : s.percentage >= 60
-              ? 'Warning (60-74%)'
-              : 'Defaulter (<60%)',
-    ]).toList();
+          s.studentName,
+          s.present.toString(),
+          s.absent.toString(),
+          s.late.toString(),
+          s.halfDay.toString(),
+          s.total.toString(),
+          '${s.percentage.toStringAsFixed(1)}%',
+          s.percentage >= 75
+              ? 'Regular (>=75%)'
+              : s.percentage >= 60
+                  ? 'Warning (60-74%)'
+                  : 'Defaulter (<60%)',
+        ]).toList();
 
     final cls = (_rClass ?? 'Class').replaceAll(' ', '_');
     final mStr = _monthLabel(_rMonth).replaceAll(' ', '_');
@@ -483,8 +509,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   String _monthLabel(DateTime d) {
     const m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${m[d.month - 1]} ${d.year}';
   }
@@ -496,44 +532,134 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     ));
   }
 
+  void _openAbsentWhatsAppDialog(StudentModel student) {
+    final phoneCtrl = TextEditingController(text: student.parentPhone ?? '');
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+        title: Row(
+          children: [
+            const Icon(Icons.chat_bubble_outline_rounded,
+                color: Color(0xFF25D366)),
+            const SizedBox(width: 8),
+            Text('Send Absence Alert',
+                style: GoogleFonts.cormorantGaramond(
+                    fontSize: 20, fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Send official attendance absence alert to ${student.fullName}\'s parent on WhatsApp.',
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Parent WhatsApp Mobile',
+                hintText: 'e.g. 9839769809',
+                prefixIcon: const Icon(Icons.phone_rounded,
+                    size: 18, color: Color(0xFF25D366)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('Open WhatsApp'),
+            onPressed: () {
+              Navigator.pop(dlgCtx);
+              WhatsAppShareService.shareAttendanceAbsentAlert(
+                schoolName: AppStrings.schoolName,
+                studentName: student.fullName,
+                className: student.classForAdmission ?? _markClass ?? 'Class',
+                rollNumber: student.rollNumber,
+                date: DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
+                parentPhone: phoneCtrl.text.trim().isNotEmpty
+                    ? phoneCtrl.text.trim()
+                    : null,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    return AdminPageScaffold(
+      scrollable: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Attendance Hub',
-                        style: GoogleFonts.cormorantGaramond(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navy)),
-                    Text(
-                        'Mark daily class attendance, track live percentages, and analyze monthly trends',
-                        style: GoogleFonts.nunitoSans(
-                            color: AppColors.textSecondary, fontSize: 13)),
-                  ],
+          AdminPageHeader(
+            title: 'Attendance Hub',
+            subtitle:
+                'Mark daily class attendance, track live percentages, and analyze monthly trends',
+            icon: Icons.fact_check_outlined,
+            actions: [
+              if (_canSubmitMark)
+                ElevatedButton.icon(
+                  onPressed: _submitting ? null : _submitAttendance,
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.check_circle_rounded, size: 16),
+                  label: Text(_submitting ? 'Saving…' : 'Save Attendance'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                  ),
+                ),
+              OutlinedButton.icon(
+                onPressed: _loading ? null : _loadAttendance,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Reload'),
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          // ── Tab bar ───────────────────────────────────────────────────
+
+          // ── Tabs Header ───────────────────────────────────────────────
           Container(
-            height: 42,
+            height: 44,
             decoration: BoxDecoration(
-              color: AppColors.creamDark,
+              color: context.palette.surface,
               borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-              border: Border.all(color: AppColors.border, width: 0.8),
+              border: Border.all(color: context.palette.border, width: 0.8),
             ),
             child: TabBar(
               controller: _tabController,
@@ -580,13 +706,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildMarkTab(), _buildReportsTab()],
-            ),
-          ),
+          const SizedBox(height: 16),
+
+          // ── Active Tab Content ────────────────────────────────────────
+          _tabController.index == 0 ? _buildMarkTab() : _buildReportsTab(),
         ],
       ),
     );
@@ -596,11 +719,14 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   // MARK ATTENDANCE TAB
   // ══════════════════════════════════════════════════════════════════════
 
-  Widget _buildMarkTab() => Column(children: [
-        _buildMarkFilterBar(),
-        const SizedBox(height: 12),
-        Expanded(child: _buildMarkBody()),
-      ]);
+  Widget _buildMarkTab() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildMarkFilterBar(),
+          const SizedBox(height: 16),
+          _buildMarkBody(),
+        ],
+      );
 
   Widget _buildMarkFilterBar() => Card(
         elevation: 0.5,
@@ -629,7 +755,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                           .map((c) => DropdownMenuItem(
                                 value: c,
                                 child: Text(c,
-                                    style: GoogleFonts.nunitoSans(fontSize: 13)),
+                                    style:
+                                        GoogleFonts.nunitoSans(fontSize: 13)),
                               ))
                           .toList(),
                       onChanged: (v) => setState(() {
@@ -668,7 +795,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                       backgroundColor: AppColors.navy,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 12),
+                          horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius:
                               BorderRadius.circular(AppSizes.radiusMD)),
@@ -699,7 +826,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                              horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(
                             color: AppColors.navy.withValues(alpha: 0.06),
                             borderRadius: BorderRadius.circular(8),
@@ -765,7 +892,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? AppColors.navy : Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -788,7 +915,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     if (_loading) return _buildShimmer();
     if (_error != null) return _buildError(_error!, _loadAttendance);
     if (!_loaded) {
-      return _buildIdle('Select a class and date, then tap Load Class');
+      return _buildIdle('Select a class and date, then tap "Load Class".');
     }
     if (_students.isEmpty) return _buildEmpty('"${_markClass ?? ''}"');
     return _buildAttendanceList();
@@ -805,6 +932,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             : AppColors.error;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ── Real-time KPI Stats Banner ──────────────────────────────────
         Container(
@@ -814,84 +942,86 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             borderRadius: BorderRadius.circular(AppSizes.radiusLG),
             border: Border.all(color: AppColors.border, width: 0.8),
           ),
-          child: LayoutBuilder(builder: (ctx, constraints) {
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _kpiPill(
-                  label: 'Present',
-                  count: _presentCount,
-                  color: AppColors.success,
-                  icon: Icons.check_circle_rounded,
-                  active: _statusFilter == 'PRESENT',
-                  onTap: () => setState(() => _statusFilter =
-                      _statusFilter == 'PRESENT' ? 'ALL' : 'PRESENT'),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _kpiPill(
+                label: 'Present',
+                count: _presentCount,
+                color: AppColors.success,
+                icon: Icons.check_circle_rounded,
+                active: _statusFilter == 'PRESENT',
+                onTap: () => setState(() => _statusFilter =
+                    _statusFilter == 'PRESENT' ? 'ALL' : 'PRESENT'),
+              ),
+              _kpiPill(
+                label: 'Absent',
+                count: _absentCount,
+                color: AppColors.error,
+                icon: Icons.cancel_rounded,
+                active: _statusFilter == 'ABSENT',
+                onTap: () => setState(() => _statusFilter =
+                    _statusFilter == 'ABSENT' ? 'ALL' : 'ABSENT'),
+              ),
+              _kpiPill(
+                label: 'Late',
+                count: _lateCount,
+                color: AppColors.warning,
+                icon: Icons.schedule_rounded,
+                active: _statusFilter == 'LATE',
+                onTap: () => setState(() =>
+                    _statusFilter == 'LATE' ? 'ALL' : 'LATE'),
+              ),
+              _kpiPill(
+                label: 'Half Day',
+                count: _halfDayCount,
+                color: AppColors.info,
+                icon: Icons.timelapse_rounded,
+                active: _statusFilter == 'HALF_DAY',
+                onTap: () => setState(() => _statusFilter =
+                    _statusFilter == 'HALF_DAY' ? 'ALL' : 'HALF_DAY'),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: pctColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: pctColor.withValues(alpha: 0.3)),
                 ),
-                _kpiPill(
-                  label: 'Absent',
-                  count: _absentCount,
-                  color: AppColors.error,
-                  icon: Icons.cancel_rounded,
-                  active: _statusFilter == 'ABSENT',
-                  onTap: () => setState(() => _statusFilter =
-                      _statusFilter == 'ABSENT' ? 'ALL' : 'ABSENT'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.pie_chart_rounded, size: 16, color: pctColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${pct.toStringAsFixed(1)}% Attendance Rate',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: pctColor),
+                    ),
+                  ],
                 ),
-                _kpiPill(
-                  label: 'Late',
-                  count: _lateCount,
-                  color: AppColors.warning,
-                  icon: Icons.schedule_rounded,
-                  active: _statusFilter == 'LATE',
-                  onTap: () => setState(() => _statusFilter =
-                      _statusFilter == 'LATE' ? 'ALL' : 'LATE'),
-                ),
-                _kpiPill(
-                  label: 'Half Day',
-                  count: _halfDayCount,
-                  color: AppColors.info,
-                  icon: Icons.timelapse_rounded,
-                  active: _statusFilter == 'HALF_DAY',
-                  onTap: () => setState(() => _statusFilter =
-                      _statusFilter == 'HALF_DAY' ? 'ALL' : 'HALF_DAY'),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: pctColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: pctColor.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.pie_chart_rounded, size: 16, color: pctColor),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${pct.toStringAsFixed(1)}% Attendance Rate',
-                        style: GoogleFonts.nunitoSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: pctColor),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
 
         // ── Search & Batch Quick Action Bar ────────────────────────────
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
+            SizedBox(
+              width: 320,
+              height: 38,
               child: Container(
-                height: 38,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppSizes.radiusMD),
@@ -901,7 +1031,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                   controller: _markSearchCtrl,
                   style: GoogleFonts.nunitoSans(fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'Search by student name, roll number, admission number…',
+                    hintText: 'Search name, roll no, admission no…',
                     hintStyle: GoogleFonts.nunitoSans(
                         color: AppColors.textLight, fontSize: 12),
                     prefixIcon: const Icon(Icons.search,
@@ -918,12 +1048,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 ),
               ),
             ),
-            const SizedBox(width: 10),
             OutlinedButton.icon(
               onPressed: () => _markAll('PRESENT'),
               icon: const Icon(Icons.done_all_rounded,
                   size: 16, color: AppColors.success),
-              label: Text('All Present',
+              label: Text('Mark All Present',
                   style: GoogleFonts.nunitoSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -933,17 +1062,16 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                     color: AppColors.success.withValues(alpha: 0.5)),
                 backgroundColor: AppColors.success.withValues(alpha: 0.06),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
               ),
             ),
-            const SizedBox(width: 6),
             OutlinedButton.icon(
               onPressed: () => _markAll('ABSENT'),
               icon: const Icon(Icons.close_rounded,
                   size: 16, color: AppColors.error),
-              label: Text('All Absent',
+              label: Text('Mark All Absent',
                   style: GoogleFonts.nunitoSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -952,27 +1080,27 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
                 backgroundColor: AppColors.error.withValues(alpha: 0.05),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
 
-        // ── Filter Chips Bar ───────────────────────────────────────────
+        // ── Filter Counter & Badge ─────────────────────────────────────
         Row(
           children: [
             Text(
-              'Showing ${filtered.length} of $total students',
+              'Showing ${filtered.length} of $total students in ${_loadedClass ?? ''}',
               style: GoogleFonts.nunitoSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
             ),
             if (_statusFilter != 'ALL') ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -983,7 +1111,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Filtered: $_statusFilter',
+                    Text('Filter: $_statusFilter',
                         style: GoogleFonts.nunitoSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -1000,201 +1128,70 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             ],
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 12),
 
-        // ── Students List ──────────────────────────────────────────────
-        Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search_off_rounded,
-                          size: 48,
-                          color: AppColors.textLight.withValues(alpha: 0.6)),
-                      const SizedBox(height: 10),
-                      Text('No students match the current filter',
-                          style: GoogleFonts.nunitoSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary)),
-                      TextButton(
-                        onPressed: () {
-                          _markSearchCtrl.clear();
-                          setState(() => _statusFilter = 'ALL');
-                        },
-                        child: const Text('Reset Filters'),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.separated(
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (ctx, i) {
-                    final s = filtered[i];
-                    final current = _statuses[s.id] ?? 'PRESENT';
-                    return Card(
-                      elevation: 0.5,
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppSizes.radiusLG),
-                        side: const BorderSide(
-                            color: AppColors.border, width: 0.8),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor:
-                                  AppColors.navy.withValues(alpha: 0.1),
-                              child: Text(
-                                s.fullName.isNotEmpty
-                                    ? s.fullName[0].toUpperCase()
-                                    : '?',
-                                style: GoogleFonts.cormorantGaramond(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.navy),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    s.fullName,
-                                    style: GoogleFonts.nunitoSans(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
-                                        color: AppColors.textPrimary),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 4,
-                                    children: [
-                                      if (s.rollNumber != null &&
-                                          s.rollNumber!.trim().isNotEmpty)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 1.5),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF6366F1)
-                                                .withValues(alpha: 0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                          child: Text(
-                                            'Roll #${s.rollNumber}',
-                                            style: GoogleFonts.nunitoSans(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w700,
-                                                color:
-                                                    const Color(0xFF6366F1)),
-                                          ),
-                                        ),
-                                      if (s.admissionNumber != null &&
-                                          s.admissionNumber!.trim().isNotEmpty)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 1.5),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.gold
-                                                .withValues(alpha: 0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                          child: Text(
-                                            'Adm: ${s.admissionNumber}',
-                                            style: GoogleFonts.nunitoSans(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.gold),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Segmented Status Selector
-                            Wrap(
-                              spacing: 5,
-                              children: [
-                                _statusToggleButton(
-                                  label: 'P',
-                                  tooltip: 'Present',
-                                  color: AppColors.success,
-                                  active: current == 'PRESENT',
-                                  onTap: () => setState(
-                                      () => _statuses[s.id!] = 'PRESENT'),
-                                ),
-                                _statusToggleButton(
-                                  label: 'A',
-                                  tooltip: 'Absent',
-                                  color: AppColors.error,
-                                  active: current == 'ABSENT',
-                                  onTap: () => setState(
-                                      () => _statuses[s.id!] = 'ABSENT'),
-                                ),
-                                _statusToggleButton(
-                                  label: 'L',
-                                  tooltip: 'Late',
-                                  color: AppColors.warning,
-                                  active: current == 'LATE',
-                                  onTap: () => setState(
-                                      () => _statuses[s.id!] = 'LATE'),
-                                ),
-                                _statusToggleButton(
-                                  label: 'HD',
-                                  tooltip: 'Half Day',
-                                  color: AppColors.info,
-                                  active: current == 'HALF_DAY',
-                                  onTap: () => setState(
-                                      () => _statuses[s.id!] = 'HALF_DAY'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+        // ── Students List (Rendered freely without viewport squashing!) ─
+        if (filtered.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            alignment: Alignment.center,
+            child: Column(
+              children: [
+                Icon(Icons.search_off_rounded,
+                    size: 48,
+                    color: AppColors.textLight.withValues(alpha: 0.6)),
+                const SizedBox(height: 10),
+                Text('No students match the current filter',
+                    style: GoogleFonts.nunitoSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary)),
+                TextButton(
+                  onPressed: () {
+                    _markSearchCtrl.clear();
+                    setState(() => _statusFilter = 'ALL');
                   },
+                  child: const Text('Reset Filters'),
                 ),
-        ),
-        const SizedBox(height: 10),
+              ],
+            ),
+          )
+        else
+          Column(
+            children: [
+              for (final s in filtered) _buildStudentAttendanceCard(s),
+            ],
+          ),
 
-        // ── Bottom Sticky Bar ──────────────────────────────────────────
+        const SizedBox(height: 16),
+
+        // ── Bottom Summary & Save Bar ──────────────────────────────────
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+            borderRadius: BorderRadius.circular(AppSizes.radiusLG),
             border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 6,
+                blurRadius: 8,
                 offset: const Offset(0, -2),
               ),
             ],
           ),
-          child: Row(
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 10,
             children: [
-              Expanded(
-                child: Text(
-                  'Total: $total  •  $_presentCount Present  •  $_absentCount Absent  •  $_lateCount Late',
-                  style: GoogleFonts.nunitoSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary),
-                ),
+              Text(
+                'Total: $total  •  $_presentCount Present  •  $_absentCount Absent  •  $_lateCount Late  •  $_halfDayCount Half-Day',
+                style: GoogleFonts.nunitoSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary),
               ),
               ElevatedButton.icon(
                 onPressed: _canSubmitMark ? _submitAttendance : null,
@@ -1204,8 +1201,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                         height: 16,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.check_circle_outline_rounded,
-                        size: 18),
+                    : const Icon(Icons.check_circle_outline_rounded, size: 18),
                 label: Text(_submitting ? 'Saving…' : 'Save Attendance',
                     style: GoogleFonts.nunitoSans(
                         fontWeight: FontWeight.w700, fontSize: 14)),
@@ -1213,10 +1209,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                   backgroundColor: AppColors.navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 12),
+                      horizontal: 24, vertical: 13),
                   shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSizes.radiusMD)),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
                 ),
               ),
             ],
@@ -1226,39 +1221,220 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
   }
 
-  Widget _kpiPill({
-    required String label,
-    required int count,
-    required Color color,
-    required IconData icon,
-    required bool active,
-    required VoidCallback onTap,
-  }) {
+  // ── Rich Student Card ─────────────────────────────────────────────────
+
+  Widget _buildStudentAttendanceCard(StudentModel s) {
+    final current = _statuses[s.id] ?? 'PRESENT';
+    final parentPhone = s.parentPhone;
+    final father = s.fatherName;
+
+    Color cardBorder;
+    Color cardBg;
+    if (current == 'ABSENT') {
+      cardBorder = AppColors.error.withValues(alpha: 0.4);
+      cardBg = AppColors.error.withValues(alpha: 0.02);
+    } else if (current == 'LATE') {
+      cardBorder = AppColors.warning.withValues(alpha: 0.4);
+      cardBg = Colors.white;
+    } else {
+      cardBorder = AppColors.border;
+      cardBg = Colors.white;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        border: Border.all(color: cardBorder, width: current == 'ABSENT' ? 1.4 : 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: current == 'ABSENT'
+                ? AppColors.error.withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: LayoutBuilder(builder: (ctx, constraints) {
+        final isNarrow = constraints.maxWidth < 650;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Avatar with initial
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.navy.withValues(alpha: 0.8),
+                        AppColors.navy,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : '?',
+                    style: GoogleFonts.cormorantGaramond(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // Details Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              s.fullName,
+                              style: GoogleFonts.nunitoSans(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: AppColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _statusBadge(current),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (s.rollNumber != null &&
+                              s.rollNumber!.trim().isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Roll #${s.rollNumber}',
+                                style: GoogleFonts.nunitoSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF6366F1),
+                                ),
+                              ),
+                            ),
+                          if (s.admissionNumber != null &&
+                              s.admissionNumber!.trim().isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.gold.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Adm: ${s.admissionNumber}',
+                                style: GoogleFonts.nunitoSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.gold,
+                                ),
+                              ),
+                            ),
+                          if (father != null && father.trim().isNotEmpty)
+                            Text('Parent: $father',
+                                style: GoogleFonts.nunitoSans(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary)),
+                          if (parentPhone != null &&
+                              parentPhone.trim().isNotEmpty)
+                            Text('📞 $parentPhone',
+                                style: GoogleFonts.nunitoSans(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (!isNarrow) ...[
+                  const SizedBox(width: 12),
+                  _buildStatusButtonGroup(s, current),
+                ],
+              ],
+            ),
+
+            if (isNarrow) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1, thickness: 0.5, color: AppColors.border),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (current == 'ABSENT')
+                    _whatsappButton(s)
+                  else
+                    const SizedBox.shrink(),
+                  _buildStatusButtonGroup(s, current),
+                ],
+              ),
+            ] else if (current == 'ABSENT') ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _whatsappButton(s),
+                ],
+              ),
+            ],
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _whatsappButton(StudentModel s) {
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      onTap: () => _openAbsentWhatsAppDialog(s),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: active
-              ? color
-              : color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFF25D366).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
-              color: active ? color : color.withValues(alpha: 0.3)),
+              color: const Color(0xFF25D366).withValues(alpha: 0.4)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: active ? Colors.white : color),
+            const Icon(Icons.chat_rounded, size: 14, color: Color(0xFF25D366)),
             const SizedBox(width: 6),
             Text(
-              '$count $label',
+              'Send Absent Notice (WhatsApp)',
               style: GoogleFonts.nunitoSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: active ? Colors.white : color),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1E7E34),
+              ),
             ),
           ],
         ),
@@ -1266,22 +1442,108 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
   }
 
-  Widget _statusToggleButton({
+  Widget _statusBadge(String status) {
+    Color col;
+    IconData icon;
+    String label = status;
+    switch (status) {
+      case 'PRESENT':
+        col = AppColors.success;
+        icon = Icons.check_circle_rounded;
+        label = 'Present';
+        break;
+      case 'ABSENT':
+        col = AppColors.error;
+        icon = Icons.cancel_rounded;
+        label = 'Absent';
+        break;
+      case 'LATE':
+        col = AppColors.warning;
+        icon = Icons.schedule_rounded;
+        label = 'Late';
+        break;
+      case 'HALF_DAY':
+        col = AppColors.info;
+        icon = Icons.timelapse_rounded;
+        label = 'Half-Day';
+        break;
+      default:
+        col = AppColors.textSecondary;
+        icon = Icons.help_outline;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: col.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: col.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: col),
+          const SizedBox(width: 4),
+          Text(label,
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: col)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusButtonGroup(StudentModel s, String current) {
+    return Wrap(
+      spacing: 6,
+      children: [
+        _statusPillButton(
+          label: 'P',
+          title: 'Present',
+          color: AppColors.success,
+          active: current == 'PRESENT',
+          onTap: () => setState(() => _statuses[s.id!] = 'PRESENT'),
+        ),
+        _statusPillButton(
+          label: 'A',
+          title: 'Absent',
+          color: AppColors.error,
+          active: current == 'ABSENT',
+          onTap: () => setState(() => _statuses[s.id!] = 'ABSENT'),
+        ),
+        _statusPillButton(
+          label: 'L',
+          title: 'Late',
+          color: AppColors.warning,
+          active: current == 'LATE',
+          onTap: () => setState(() => _statuses[s.id!] = 'LATE'),
+        ),
+        _statusPillButton(
+          label: 'HD',
+          title: 'Half Day',
+          color: AppColors.info,
+          active: current == 'HALF_DAY',
+          onTap: () => setState(() => _statuses[s.id!] = 'HALF_DAY'),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusPillButton({
     required String label,
-    required String tooltip,
+    required String title,
     required Color color,
     required bool active,
     required VoidCallback onTap,
   }) {
     return Tooltip(
-      message: tooltip,
+      message: title,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          width: 34,
-          height: 32,
+          width: 38,
+          height: 34,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? color : color.withValues(alpha: 0.08),
@@ -1313,15 +1575,56 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
   }
 
+  Widget _kpiPill({
+    required String label,
+    required int count,
+    required Color color,
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? color : color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: active ? color : color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: active ? Colors.white : color),
+            const SizedBox(width: 6),
+            Text(
+              '$count $label',
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Colors.white : color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ══════════════════════════════════════════════════════════════════════
   // MONTHLY REPORT TAB
   // ══════════════════════════════════════════════════════════════════════
 
-  Widget _buildReportsTab() => Column(children: [
-        _buildReportFilterBar(),
-        const SizedBox(height: 12),
-        Expanded(child: _buildReportBody()),
-      ]);
+  Widget _buildReportsTab() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildReportFilterBar(),
+          const SizedBox(height: 16),
+          _buildReportBody(),
+        ],
+      );
 
   Widget _buildReportFilterBar() => Card(
         elevation: 0.5,
@@ -1437,11 +1740,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     if (_rLoading) return _buildShimmer();
     if (_rError != null) return _buildError(_rError!, _loadReport);
     if (!_rLoaded) {
-      return _buildIdle('Select class and month, then tap Load Report');
+      return _buildIdle('Select class and month, then tap "Load Report".');
     }
     if (_summaries.isEmpty) {
       return _buildIdle(
-          'No attendance records found for ${_rClass ?? ''}\nin ${_monthLabel(_rMonth)}');
+          'No attendance records found for ${_rClass ?? ''} in ${_monthLabel(_rMonth)}.');
     }
     return _buildSummaryTable();
   }
@@ -1455,7 +1758,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     final good = _reportGoodCount;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ── Monthly KPI Overview Cards ─────────────────────────────────
         Container(
@@ -1503,14 +1806,18 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
 
         // ── Controls: Search, Filter Chips, Export CSV ─────────────────
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
+            SizedBox(
+              width: 280,
+              height: 38,
               child: Container(
-                height: 38,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppSizes.radiusMD),
@@ -1537,7 +1844,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 ),
               ),
             ),
-            const SizedBox(width: 10),
             ElevatedButton.icon(
               onPressed: _exportReportCsv,
               icon: const Icon(Icons.download_rounded, size: 16),
@@ -1546,31 +1852,30 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 backgroundColor: AppColors.gold,
                 foregroundColor: Colors.white,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
 
         // ── Filter Chips Bar ───────────────────────────────────────────
-        Row(
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
           children: [
             _reportFilterChip('ALL', 'All ($total)'),
-            const SizedBox(width: 6),
             _reportFilterChip('GOOD', 'Good ≥75% ($good)',
                 color: AppColors.success),
-            const SizedBox(width: 6),
             _reportFilterChip('AT_RISK', 'At Risk <75% ($atRisk)',
                 color: AppColors.warning),
-            const SizedBox(width: 6),
             _reportFilterChip('CRITICAL', 'Critical <60% ($critical)',
                 color: AppColors.error),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
 
         // ── Table Header ───────────────────────────────────────────────
         Container(
@@ -1589,93 +1894,89 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             _hCell('Attendance %', flex: 3),
           ]),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
 
-        // ── Table Rows ─────────────────────────────────────────────────
-        Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Text('No students match the selected filter',
-                      style: GoogleFonts.nunitoSans(
-                          color: AppColors.textSecondary, fontSize: 13)),
-                )
-              : ListView.builder(
-                  itemCount: filtered.length,
-                  itemBuilder: (ctx, i) {
-                    final s = filtered[i];
-                    final pct = s.percentage;
-                    final col = pct >= 75
-                        ? AppColors.success
-                        : pct >= 60
-                            ? AppColors.warning
-                            : AppColors.error;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      decoration: BoxDecoration(
-                        color: i.isEven ? Colors.white : AppColors.creamDark,
-                        borderRadius:
-                            BorderRadius.circular(AppSizes.radiusMD),
-                        border: Border.all(
-                            color: AppColors.border.withValues(alpha: 0.6)),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 9),
-                      child: Row(children: [
-                        Expanded(
-                          flex: 3,
-                          child: Text(s.studentName,
-                              style: GoogleFonts.nunitoSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary)),
-                        ),
-                        _dCell('${s.present}',
-                            flex: 1, color: AppColors.success),
-                        _dCell('${s.absent}', flex: 1, color: AppColors.error),
-                        _dCell('${s.late}',
-                            flex: 1, color: AppColors.warning),
-                        _dCell('${s.halfDay}', flex: 1, color: AppColors.info),
-                        _dCell('${s.total}', flex: 1),
-                        Expanded(
-                          flex: 3,
-                          child: Row(children: [
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: LinearProgressIndicator(
-                                  value: pct / 100,
-                                  minHeight: 6,
-                                  backgroundColor:
-                                      col.withValues(alpha: 0.15),
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(col),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 1.5),
-                              decoration: BoxDecoration(
-                                color: col.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '${pct.toStringAsFixed(1)}%',
-                                style: GoogleFonts.nunitoSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: col),
-                              ),
-                            ),
-                          ]),
-                        ),
-                      ]),
-                    );
-                  },
-                ),
-        ),
+        // ── Table Rows (Rendered freely without viewport squashing!) ────
+        if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text('No students match the selected filter',
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.textSecondary, fontSize: 13)),
+            ),
+          )
+        else
+          Column(
+            children: [
+              for (int i = 0; i < filtered.length; i++)
+                _buildSummaryRow(filtered[i], i),
+            ],
+          ),
       ],
+    );
+  }
+
+  Widget _buildSummaryRow(_StudentSummary s, int i) {
+    final pct = s.percentage;
+    final col = pct >= 75
+        ? AppColors.success
+        : pct >= 60
+            ? AppColors.warning
+            : AppColors.error;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: i.isEven ? Colors.white : AppColors.creamDark,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(children: [
+        Expanded(
+          flex: 3,
+          child: Text(s.studentName,
+              style: GoogleFonts.nunitoSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary)),
+        ),
+        _dCell('${s.present}', flex: 1, color: AppColors.success),
+        _dCell('${s.absent}', flex: 1, color: AppColors.error),
+        _dCell('${s.late}', flex: 1, color: AppColors.warning),
+        _dCell('${s.halfDay}', flex: 1, color: AppColors.info),
+        _dCell('${s.total}', flex: 1),
+        Expanded(
+          flex: 3,
+          child: Row(children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: pct / 100,
+                  minHeight: 6,
+                  backgroundColor: col.withValues(alpha: 0.15),
+                  valueColor: AlwaysStoppedAnimation<Color>(col),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: col.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${pct.toStringAsFixed(1)}%',
+                style: GoogleFonts.nunitoSans(
+                    fontSize: 11, fontWeight: FontWeight.w800, color: col),
+              ),
+            ),
+          ]),
+        ),
+      ]),
     );
   }
 
@@ -1687,17 +1988,16 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
           color: active ? c : c.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: active ? c : c.withValues(alpha: 0.3)),
+          border: Border.all(color: active ? c : c.withValues(alpha: 0.3)),
         ),
         child: Text(
           label,
           style: GoogleFonts.nunitoSans(
-            fontSize: 11,
+            fontSize: 11.5,
             fontWeight: active ? FontWeight.w700 : FontWeight.w600,
             color: active ? Colors.white : c,
           ),
@@ -1723,9 +2023,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           children: [
             Text(value,
                 style: GoogleFonts.nunitoSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: color)),
+                    fontSize: 13, fontWeight: FontWeight.w800, color: color)),
             Text(label,
                 style: GoogleFonts.nunitoSans(
                     fontSize: 10,
@@ -1740,75 +2038,86 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   // ── Shared widgets ────────────────────────────────────────────────────
 
   Widget _buildIdle(String message) => Center(
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.rule_folder_outlined,
-                  size: 60,
-                  color: AppColors.textLight.withValues(alpha: 0.4)),
-              const SizedBox(height: 14),
-              Text(message,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 14)),
-            ]),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.rule_folder_outlined,
+                    size: 60,
+                    color: AppColors.textLight.withValues(alpha: 0.4)),
+                const SizedBox(height: 14),
+                Text(message,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.nunitoSans(
+                        color: AppColors.textSecondary, fontSize: 14)),
+              ]),
+        ),
       );
 
   Widget _buildEmpty(String className) => Center(
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.person_search_outlined,
-                  size: 60,
-                  color: AppColors.textLight.withValues(alpha: 0.4)),
-              const SizedBox(height: 14),
-              Text('No students in $className',
-                  style: GoogleFonts.cormorantGaramond(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.navy)),
-              const SizedBox(height: 6),
-              Text('Admit students with this class name first.',
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 13)),
-            ]),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.person_search_outlined,
+                    size: 60,
+                    color: AppColors.textLight.withValues(alpha: 0.4)),
+                const SizedBox(height: 14),
+                Text('No students in $className',
+                    style: GoogleFonts.cormorantGaramond(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.navy)),
+                const SizedBox(height: 6),
+                Text('Admit students with this class name in Admissions first.',
+                    style: GoogleFonts.nunitoSans(
+                        color: AppColors.textSecondary, fontSize: 13)),
+              ]),
+        ),
       );
 
   Widget _buildShimmer() => Shimmer.fromColors(
         baseColor: Colors.grey.shade200,
         highlightColor: Colors.grey.shade100,
-        child: ListView.builder(
-          itemCount: 6,
-          itemBuilder: (_, __) => Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            height: 48,
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+        child: Column(
+          children: List.generate(
+            4,
+            (_) => Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              height: 70,
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+            ),
           ),
         ),
       );
 
   Widget _buildError(String error, VoidCallback retry) => Center(
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.wifi_off_rounded,
-                  color: AppColors.error, size: 52),
-              const SizedBox(height: 12),
-              Text('Failed to load',
-                  style: GoogleFonts.nunitoSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.error)),
-              const SizedBox(height: 6),
-              Text(error,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 12)),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: retry, child: const Text('Retry')),
-            ]),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 30),
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.wifi_off_rounded,
+                    color: AppColors.error, size: 52),
+                const SizedBox(height: 12),
+                Text('Failed to load',
+                    style: GoogleFonts.nunitoSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.error)),
+                const SizedBox(height: 6),
+                Text(error,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.nunitoSans(
+                        color: AppColors.textSecondary, fontSize: 12)),
+                const SizedBox(height: 16),
+                ElevatedButton(onPressed: retry, child: const Text('Retry')),
+              ]),
+        ),
       );
 
   // ── Table cell helpers ────────────────────────────────────────────────
@@ -1829,8 +2138,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 fontSize: 13, color: color ?? AppColors.textPrimary)),
       );
 
-  InputDecoration _inputDecor(String hint, IconData icon) =>
-      InputDecoration(
+  InputDecoration _inputDecor(String hint, IconData icon) => InputDecoration(
         hintText: hint,
         hintStyle:
             GoogleFonts.nunitoSans(color: AppColors.textLight, fontSize: 13),

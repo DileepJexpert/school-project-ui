@@ -1,6 +1,6 @@
 import 'package:url_launcher/url_launcher.dart';
 
-/// Service to generate and launch pre-filled WhatsApp messages for fee receipts and reminders.
+/// Service to generate and launch pre-filled WhatsApp messages for fee receipts, reminders, and attendance alerts.
 class WhatsAppShareService {
   WhatsAppShareService._();
 
@@ -77,6 +77,35 @@ Thank you! For any queries, please contact the school office.
 ━━━━━━━━━━━━━━━━━━━━
 Kindly arrange the payment at your earliest convenience. If already paid, please ignore this reminder.
 Thank you!
+'''.trim();
+
+    return shareMessage(phone: parentPhone, message: message);
+  }
+
+  /// Formats and launches WhatsApp with a student attendance absence notice.
+  static Future<bool> shareAttendanceAbsentAlert({
+    required String schoolName,
+    required String studentName,
+    required String className,
+    String? rollNumber,
+    required String date,
+    String? parentPhone,
+  }) async {
+    final rollStr = (rollNumber != null && rollNumber.isNotEmpty)
+        ? ' (Roll: $rollNumber)'
+        : '';
+
+    final message = '''
+🏫 *$schoolName*
+⚠️ *DAILY ATTENDANCE NOTICE*
+━━━━━━━━━━━━━━━━━━━━
+Dear Parent,
+This is to inform you that *$studentName*$rollStr of *Class $className* has been marked *ABSENT* on *$date*.
+
+If your ward was absent due to illness or pre-approved leave, please notify the school office.
+━━━━━━━━━━━━━━━━━━━━
+Thank you,
+*Administration Office*
 '''.trim();
 
     return shareMessage(phone: parentPhone, message: message);

@@ -57,6 +57,21 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _normalize_year(year: str) -> str:
+    y = year.strip()
+    if len(y) == 7 and y[4] == "-" and y[:4].isdigit() and y[5:].isdigit():
+        start = int(y[:4])
+        return f"{start}-{start + 1}"
+    return y
+
+
+def _short_year(year: str) -> str:
+    y = _normalize_year(year)
+    if len(y) == 9 and y[4] == "-":
+        return f"{y[:4]}-{y[7:]}"
+    return y
+
+
 @router.get("/class/{class_name}/range")
 async def class_attendance_range(
     class_name: str,
@@ -71,6 +86,9 @@ async def class_attendance_range(
     tenant = await _tenant(db, user, x_tenant_id)
     if from_date > to_date:
         raise HTTPException(status_code=422, detail="from must be before to")
+
+    norm_year = _normalize_year(academic_year)
+    short_year = _short_year(academic_year)
 
     return await _many(
         db,
@@ -90,14 +108,15 @@ async def class_attendance_range(
         WHERE a.tenant_id = ?
           AND a.voided_at IS NULL
           AND LOWER(e.class_name) = LOWER(?)
-          AND e.academic_year = ?
+          AND (e.academic_year = ? OR e.academic_year = ?)
           AND a.date >= ?
           AND a.date <= ?
         ORDER BY a.date ASC, s.full_name ASC
         """,
         tenant,
         class_name.strip(),
-        academic_year.strip(),
+        norm_year,
+        short_year,
         from_date.strip(),
         to_date.strip(),
     )
@@ -159,6 +178,9 @@ async def mark_bulk_attendance(
     if not data.entries:
         return []
 
+    norm_year = _normalize_year(academic_year)
+    short_year = _short_year(academic_year)
+
     # Get student IDs from entries
     student_ids = [e.studentId for e in data.entries]
     placeholders = ",".join(["?"] * len(student_ids))
@@ -169,10 +191,11 @@ async def mark_bulk_attendance(
         f"""
         SELECT id, student_id, class_name
         FROM enrollments
-        WHERE tenant_id = ? AND academic_year = ? AND student_id IN ({placeholders})
+        WHERE tenant_id = ? AND (academic_year = ? OR academic_year = ?) AND student_id IN ({placeholders})
         """,
         tenant,
-        academic_year,
+        norm_year,
+        short_year,
         *student_ids,
     )
     enrollment_map = {row["student_id"]: row["id"] for row in enrollment_rows}
@@ -276,6 +299,9 @@ async def student_attendance_summary(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
+    norm_year = _normalize_year(academic_year)
+    short_year = _short_year(academic_year)
+
     records = await _many(
         db,
         """
@@ -285,11 +311,12 @@ async def student_attendance_summary(
         WHERE a.tenant_id = ?
           AND a.voided_at IS NULL
           AND e.student_id = ?
-          AND e.academic_year = ?
+          AND (e.academic_year = ? OR e.academic_year = ?)
         """,
         tenant,
         student_id,
-        academic_year.strip(),
+        norm_year,
+        short_year,
     )
 
     total = len(records)
