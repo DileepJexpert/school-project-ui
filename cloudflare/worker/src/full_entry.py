@@ -63,6 +63,7 @@ def _load_routers():
     from school_homework import router as school_homework_router
     from school_videos import router as school_videos_router
     from school_expenses import router as school_expenses_router
+    from school_attendance import router as school_attendance_router
     app.include_router(school_auth_router)
     app.include_router(school_overview_router)
     app.include_router(school_students_router)
@@ -73,6 +74,7 @@ def _load_routers():
     app.include_router(school_homework_router)
     app.include_router(school_videos_router)
     app.include_router(school_expenses_router)
+    app.include_router(school_attendance_router)
     _routers_loaded = True
 
 
