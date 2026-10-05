@@ -23,7 +23,7 @@ def _build_app():
         CORSMiddleware,
         allow_origins=["*"],
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
+        allow_headers=["*"],
     )
     app.include_router(expenses_router)
     return app

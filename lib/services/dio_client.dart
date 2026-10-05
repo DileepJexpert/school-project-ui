@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'token_storage.dart';
@@ -14,7 +13,7 @@ class DioClient {
   // Falls back to production worker in release mode, localhost for local debug.
   static const String _buildBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: kReleaseMode ? _defaultProdUrl : 'http://localhost:8000/api',
+    defaultValue: _defaultProdUrl,
   );
   static const String _publicTenantId = String.fromEnvironment(
     'PUBLIC_TENANT_ID', defaultValue: 'default',
@@ -32,8 +31,7 @@ class DioClient {
     if (saved != null) {
       final isLocalhost =
           saved.contains('localhost') || saved.contains('127.0.0.1');
-      final isHttps = kIsWeb && Uri.base.scheme == 'https';
-      if ((kReleaseMode && isLocalhost) || (isHttps && isLocalhost)) {
+      if (isLocalhost) {
         await prefs.remove('api_base_url');
         _baseUrl = _buildBaseUrl;
       } else {

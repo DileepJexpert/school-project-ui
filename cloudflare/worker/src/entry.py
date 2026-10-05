@@ -9,7 +9,7 @@ if vendor_path.is_dir() and str(vendor_path) not in sys.path:
     sys.path.insert(0, str(vendor_path))
 os.environ["PYDANTIC_PURE_PYTHON"] = "1"
 
-from workers import WorkerEntrypoint
+from workers import WorkerEntrypoint, Response
 from workers.asgi import fetch as asgi_fetch
 
 
@@ -18,6 +18,18 @@ class Default(WorkerEntrypoint):
     _full = None
 
     async def on_fetch(self, request):
+        if request.method == "OPTIONS":
+            return Response(
+                "",
+                status=204,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Max-Age": "86400",
+                },
+            )
+
         if self._app is None:
             import full_entry
 
