@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
 import '../../../services/receipt_print_service.dart';
+import '../../../services/whatsapp_share_service.dart';
 import '../../../core/widgets/searchable_dropdown.dart';
 
 class FeeCollectionScreen extends StatefulWidget {
@@ -315,6 +316,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   void _showSuccessDialog(PaymentRecord r, StudentFeeProfile s) {
+    final phoneCtrl = TextEditingController(text: s.parentPhone);
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -429,6 +431,41 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                           color: AppColors.success)),
                 ],
               ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF25D366).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                  border: Border.all(
+                      color: const Color(0xFF25D366).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_bubble_rounded,
+                        size: 18, color: Color(0xFF25D366)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        style: GoogleFonts.nunitoSans(
+                            fontSize: 13, fontWeight: FontWeight.w600),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                          hintText: 'Parent WhatsApp (e.g. 9876543210)',
+                          hintStyle: GoogleFonts.nunitoSans(
+                              fontSize: 12, color: AppColors.textSecondary),
+                          labelText: 'WhatsApp Phone Number',
+                          labelStyle: GoogleFonts.nunitoSans(
+                              fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -436,6 +473,32 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
           OutlinedButton(
             onPressed: () => Navigator.pop(dlgContext),
             child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.chat_rounded, size: 18),
+            label: const Text('Share on WhatsApp'),
+            onPressed: () {
+              WhatsAppShareService.shareFeeReceipt(
+                schoolName: AppStrings.schoolName,
+                receiptNumber: r.receiptNumber,
+                studentName: s.name,
+                className: s.className,
+                rollNumber: s.rollNumber,
+                paymentDate: _dateFmt.format(r.paymentDate),
+                paymentMode: r.paymentMode,
+                amountPaid: r.amountPaid,
+                discount: r.discount,
+                installments: r.paidForInstallments,
+                parentPhone: phoneCtrl.text.trim().isNotEmpty
+                    ? phoneCtrl.text.trim()
+                    : null,
+                remarks: r.remarks,
+              );
+            },
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(

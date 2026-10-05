@@ -8,6 +8,7 @@ import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
 import '../../../services/csv_export_service.dart';
 import '../../../services/receipt_print_service.dart';
+import '../../../services/whatsapp_share_service.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -45,11 +46,117 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _source =
-        _TxnSource([], _currency, _dateFmt, (txn) => _reprintReceipt(txn));
+    _source = _TxnSource(
+      [],
+      _currency,
+      _dateFmt,
+      (txn) => _reprintReceipt(txn),
+      (txn) => _shareReceiptWhatsApp(txn),
+    );
     _range = _rangeFor('30D');
     _searchCtrl.addListener(_applySearch);
     _fetch();
+  }
+
+  void _shareReceiptWhatsApp(TransactionRecord txn) {
+    final phoneCtrl = TextEditingController(text: txn.parentPhone);
+    showDialog(
+      context: context,
+      builder: (dlgContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.chat_rounded,
+                  color: Color(0xFF25D366), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Share on WhatsApp',
+                      style: GoogleFonts.cormorantGaramond(
+                          fontWeight: FontWeight.w700, fontSize: 18)),
+                  Text('Receipt #${txn.receiptNumber}',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12, color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Send payment receipt for ${txn.studentName} (${txn.className}) to parent on WhatsApp.',
+                style: GoogleFonts.nunitoSans(
+                    fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                autofocus: txn.parentPhone.isEmpty,
+                decoration: InputDecoration(
+                  labelText: 'Parent WhatsApp Mobile',
+                  hintText: 'e.g. 9876543210 (or leave empty to pick contact)',
+                  prefixIcon: const Icon(Icons.phone_rounded,
+                      size: 18, color: Color(0xFF25D366)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('Open WhatsApp'),
+            onPressed: () {
+              Navigator.pop(dlgContext);
+              WhatsAppShareService.shareFeeReceipt(
+                schoolName: AppStrings.schoolName,
+                receiptNumber: txn.receiptNumber,
+                studentName: txn.studentName,
+                className: txn.className,
+                rollNumber: txn.rollNumber,
+                paymentDate: _dateFmt.format(txn.paymentDate),
+                paymentMode: txn.paymentMode,
+                amountPaid: txn.amountPaid,
+                discount: txn.discount,
+                installments: txn.paidForMonths,
+                parentPhone: phoneCtrl.text.trim().isNotEmpty
+                    ? phoneCtrl.text.trim()
+                    : null,
+                remarks: txn.remarks,
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _reprintReceipt(TransactionRecord txn) {
@@ -668,8 +775,15 @@ class _TxnSource extends DataTableSource {
   final NumberFormat currency;
   final DateFormat dateFmt;
   final void Function(TransactionRecord) onPrint;
+  final void Function(TransactionRecord) onWhatsApp;
 
-  _TxnSource(this._data, this.currency, this.dateFmt, this.onPrint);
+  _TxnSource(
+    this._data,
+    this.currency,
+    this.dateFmt,
+    this.onPrint,
+    this.onWhatsApp,
+  );
 
   void updateData(List<TransactionRecord> data) {
     _data = data;
@@ -739,11 +853,22 @@ class _TxnSource extends DataTableSource {
         Text(transaction.paymentMode.replaceAll('_', ' '),
             style: GoogleFonts.nunitoSans(fontSize: 12)),
       ])),
-      DataCell(IconButton(
-        icon: const Icon(Icons.print_outlined, size: 18),
-        tooltip: 'Re-print Receipt',
-        color: AppColors.navy,
-        onPressed: () => onPrint(transaction),
+      DataCell(Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.print_outlined, size: 18),
+            tooltip: 'Re-print Receipt',
+            color: AppColors.navy,
+            onPressed: () => onPrint(transaction),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+            tooltip: 'Share on WhatsApp',
+            color: const Color(0xFF25D366),
+            onPressed: () => onWhatsApp(transaction),
+          ),
+        ],
       )),
     ]);
   }

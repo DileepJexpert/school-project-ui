@@ -155,11 +155,25 @@ def _build_profile_wire(student: dict, installments: list[dict], last_payment: d
         })
 
     parent_name = ""
+    parent_phone = ""
     try:
         p = json.loads(student.get("parent_details") or "{}")
         parent_name = p.get("father", {}).get("name") or p.get("fatherName") or p.get("mother", {}).get("name") or p.get("motherName") or ""
+        parent_phone = (
+            p.get("fatherMobile")
+            or p.get("motherMobile")
+            or p.get("father", {}).get("mobile")
+            or p.get("mother", {}).get("mobile")
+            or ""
+        )
     except Exception:
         pass
+    if not parent_phone:
+        try:
+            c = json.loads(student.get("contact_details") or "{}")
+            parent_phone = c.get("primaryContactNumber") or c.get("phone") or ""
+        except Exception:
+            pass
 
     last_pay_dict = None
     if last_payment:
@@ -184,6 +198,7 @@ def _build_profile_wire(student: dict, installments: list[dict], last_payment: d
         "academicYear": student["academic_year"],
         "rollNumber": student.get("roll_number") or "",
         "parentName": parent_name,
+        "parentPhone": parent_phone,
         "feeInstallments": inst_list,
         "lastPayment": last_pay_dict,
         "totalFees": _major(total_due_cents),
@@ -209,7 +224,7 @@ async def search_fee_profiles(
     _permission(user, "read")
     tenant = await _tenant(db, user, x_tenant_id)
 
-    query = "SELECT id, full_name, class_name, academic_year, roll_number, parent_details FROM students WHERE tenant_id = ?"
+    query = "SELECT id, full_name, class_name, academic_year, roll_number, parent_details, contact_details FROM students WHERE tenant_id = ?"
     params = [tenant]
 
     if name.strip():
@@ -252,7 +267,7 @@ async def get_student_fee_profile(
 
     student = await _one(
         db,
-        "SELECT id, full_name, class_name, academic_year, roll_number, parent_details FROM students WHERE tenant_id = ? AND id = ?",
+        "SELECT id, full_name, class_name, academic_year, roll_number, parent_details, contact_details FROM students WHERE tenant_id = ? AND id = ?",
         tenant, student_id,
     )
     if not student:
@@ -408,7 +423,7 @@ async def get_outstanding_dues(
     _permission(user, "read")
     tenant = await _tenant(db, user, x_tenant_id)
 
-    query = "SELECT id, full_name, class_name, academic_year, roll_number, parent_details FROM students WHERE tenant_id = ? AND status = 'ACTIVE'"
+    query = "SELECT id, full_name, class_name, academic_year, roll_number, parent_details, contact_details FROM students WHERE tenant_id = ? AND status = 'ACTIVE'"
     params = [tenant]
     if academicYear:
         query += " AND academic_year = ?"
@@ -460,3 +475,170 @@ async def list_payments(
         }
         for p in payments
     ]
+
+
+# =========================================================================
+# ROUTE 6: GET /api/reports/fees/report-summary
+# =========================================================================
+@router.get("/api/reports/fees/report-summary")
+async def fee_report_summary(
+    startDate: str | None = Query(default=None),
+    endDate: str | None = Query(default=None),
+    className: str | None = Query(default=None),
+    paymentMode: str | None = Query(default=None),
+    db=Depends(_db),
+    user: dict = Depends(get_current_user),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+):
+    _permission(user, "read")
+    tenant = await _tenant(db, user, x_tenant_id)
+
+    sql = (
+        "SELECT p.id, p.receipt_number, p.payment_date, p.amount_paid, p.discount, p.payment_mode, p.remarks, "
+        "       s.full_name AS student_name, e.class_name, COALESCE(e.roll_number, s.roll_number, '') AS roll_number, "
+        "       s.parent_details, s.contact_details, u.full_name AS collector_name "
+        "FROM payments p "
+        "JOIN fee_profiles fp ON fp.id = p.profile_id "
+        "JOIN enrollments e ON e.id = fp.enrollment_id "
+        "JOIN students s ON s.id = e.student_id "
+        "LEFT JOIN users u ON u.id = p.collected_by_user_id "
+        "WHERE p.tenant_id = ? AND p.voided_at IS NULL"
+    )
+    params = [tenant]
+
+    if startDate:
+        sql += " AND p.payment_date >= ?"
+        params.append(startDate)
+    if endDate:
+        sql += " AND p.payment_date <= ?"
+        params.append(endDate + "T23:59:59")
+    if className and className.strip():
+        sql += " AND e.class_name = ?"
+        params.append(className.strip())
+    if paymentMode and paymentMode.strip() and paymentMode.upper() != "ALL":
+        sql += " AND p.payment_mode = ?"
+        params.append(paymentMode.strip().upper())
+
+    sql += " ORDER BY p.payment_date DESC, p.id DESC"
+
+    payments = await _many(db, sql, *params)
+
+    alloc_map = {}
+    if payments:
+        allocations = await _many(
+            db,
+            "SELECT pa.payment_id, fi.name "
+            "FROM payment_allocations pa "
+            "JOIN fee_installments fi ON fi.id = pa.installment_id "
+            "JOIN payments p ON p.id = pa.payment_id "
+            "WHERE p.tenant_id = ? "
+            "ORDER BY pa.position",
+            tenant,
+        )
+        for a in allocations:
+            alloc_map.setdefault(a["payment_id"], []).append(a["name"])
+
+    total_collected_cents = 0
+    total_discount_cents = 0
+    class_totals = {}
+    mode_totals = {}
+
+    content = []
+    for p in payments:
+        paid_cents = int(p.get("amount_paid") or 0)
+        disc_cents = int(p.get("discount") or 0)
+        mode = p.get("payment_mode") or "CASH"
+        c_name = p.get("class_name") or "Unknown"
+
+        total_collected_cents += paid_cents
+        total_discount_cents += disc_cents
+
+        if c_name not in class_totals:
+            class_totals[c_name] = [0, 0, 0]
+        class_totals[c_name][0] += paid_cents
+        class_totals[c_name][1] += disc_cents
+        class_totals[c_name][2] += 1
+
+        mode_totals[mode] = mode_totals.get(mode, 0) + paid_cents
+
+        p_phone = ""
+        try:
+            pd = json.loads(p.get("parent_details") or "{}")
+            p_phone = (
+                pd.get("fatherMobile")
+                or pd.get("motherMobile")
+                or pd.get("father", {}).get("mobile")
+                or pd.get("mother", {}).get("mobile")
+                or ""
+            )
+        except Exception:
+            pass
+        if not p_phone:
+            try:
+                cd = json.loads(p.get("contact_details") or "{}")
+                p_phone = cd.get("primaryContactNumber") or cd.get("phone") or ""
+            except Exception:
+                pass
+
+        inst_names = alloc_map.get(p["id"]) or []
+
+        content.append({
+            "id": p["id"],
+            "studentName": p.get("student_name") or "Student",
+            "className": c_name,
+            "rollNumber": p.get("roll_number") or "",
+            "receiptNumber": p.get("receipt_number") or "",
+            "paymentDate": p.get("payment_date") or "",
+            "amountPaid": _major(paid_cents),
+            "discount": _major(disc_cents),
+            "paymentMode": mode,
+            "paidForMonths": inst_names,
+            "paidForInstallments": inst_names,
+            "collectedBy": p.get("collector_name") or "Admin",
+            "remarks": p.get("remarks"),
+            "parentPhone": p_phone,
+        })
+
+    due_res = await _one(
+        db,
+        "SELECT COALESCE(SUM(i.amount_due - i.paid_amount - i.discount_amount), 0) AS due "
+        "FROM fee_installments i JOIN fee_profiles fp ON fp.id = i.profile_id "
+        "WHERE fp.tenant_id = ?",
+        tenant,
+    )
+    total_due_cents = int(due_res.get("due") or 0)
+
+    class_summaries = [
+        {
+            "classForAdmission": c_name,
+            "totalCollectedInClass": _major(vals[0]),
+            "totalDiscountInClass": _major(vals[1]),
+            "transactionCountInClass": vals[2],
+        }
+        for c_name, vals in sorted(class_totals.items())
+    ]
+
+    payment_mode_summary = [
+        {"paymentMode": mode, "totalAmount": _major(amt)}
+        for mode, amt in sorted(mode_totals.items())
+    ]
+
+    return {
+        "summary": {
+            "totalCollected": _major(total_collected_cents),
+            "totalDue": _major(total_due_cents),
+            "totalDiscountGiven": _major(total_discount_cents),
+            "totalTransactions": len(payments),
+        },
+        "classSummaries": class_summaries,
+        "paymentModeSummary": payment_mode_summary,
+        "transactionsPage": {
+            "content": content,
+            "number": 0,
+            "size": len(content),
+            "totalElements": len(content),
+            "totalPages": 1,
+        },
+        "transactions": content,
+    }
+

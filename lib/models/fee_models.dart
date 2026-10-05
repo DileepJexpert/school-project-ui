@@ -139,6 +139,7 @@ class StudentFeeProfile {
   final String className;
   final String rollNumber;
   final String parentName;
+  final String parentPhone;
   final List<FeeInstallment> feeInstallments;
   final PaymentRecord? lastPayment;
   final double totalFees;
@@ -152,6 +153,7 @@ class StudentFeeProfile {
     required this.className,
     required this.rollNumber,
     required this.parentName,
+    this.parentPhone = '',
     required this.feeInstallments,
     this.lastPayment,
     required this.totalFees,
@@ -167,6 +169,7 @@ class StudentFeeProfile {
         className: json['className'] ?? '',
         rollNumber: json['rollNumber'] ?? '',
         parentName: json['parentName'] ?? '',
+        parentPhone: json['parentPhone'] ?? json['phone'] ?? '',
         feeInstallments: (json['feeInstallments'] as List? ?? [])
             .map((e) => FeeInstallment.fromJson(e))
             .toList(),
@@ -285,6 +288,7 @@ class TransactionRecord {
   final List<String> paidForMonths;
   final String collectedBy;
   final String? remarks;
+  final String parentPhone;
 
   TransactionRecord({
     required this.id,
@@ -299,6 +303,7 @@ class TransactionRecord {
     required this.paidForMonths,
     required this.collectedBy,
     this.remarks,
+    this.parentPhone = '',
   });
 
   factory TransactionRecord.fromJson(Map<String, dynamic> json) =>
@@ -318,6 +323,7 @@ class TransactionRecord {
             json['paidForMonths'] ?? json['paidForInstallments'] ?? []),
         collectedBy: json['collectedBy'] ?? 'Admin',
         remarks: json['remarks'],
+        parentPhone: json['parentPhone'] ?? json['parent_phone'] ?? json['phone'] ?? '',
       );
 }
 
