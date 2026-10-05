@@ -181,6 +181,27 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Future<void> _fillRisingStarTestCredentials({bool autoSubmit = true}) async {
+    setState(() {
+      _isPlatformAdmin = false;
+      _schoolCodeCtrl.text = 'risingstar-test';
+      _schoolValidated = true;
+      _schoolName = 'Rising Star Public School (Test)';
+      _emailCtrl.text = 'risingstart@gmail.com';
+      _passwordCtrl.text = 'Tickri@12345';
+      _error = null;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('tenant_id', 'risingstar-test');
+
+    if (autoSubmit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _submit();
+      });
+    }
+  }
+
   Future<void> _fillAdminCredentials({bool autoSubmit = true}) async {
     setState(() {
       _isPlatformAdmin = false;
@@ -217,7 +238,7 @@ class _LoginPageState extends State<LoginPage> {
                 const Icon(Icons.bolt, color: AppColors.gold, size: 18),
                 const SizedBox(width: 6),
                 Text(
-                  'Quick Demo Login',
+                  'Quick Testing Logins',
                   style: GoogleFonts.nunitoSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -233,21 +254,47 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 ActionChip(
                   avatar: const Icon(Icons.flash_on, size: 16, color: Colors.white),
-                  label: Text('1-Click Admin Login',
+                  label: Text('1-Click Test Admin (risingstar-test)',
                       style: GoogleFonts.nunitoSans(
                           fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
                   backgroundColor: AppColors.navy,
                   side: BorderSide.none,
-                  onPressed: _loading ? null : () => _fillAdminCredentials(autoSubmit: true),
+                  onPressed: _loading
+                      ? null
+                      : () => _fillRisingStarTestCredentials(autoSubmit: true),
                 ),
                 ActionChip(
                   avatar: const Icon(Icons.edit_note, size: 16, color: AppColors.textPrimary),
-                  label: Text('Fill Admin Info',
+                  label: Text('Fill Test Info',
                       style: GoogleFonts.nunitoSans(
                           fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                   backgroundColor: Colors.white,
                   side: BorderSide(color: AppColors.border),
-                  onPressed: _loading ? null : () => _fillAdminCredentials(autoSubmit: false),
+                  onPressed: _loading
+                      ? null
+                      : () => _fillRisingStarTestCredentials(autoSubmit: false),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.flash_on, size: 16, color: Colors.white),
+                  label: Text('1-Click Demo (risingstar)',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                  backgroundColor: AppColors.navy.withValues(alpha: 0.8),
+                  side: BorderSide.none,
+                  onPressed: _loading
+                      ? null
+                      : () => _fillAdminCredentials(autoSubmit: true),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.edit_note, size: 16, color: AppColors.textPrimary),
+                  label: Text('Fill Demo Info',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: AppColors.border),
+                  onPressed: _loading
+                      ? null
+                      : () => _fillAdminCredentials(autoSubmit: false),
                 ),
               ],
             ),
