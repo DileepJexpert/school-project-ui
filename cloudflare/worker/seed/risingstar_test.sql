@@ -1,0 +1,23 @@
+-- Private bootstrap script generated at 2026-10-05T09:23:16.802299+00:00
+INSERT INTO tenants (id, name, active, city, board) VALUES ('risingstar-test', 'Rising Star Public School', 1, 'Tikri, Gonda', 'CBSE') ON CONFLICT(id) DO UPDATE SET name = excluded.name, active = excluded.active;
+
+INSERT INTO academic_years (id, tenant_id, year, start_date, end_date, status) VALUES ('ay_risingstar-test_2026_2027', 'risingstar-test', '2026-2027', '2026-04-01', '2027-03-31', 'ACTIVE') ON CONFLICT(id) DO NOTHING;
+
+INSERT INTO users (id, scope, tenant_id, email, password_hash, full_name, phone, role, linked_entity_id, extra_permissions, active, created_at) VALUES ('usr_admin_risingstar-test_29941856', 'risingstar-test', 'risingstar-test', 'risingstart@gmail.com', '$scrypt$16384$8$1$caa0hiRxmKMokYT6-8tmgA==$wr9z3BWhhqUG9pYJI6d8mOg1yjb52HdFN0-jSvxmELMpwNeHLE3SqyeQoIkK99tsws584zJy6Zg0bak6T3mcsA==', 'Rising Star Admin', '+919876543210', 'SCHOOL_ADMIN', NULL, '[]', 1, '2026-10-05T09:23:16.802299+00:00') ON CONFLICT(scope, email) DO UPDATE SET password_hash = excluded.password_hash, active = excluded.active;
+
+-- Default classes (Nursery to Class 12)
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_8b12067f', 'risingstar-test', 'Nursery', 'Nursery', 'A', 1, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_a78c4b2d', 'risingstar-test', 'LKG', 'LKG', 'A', 2, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_ecb07e5a', 'risingstar-test', 'UKG', 'UKG', 'A', 3, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_dc417d74', 'risingstar-test', 'Class 1 - A', 'Class 1', 'A', 4, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_5958e34d', 'risingstar-test', 'Class 2 - A', 'Class 2', 'A', 5, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_e4823994', 'risingstar-test', 'Class 3 - A', 'Class 3', 'A', 6, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_8b2efb6f', 'risingstar-test', 'Class 4 - A', 'Class 4', 'A', 7, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_779f5955', 'risingstar-test', 'Class 5 - A', 'Class 5', 'A', 8, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_58eda8eb', 'risingstar-test', 'Class 6 - A', 'Class 6', 'A', 9, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_5af19687', 'risingstar-test', 'Class 7 - A', 'Class 7', 'A', 10, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_10022284', 'risingstar-test', 'Class 8 - A', 'Class 8', 'A', 11, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_dd1b7cab', 'risingstar-test', 'Class 9 - A', 'Class 9', 'A', 12, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_23b06c72', 'risingstar-test', 'Class 10 - A', 'Class 10', 'A', 13, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_02567052', 'risingstar-test', 'Class 11 - A', 'Class 11', 'A', 14, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
+INSERT INTO school_classes (id, tenant_id, class_name, base_class, section, sort_order, active) VALUES ('cls_risingstar-test_1845c8cc', 'risingstar-test', 'Class 12 - A', 'Class 12', 'A', 15, 1) ON CONFLICT(tenant_id, class_name) DO NOTHING;
