@@ -39,7 +39,7 @@ class AiHomeworkHelperScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.navy.withOpacity(0.05),
+                      color: AppColors.navy.withValues(alpha: 0.05),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.smart_toy_outlined,
@@ -66,10 +66,10 @@ class AiHomeworkHelperScreen extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D9488).withOpacity(0.08),
+                  color: const Color(0xFF0D9488).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: const Color(0xFF0D9488).withOpacity(0.2)),
+                      color: const Color(0xFF0D9488).withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
@@ -142,7 +142,7 @@ class AiHomeworkHelperScreen extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: color.withOpacity(0.2)),
+        side: BorderSide(color: color.withValues(alpha: 0.2)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -165,7 +165,7 @@ class AiHomeworkHelperScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
+                  color: color.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, size: 28, color: color),

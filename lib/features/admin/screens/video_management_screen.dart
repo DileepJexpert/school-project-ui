@@ -433,7 +433,7 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: AppColors.navy.withOpacity(0.08),
+            color: AppColors.navy.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(Icons.play_circle_outline,
@@ -474,7 +474,7 @@ class _VideoManagementScreenState extends State<VideoManagementScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,

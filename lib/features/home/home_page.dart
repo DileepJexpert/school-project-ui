@@ -335,7 +335,7 @@ class _HeroSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: PublicColors.gold.withOpacity(0.08), width: 2),
+                      color: PublicColors.gold.withValues(alpha: 0.08), width: 2),
                 ),
               ),
             ),
@@ -374,7 +374,7 @@ class _HeroSection extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: PublicColors.goldPale,
                           border: Border.all(
-                              color: PublicColors.gold.withOpacity(0.3)),
+                              color: PublicColors.gold.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           [
@@ -605,7 +605,7 @@ class _PrincipalSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(Icons.format_quote,
-            color: PublicColors.gold.withOpacity(0.4), size: 36),
+            color: PublicColors.gold.withValues(alpha: 0.4), size: 36),
         const SizedBox(height: 8),
         const SectionTitle(title: "Principal's Message"),
         const SizedBox(height: 20),
@@ -729,21 +729,21 @@ class _TestimonialsSection extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.05),
+                                color: Colors.white.withValues(alpha: 0.05),
                                 border: Border.all(
-                                    color: PublicColors.gold.withOpacity(0.15)),
+                                    color: PublicColors.gold.withValues(alpha: 0.15)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Icon(Icons.format_quote,
-                                      color: PublicColors.gold.withOpacity(0.4),
+                                      color: PublicColors.gold.withValues(alpha: 0.4),
                                       size: 24),
                                   const SizedBox(height: 8),
                                   Text(
                                     '"${t.text}"',
                                     style: GoogleFonts.nunitoSans(
-                                      color: Colors.white.withOpacity(0.85),
+                                      color: Colors.white.withValues(alpha: 0.85),
                                       fontSize: 13,
                                       height: 1.8,
                                       fontStyle: FontStyle.italic,
@@ -758,7 +758,7 @@ class _TestimonialsSection extends StatelessWidget {
                                       )),
                                   Text(t.relation,
                                       style: GoogleFonts.nunitoSans(
-                                        color: Colors.white.withOpacity(0.5),
+                                        color: Colors.white.withValues(alpha: 0.5),
                                         fontSize: 12,
                                       )),
                                 ],

@@ -12,7 +12,11 @@ import '../../../core/widgets/searchable_dropdown.dart';
 import 'new_admission_screen.dart';
 import 'student_detail_screen.dart';
 
+import '../../../services/admission_print_service.dart';
+import 'fee_collection_screen.dart';
+
 enum _SortBy { dateDesc, dateAsc, nameAZ, nameZA, classAsc }
+enum _PipelineStage { all, enquiry, active, other }
 
 class AdmissionScreen extends StatefulWidget {
   const AdmissionScreen({super.key});
@@ -22,8 +26,7 @@ class AdmissionScreen extends StatefulWidget {
 }
 
 class _AdmissionScreenState extends State<AdmissionScreen> {
-  // Enquiry-only data (status == ENQUIRY)
-  List<Student> _all = [];
+  List<Student> _allStudents = [];
   List<Student> _filtered = [];
   bool _isLoading = true;
   String _error = '';
@@ -31,6 +34,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
   final _fmt = DateFormat('dd MMM yyyy');
 
   String? _filterClass;
+  _PipelineStage _selectedStage = _PipelineStage.all;
   _SortBy _sortBy = _SortBy.dateDesc;
 
   @override
@@ -47,28 +51,44 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
     });
     try {
       final students = await AdmissionApiService.getStudents();
-      // Set _all first, then call _filter separately to avoid nested setState
       setState(() {
-        _all =
-            students.where((s) => s.status.toUpperCase() == 'ENQUIRY').toList();
+        _allStudents = students;
       });
       _filter();
     } catch (e) {
-      setState(() => _error = 'Failed to load enquiries: $e');
+      setState(() => _error = 'Failed to load admissions & enquiries: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   void _filter() {
-    final q = _searchCtrl.text.toLowerCase();
-    var list = _all.where((s) {
+    final q = _searchCtrl.text.toLowerCase().trim();
+    var list = _allStudents.where((s) {
+      // Pipeline stage filter
+      final statusUpper = s.status.toUpperCase();
+      if (_selectedStage == _PipelineStage.enquiry && statusUpper != 'ENQUIRY') {
+        return false;
+      }
+      if (_selectedStage == _PipelineStage.active && statusUpper != 'ACTIVE') {
+        return false;
+      }
+      if (_selectedStage == _PipelineStage.other &&
+          (statusUpper == 'ENQUIRY' || statusUpper == 'ACTIVE')) {
+        return false;
+      }
+
+      // Search query
       if (q.isNotEmpty &&
           !s.fullName.toLowerCase().contains(q) &&
           !s.admissionNumber.toLowerCase().contains(q) &&
           !s.classForAdmission.toLowerCase().contains(q) &&
           !s.parentDetails.fatherName.toLowerCase().contains(q) &&
-          !s.contactDetails.primaryContactNumber.contains(q)) return false;
+          !s.contactDetails.primaryContactNumber.contains(q)) {
+        return false;
+      }
+
+      // Class filter
       if (_filterClass != null) {
         final base = SchoolConstants.parseClassName(s.classForAdmission).$1;
         if (base != _filterClass) return false;
@@ -97,7 +117,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
   List<String> get _availableClasses {
     final seen = <String>{};
     final result = <String>[];
-    for (final s in _all) {
+    for (final s in _allStudents) {
       final base = SchoolConstants.parseClassName(s.classForAdmission).$1;
       if (seen.add(base)) result.add(base);
     }
@@ -107,12 +127,24 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
     return result;
   }
 
-  bool get _hasActiveFilters => _filterClass != null;
+  bool get _hasActiveFilters =>
+      _filterClass != null || _selectedStage != _PipelineStage.all;
 
   void _clearFilters() {
     _filterClass = null;
+    _selectedStage = _PipelineStage.all;
     _filter();
   }
+
+  // Statistics
+  int get _totalApplicants => _allStudents.length;
+  int get _enquiryCount =>
+      _allStudents.where((s) => s.status.toUpperCase() == 'ENQUIRY').length;
+  int get _enrolledCount =>
+      _allStudents.where((s) => s.status.toUpperCase() == 'ACTIVE').length;
+  double get _conversionRate => _totalApplicants > 0
+      ? (_enrolledCount / _totalApplicants) * 100
+      : 0.0;
 
   /// Opens full NewAdmissionScreen to edit + admit an enquiry.
   Future<void> _admitEnquiry(String studentId) async {
@@ -432,11 +464,11 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
   }
 
   Widget _buildContent() {
-    final total = _all.length;
+    final total = _allStudents.length;
     final shown = _filtered.length;
     final subtitle = _hasActiveFilters
-        ? '$shown of $total enquiries'
-        : '$total enquiries pending';
+        ? '$shown of $total records matching filter'
+        : '$total total applicants & admitted students';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -450,7 +482,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Enquiry Management',
+                    Text('Admissions & Enrollment Hub',
                         style: GoogleFonts.cormorantGaramond(
                             fontSize: 26,
                             fontWeight: FontWeight.w700,
@@ -480,6 +512,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                   side: const BorderSide(color: AppColors.navy),
                 ),
               ),
+              const SizedBox(width: 4),
               IconButton(
                 tooltip: 'Refresh',
                 onPressed: _fetch,
@@ -487,35 +520,25 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
 
-          // Info banner
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.navy.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-              border: Border.all(color: AppColors.navy.withOpacity(0.15)),
-            ),
-            child: Row(children: [
-              const Icon(Icons.info_outline, size: 16, color: AppColors.navy),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Walk-in enquiries are listed here. Click "Admit" to convert an enquiry into a full student admission.',
-                  style: GoogleFonts.nunitoSans(
-                      fontSize: 12, color: AppColors.navy),
-                ),
-              ),
-            ]),
-          ),
+          // KPI Metric Strip
+          _buildKpiStrip(),
+          const SizedBox(height: 16),
+
+          // Pipeline Stage Tabs
+          _buildPipelineStageTabs(),
+          const SizedBox(height: 14),
+
+          // Class Intake Capacity Bar (if class filter selected or summary)
+          _buildIntakeCapacityCard(),
           const SizedBox(height: 14),
 
           // Search bar
           TextField(
             controller: _searchCtrl,
             decoration: InputDecoration(
-              hintText: 'Search by name, enquiry no., class or contact…',
+              hintText: 'Search by student name, admission/enquiry no, class or contact phone…',
               hintStyle: GoogleFonts.nunitoSans(color: AppColors.textLight),
               prefixIcon: const Icon(Icons.search, color: AppColors.textLight),
               suffixIcon: _searchCtrl.text.isNotEmpty
@@ -570,8 +593,8 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                     const SizedBox(height: 12),
                     Text(
                       _hasActiveFilters
-                          ? 'No enquiries match filters'
-                          : 'No enquiries yet.\nTap "+ New Enquiry" to add one.',
+                          ? 'No candidates match selected criteria'
+                          : 'No admission records found.\nTap "+ New Enquiry" or admit candidates.',
                       style: GoogleFonts.nunitoSans(
                           color: AppColors.textSecondary),
                       textAlign: TextAlign.center,
@@ -597,25 +620,29 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSizes.radiusLG),
                 child: PaginatedDataTable(
-                  header: Text('Enquiries (${_filtered.length})',
+                  header: Text('Candidates & Enrolments (${_filtered.length})',
                       style: GoogleFonts.nunitoSans(
                           fontWeight: FontWeight.w600, color: AppColors.navy)),
                   rowsPerPage: 10,
                   columns: [
                     DataColumn(
-                        label: Text('Enquiry No.',
+                        label: Text('Number',
                             style: GoogleFonts.nunitoSans(
                                 fontWeight: FontWeight.w700))),
                     DataColumn(
-                        label: Text('Name',
+                        label: Text('Student Name',
                             style: GoogleFonts.nunitoSans(
                                 fontWeight: FontWeight.w700))),
                     DataColumn(
-                        label: Text('Class Interested',
+                        label: Text('Stage / Status',
                             style: GoogleFonts.nunitoSans(
                                 fontWeight: FontWeight.w700))),
                     DataColumn(
-                        label: Text('Parent',
+                        label: Text('Class Applied',
+                            style: GoogleFonts.nunitoSans(
+                                fontWeight: FontWeight.w700))),
+                    DataColumn(
+                        label: Text('Parent / Guardian',
                             style: GoogleFonts.nunitoSans(
                                 fontWeight: FontWeight.w700))),
                     DataColumn(
@@ -623,7 +650,7 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                             style: GoogleFonts.nunitoSans(
                                 fontWeight: FontWeight.w700))),
                     DataColumn(
-                        label: Text('Enquiry Date',
+                        label: Text('Date',
                             style: GoogleFonts.nunitoSans(
                                 fontWeight: FontWeight.w700))),
                     DataColumn(
@@ -642,10 +669,186 @@ class _AdmissionScreenState extends State<AdmissionScreen> {
                                 StudentDetailScreen(studentId: id))),
                     onAdmit: (id) => _admitEnquiry(id),
                     onDelete: (id, name) => _deleteEnquiry(id, name),
+                    onPrintOffer: (student) =>
+                        AdmissionPrintService.printOfferLetter(student: student),
+                    onPrintIdCard: (student) =>
+                        AdmissionPrintService.printIdCard(student: student),
+                    onCollectFee: (student) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FeeCollectionScreen(
+                            preSelectedStudentId: student.id,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKpiStrip() {
+    return LayoutBuilder(builder: (context, constraints) {
+      final isCompact = constraints.maxWidth < 700;
+      final kpis = [
+        _buildKpiCard('Total Applications', '$_totalApplicants', Icons.folder_shared_outlined, AppColors.navy),
+        _buildKpiCard('Active Enquiries', '$_enquiryCount', Icons.contact_support_outlined, AppColors.warning),
+        _buildKpiCard('Admitted / Active', '$_enrolledCount', Icons.verified_user_outlined, AppColors.success),
+        _buildKpiCard('Conversion Rate', '${_conversionRate.toStringAsFixed(1)}%', Icons.pie_chart_outline, AppColors.info),
+      ];
+
+      if (isCompact) {
+        return Wrap(spacing: 8, runSpacing: 8, children: kpis.map((k) => SizedBox(width: (constraints.maxWidth - 8) / 2, child: k)).toList());
+      }
+      return Row(children: kpis.map((k) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: k))).toList());
+    });
+  }
+
+  Widget _buildKpiCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value,
+                  style: GoogleFonts.cormorantGaramond(
+                      fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.navy)),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildPipelineStageTabs() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.navy.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.navy.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        children: [
+          _pipelineTab('All (${_allStudents.length})', _PipelineStage.all),
+          _pipelineTab('Enquiries ($_enquiryCount)', _PipelineStage.enquiry),
+          _pipelineTab('Enrolled ($_enrolledCount)', _PipelineStage.active),
+        ],
+      ),
+    );
+  }
+
+  Widget _pipelineTab(String label, _PipelineStage stage) {
+    final active = _selectedStage == stage;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedStage = stage;
+            _filter();
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: active ? AppColors.navy : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: GoogleFonts.nunitoSans(
+                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                color: active ? Colors.white : AppColors.navy,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIntakeCapacityCard() {
+    final targetClass = _filterClass ?? 'Class 1';
+    final admittedInClass = _allStudents.where((s) {
+      final base = SchoolConstants.parseClassName(s.classForAdmission).$1;
+      return base == targetClass && s.status.toUpperCase() == 'ACTIVE';
+    }).length;
+    const maxCapacity = 40; // Standard batch capacity
+    final ratio = (admittedInClass / maxCapacity).clamp(0.0, 1.0);
+    final isFull = admittedInClass >= maxCapacity;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.airline_seat_recline_normal_rounded,
+                size: 16, color: isFull ? AppColors.error : AppColors.navy),
+            const SizedBox(width: 8),
+            Text('Intake Capacity for $targetClass:',
+                style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.navy)),
+            const Spacer(),
+            Text('$admittedInClass / $maxCapacity seats filled',
+                style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: isFull ? AppColors.error : AppColors.textSecondary)),
+          ]),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 6,
+              backgroundColor: AppColors.navy.withValues(alpha: 0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isFull ? AppColors.error : (ratio > 0.8 ? AppColors.warning : AppColors.success),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -775,6 +978,9 @@ class _EnquiryDataSource extends DataTableSource {
   final void Function(String) onView;
   final void Function(String) onAdmit;
   final void Function(String, String) onDelete;
+  final void Function(Student) onPrintOffer;
+  final void Function(Student) onPrintIdCard;
+  final void Function(Student) onCollectFee;
 
   _EnquiryDataSource({
     required this.students,
@@ -783,33 +989,59 @@ class _EnquiryDataSource extends DataTableSource {
     required this.onView,
     required this.onAdmit,
     required this.onDelete,
+    required this.onPrintOffer,
+    required this.onPrintIdCard,
+    required this.onCollectFee,
   });
 
   @override
   DataRow? getRow(int index) {
     if (index >= students.length) return null;
     final s = students[index];
+    final isEnquiry = s.status.toUpperCase() == 'ENQUIRY';
+    final isActive = s.status.toUpperCase() == 'ACTIVE';
+
+    final stageColor = isActive
+        ? AppColors.success
+        : isEnquiry
+            ? AppColors.warning
+            : AppColors.info;
+
     return DataRow(cells: [
-      DataCell(Text(s.admissionNumber,
+      DataCell(Text(
+          s.admissionNumber.isNotEmpty ? s.admissionNumber : (s.id?.substring(0, 8) ?? '—'),
           style: GoogleFonts.nunitoSans(
               fontWeight: FontWeight.w600, color: AppColors.navy))),
       DataCell(Row(children: [
         CircleAvatar(
           radius: 16,
-          backgroundColor: AppColors.warning.withOpacity(0.15),
-          child: Text(s.fullName.substring(0, 1).toUpperCase(),
+          backgroundColor: stageColor.withValues(alpha: 0.15),
+          child: Text(
+              s.fullName.isNotEmpty ? s.fullName.substring(0, 1).toUpperCase() : '?',
               style: GoogleFonts.cormorantGaramond(
-                  color: AppColors.warning,
+                  color: stageColor,
                   fontWeight: FontWeight.w700,
                   fontSize: 14)),
         ),
         const SizedBox(width: 8),
-        Text(s.fullName, style: GoogleFonts.nunitoSans()),
+        Text(s.fullName, style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600)),
       ])),
       DataCell(Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: AppColors.navy.withOpacity(0.08),
+          color: stageColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(s.status,
+            style: GoogleFonts.nunitoSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: stageColor)),
+      )),
+      DataCell(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.navy.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(s.classForAdmission,
@@ -839,29 +1071,52 @@ class _EnquiryDataSource extends DataTableSource {
           tooltip: 'View Details',
           onPressed: () => onView(s.id!),
         ),
-        // Admit button — convert enquiry to full admission
-        Tooltip(
-          message: 'Admit Student',
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              textStyle: GoogleFonts.nunitoSans(
-                  fontSize: 12, fontWeight: FontWeight.w600),
+        // If enquiry, show "Admit" button
+        if (isEnquiry) ...[
+          Tooltip(
+            message: 'Admit Student',
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: GoogleFonts.nunitoSans(
+                    fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+              icon: const Icon(Icons.how_to_reg_outlined, size: 14),
+              label: const Text('Admit'),
+              onPressed: () => onAdmit(s.id!),
             ),
-            icon: const Icon(Icons.how_to_reg_outlined, size: 16),
-            label: const Text('Admit'),
-            onPressed: () => onAdmit(s.id!),
           ),
-        ),
-        const SizedBox(width: 4),
+          const SizedBox(width: 4),
+        ],
+        // If admitted / active, show "Offer Letter", "ID Card", & "Collect Fee"
+        if (isActive) ...[
+          IconButton(
+            icon: const Icon(Icons.description_outlined, size: 18),
+            color: AppColors.navy,
+            tooltip: 'Print Offer Letter',
+            onPressed: () => onPrintOffer(s),
+          ),
+          IconButton(
+            icon: const Icon(Icons.badge_outlined, size: 18),
+            color: AppColors.gold,
+            tooltip: 'Print Student ID Card',
+            onPressed: () => onPrintIdCard(s),
+          ),
+          IconButton(
+            icon: const Icon(Icons.payments_outlined, size: 18),
+            color: AppColors.success,
+            tooltip: 'Collect Fee',
+            onPressed: () => onCollectFee(s),
+          ),
+        ],
         IconButton(
           icon: const Icon(Icons.delete_outline, size: 18),
           color: AppColors.error,
-          tooltip: 'Delete Enquiry',
+          tooltip: 'Delete Record',
           onPressed: () => onDelete(s.id!, s.fullName),
         ),
       ])),

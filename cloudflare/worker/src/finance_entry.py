@@ -21,7 +21,7 @@ def _build_app():
     app = FastAPI(title="School Finance API", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["https://school-staging.pages.dev", "https://schools.katixo.com"],
+        allow_origins=["*"],
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
     )

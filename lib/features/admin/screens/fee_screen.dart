@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
 import '../../../core/widgets/responsive.dart';
@@ -21,6 +24,11 @@ class FeeScreen extends StatefulWidget {
 
 class _FeeScreenState extends State<FeeScreen> {
   final _currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+  final _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
+  List<StudentFeeProfile> _searchResults = [];
+  bool _searching = false;
+
   bool _loading = true;
   String? _error;
   SchoolSummary? _summary;
@@ -31,6 +39,38 @@ class _FeeScreenState extends State<FeeScreen> {
   void initState() {
     super.initState();
     _loadDashboard();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onQuickSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    final q = query.trim();
+    if (q.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _searching = false;
+      });
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      setState(() => _searching = true);
+      try {
+        final res = await FeeApiService.searchStudents(name: q);
+        if (mounted && _searchCtrl.text.trim() == q) {
+          setState(() => _searchResults = res);
+        }
+      } catch (_) {
+        if (mounted) setState(() => _searchResults = []);
+      } finally {
+        if (mounted) setState(() => _searching = false);
+      }
+    });
   }
 
   Future<void> _loadDashboard() async {
@@ -234,7 +274,15 @@ class _FeeScreenState extends State<FeeScreen> {
           ),
         ]);
       }),
-      const SizedBox(height: 14),
+      const SizedBox(height: 16),
+      _buildCollectionMeter(
+        collected: totalCollected,
+        due: totalDue,
+        discount: summary?.totalDiscountGiven ?? 0,
+      ),
+      const SizedBox(height: 16),
+      _buildQuickLookupCard(),
+      const SizedBox(height: 16),
       LayoutBuilder(builder: (context, constraints) {
         final compact = constraints.maxWidth < 820;
         final attention = _AttentionCard(
@@ -263,6 +311,364 @@ class _FeeScreenState extends State<FeeScreen> {
               ]);
       }),
     ]);
+  }
+
+  Widget _buildCollectionMeter({
+    required double collected,
+    required double due,
+    required double discount,
+  }) {
+    final projected = collected + due;
+    final rate = projected > 0 ? (collected / projected).clamp(0.0, 1.0) : 0.0;
+    final pct = (rate * 100).toStringAsFixed(1);
+    final palette = context.palette;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.trending_up_rounded,
+                        color: AppColors.success, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Annual Fee Realization Meter',
+                        style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Overall progress of school fees collected vs outstanding projected dues',
+                        style: GoogleFonts.nunitoSans(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: (rate >= 0.75
+                          ? AppColors.success
+                          : rate >= 0.4
+                              ? AppColors.warning
+                              : AppColors.error)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      rate >= 0.75
+                          ? Icons.check_circle_outline
+                          : Icons.timelapse_rounded,
+                      size: 15,
+                      color: rate >= 0.75
+                          ? AppColors.success
+                          : rate >= 0.4
+                              ? AppColors.warning
+                              : AppColors.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$pct% Realized',
+                      style: GoogleFonts.nunitoSans(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: rate >= 0.75
+                            ? AppColors.success
+                            : rate >= 0.4
+                                ? AppColors.warning
+                                : AppColors.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: rate,
+              minHeight: 12,
+              backgroundColor: palette.canvas,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                rate >= 0.75
+                    ? AppColors.success
+                    : rate >= 0.4
+                        ? AppColors.warning
+                        : AppColors.error,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 24,
+            runSpacing: 10,
+            children: [
+              _meterMetricBadge(
+                label: 'Realized Collections',
+                amount: collected,
+                color: AppColors.success,
+                icon: Icons.check_circle_outline,
+              ),
+              _meterMetricBadge(
+                label: 'Pending Dues',
+                amount: due,
+                color: AppColors.error,
+                icon: Icons.pending_actions_outlined,
+              ),
+              _meterMetricBadge(
+                label: 'Total Projected',
+                amount: projected,
+                color: palette.brand,
+                icon: Icons.account_balance_outlined,
+              ),
+              if (discount > 0)
+                _meterMetricBadge(
+                  label: 'Discounts Granted',
+                  amount: discount,
+                  color: AppColors.info,
+                  icon: Icons.loyalty_outlined,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _meterMetricBadge({
+    required String label,
+    required double amount,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.nunitoSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              _currency.format(amount),
+              style: GoogleFonts.nunitoSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickLookupCard() {
+    final palette = context.palette;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: palette.brand.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.person_search_rounded,
+                    color: palette.brand, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fast Student Fee Lookup',
+                      style: GoogleFonts.nunitoSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Search by student name to immediately jump to collection with preloaded dues',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _searchCtrl,
+            onChanged: _onQuickSearchChanged,
+            decoration: InputDecoration(
+              hintText: 'Search student name (e.g. Aarav, Priya)…',
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+              suffixIcon: _searching
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : _searchCtrl.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            _onQuickSearchChanged('');
+                          },
+                        )
+                      : null,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+              ),
+            ),
+          ),
+          if (_searchResults.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 220),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                border: Border.all(color: palette.border),
+                color: palette.canvas,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _searchResults.length,
+                separatorBuilder: (_, __) =>
+                    Divider(height: 1, color: palette.border),
+                itemBuilder: (context, idx) {
+                  final s = _searchResults[idx];
+                  final hasDue = s.dueFees > 0;
+                  return ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          palette.brand.withValues(alpha: 0.12),
+                      foregroundColor: palette.brand,
+                      child: Text(
+                        s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    title: Text(s.name,
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w700)),
+                    subtitle: Text(
+                      '${s.className}${s.rollNumber.isNotEmpty ? ' • Roll #${s.rollNumber}' : ''}',
+                      style: GoogleFonts.nunitoSans(fontSize: 12),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color:
+                                (hasDue ? AppColors.error : AppColors.success)
+                                    .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            hasDue
+                                ? 'Due: ${_currency.format(s.dueFees)}'
+                                : 'Paid Up',
+                            style: GoogleFonts.nunitoSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: hasDue
+                                  ? AppColors.error
+                                  : AppColors.success,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: palette.brand,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () {
+                            _open(FeeCollectionScreen(
+                                preSelectedStudentId: s.id));
+                          },
+                          child: const Text('Collect',
+                              style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   void _open(Widget page) {

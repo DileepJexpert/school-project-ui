@@ -773,68 +773,162 @@ class _ExpenseScreenState extends State<ExpenseScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 16 : 24,
+        16,
+        isMobile ? 16 : 24,
+        12,
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Page header ─────────────────────────────────────────────
-        Row(children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+        // ── 1. Page Header ──────────────────────────────────────────
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              Text('Expenses',
-                  style: GoogleFonts.cormorantGaramond(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navy)),
-              Text('Track salaries, purchases and all school outgoings',
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 13)),
-            ]),
-          ),
-          ElevatedButton.icon(
-            onPressed: _showAddDialog,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add Expense'),
-            style: ElevatedButton.styleFrom(
+                  Row(
+                    children: [
+                      Text(
+                        'Expenses & Ledger',
+                        style: GoogleFonts.cormorantGaramond(
+                          fontSize: isMobile ? 22 : 26,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.navy.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppColors.navy.withValues(alpha: 0.15)),
+                        ),
+                        child: Text(
+                          '${_expenses.length} Records',
+                          style: GoogleFonts.nunitoSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Track salaries, vendor bills, utilities and school outgoings',
+                    style: GoogleFonts.nunitoSans(
+                      color: AppColors.textSecondary,
+                      fontSize: isMobile ? 11 : 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: _showAddDialog,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: Text(isMobile ? 'Add' : 'Add Expense'),
+              style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.navy,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 18, vertical: 10)),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        // ── Tab bar (Segmented pill) ────────────────────────────────
+                elevation: 1,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 14 : 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── 2. Modern Segmented Tab Bar ──────────────────────────────
         Align(
           alignment: Alignment.centerLeft,
           child: Container(
-            width: 300,
-            height: 38,
-            padding: const EdgeInsets.all(3),
+            width: isMobile ? double.infinity : 340,
+            height: 42,
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppColors.creamDark,
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: TabBar(
               controller: _tabController,
               indicatorSize: TabBarIndicatorSize.tab,
               indicator: BoxDecoration(
                 color: AppColors.navy,
-                borderRadius: BorderRadius.circular(17),
+                borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.navy.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               labelColor: Colors.white,
               unselectedLabelColor: AppColors.textSecondary,
               labelStyle: GoogleFonts.nunitoSans(
-                  fontWeight: FontWeight.w700, fontSize: 13),
-              unselectedLabelStyle: GoogleFonts.nunitoSans(fontSize: 13),
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+              unselectedLabelStyle: GoogleFonts.nunitoSans(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
               dividerColor: Colors.transparent,
               tabs: const [
-                Tab(text: 'Expenses'),
-                Tab(text: 'Monthly Report'),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.receipt_long_outlined, size: 16),
+                      SizedBox(width: 8),
+                      Text('Expense Ledger'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.bar_chart_rounded, size: 16),
+                      SizedBox(width: 8),
+                      Text('Monthly Report'),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
+
+        // ── 3. Tab Body ─────────────────────────────────────────────
         Expanded(
           child: TabBarView(
             controller: _tabController,
@@ -846,30 +940,44 @@ class _ExpenseScreenState extends State<ExpenseScreen>
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  // EXPENSES TAB
+  // EXPENSES TAB (Sliver-based: ZERO overflow on any viewport)
   // ══════════════════════════════════════════════════════════════════════
 
   Widget _buildExpensesTab() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.navy),
+      );
     }
     if (_eError.isNotEmpty) {
       return Center(
-        child: Column(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.wifi_off_rounded,
                   color: AppColors.error, size: 48),
               const SizedBox(height: 12),
-              Text(_eError,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 13)),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                  onPressed: _fetchExpenses,
-                  child: const Text('Retry')),
-            ]),
+              Text(
+                _eError,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunitoSans(
+                    color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              ElevatedButton.icon(
+                onPressed: _fetchExpenses,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -894,557 +1002,706 @@ class _ExpenseScreenState extends State<ExpenseScreen>
       }
     });
 
-    final hasActiveFilter =
-        _selectedCategory != null || _searchQuery.isNotEmpty || _filterMonth != null;
+    final hasActiveFilter = _selectedCategory != null ||
+        _searchQuery.isNotEmpty ||
+        _filterMonth != null;
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // ── 1. Summary Metrics Cards ──────────────────────────────────
-      LayoutBuilder(builder: (ctx, constraints) {
-        final isWide = constraints.maxWidth > 720;
-        final metrics = [
-          _buildMetricCard(
-            label: _selectedCategory != null
-                ? '$_selectedCategory Spend'
-                : 'Total Spend',
-            value: _currency.format(totalFiltered),
-            subtitle: _filterMonth != null
-                ? _monthLabel(_filterMonth!)
-                : '${filtered.length} transactions',
-            icon: Icons.trending_down_rounded,
-            color: AppColors.error,
-          ),
-          _buildMetricCard(
-            label: 'Transactions',
-            value: '${filtered.length}',
-            subtitle: _expenses.length == filtered.length
-                ? 'Total recorded'
-                : 'Filtered from ${_expenses.length}',
-            icon: Icons.receipt_long_outlined,
-            color: AppColors.navy,
-          ),
-          _buildMetricCard(
-            label: 'Top Category',
-            value: topCategory ?? 'None',
-            subtitle: topCategoryAmount > 0
-                ? _currency.format(topCategoryAmount)
-                : 'No data',
-            icon: _catIcon(topCategory ?? 'Others'),
-            color: _catColor(topCategory ?? 'Others'),
-          ),
-          _buildMetricCard(
-            label: 'Average / Item',
-            value: filtered.isNotEmpty
-                ? _currency.format(totalFiltered / filtered.length)
-                : '₹0',
-            subtitle: 'Average transaction size',
-            icon: Icons.query_stats_rounded,
-            color: AppColors.info,
-          ),
-        ];
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        // ── Top Header Controls & Metrics ───────────────────────────
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. KPI Metric Cards
+              LayoutBuilder(builder: (ctx, constraints) {
+                final isWide = constraints.maxWidth > 880;
+                final isMedium = constraints.maxWidth > 560;
 
-        if (isWide) {
-          return Row(
-            children: metrics
-                .map((m) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: m,
+                final metrics = [
+                  _buildMetricCard(
+                    label: _selectedCategory != null
+                        ? '$_selectedCategory Spend'
+                        : 'Total Outflow',
+                    value: _currency.format(totalFiltered),
+                    subtitle: _filterMonth != null
+                        ? _monthLabel(_filterMonth!)
+                        : '${filtered.length} entries',
+                    icon: Icons.trending_down_rounded,
+                    color: AppColors.error,
+                  ),
+                  _buildMetricCard(
+                    label: 'Transactions',
+                    value: '${filtered.length}',
+                    subtitle: _expenses.length == filtered.length
+                        ? 'All recorded'
+                        : 'Filtered from ${_expenses.length}',
+                    icon: Icons.receipt_long_outlined,
+                    color: AppColors.navy,
+                  ),
+                  _buildMetricCard(
+                    label: 'Top Category',
+                    value: topCategory ?? 'None',
+                    subtitle: topCategoryAmount > 0
+                        ? _currency.format(topCategoryAmount)
+                        : 'No records',
+                    icon: _catIcon(topCategory ?? 'Others'),
+                    color: _catColor(topCategory ?? 'Others'),
+                  ),
+                  _buildMetricCard(
+                    label: 'Average / Item',
+                    value: filtered.isNotEmpty
+                        ? _currency.format(totalFiltered / filtered.length)
+                        : '₹0',
+                    subtitle: 'Per transaction avg',
+                    icon: Icons.query_stats_rounded,
+                    color: AppColors.info,
+                  ),
+                ];
+
+                if (isWide) {
+                  return Row(
+                    children: metrics
+                        .map((m) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: m,
+                              ),
+                            ))
+                        .toList(),
+                  );
+                }
+
+                if (isMedium) {
+                  return GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: 2.8,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    children: metrics,
+                  );
+                }
+
+                return Column(
+                  children: metrics
+                      .map((m) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: m,
+                          ))
+                      .toList(),
+                );
+              }),
+              const SizedBox(height: 16),
+
+              // 2. Search & Filter Bar
+              LayoutBuilder(builder: (ctx, constraints) {
+                final isNarrow = constraints.maxWidth < 620;
+
+                final searchField = Container(
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                    style: GoogleFonts.nunitoSans(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Search by title, payee, or notes…',
+                      hintStyle: GoogleFonts.nunitoSans(
+                          fontSize: 13, color: AppColors.textLight),
+                      prefixIcon: const Icon(Icons.search,
+                          size: 18, color: AppColors.textSecondary),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                );
+
+                final monthFilter = InkWell(
+                  onTap: _pickFilterMonth,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                  child: Container(
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color:
+                          _filterMonth != null ? AppColors.navy : Colors.white,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                      border: Border.all(
+                          color: _filterMonth != null
+                              ? AppColors.navy
+                              : AppColors.border),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.calendar_month_outlined,
+                          size: 16,
+                          color: _filterMonth != null
+                              ? Colors.white
+                              : AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Text(
+                        _filterMonth != null
+                            ? _monthLabel(_filterMonth!)
+                            : 'All Months',
+                        style: GoogleFonts.nunitoSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _filterMonth != null
+                                ? Colors.white
+                                : AppColors.textPrimary),
                       ),
-                    ))
-                .toList(),
-          );
-        }
-        return GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 2.3,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          children: metrics,
-        );
-      }),
-      const SizedBox(height: 16),
+                      if (_filterMonth != null) ...[
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: _clearFilter,
+                          child: const Icon(Icons.close,
+                              size: 14, color: Colors.white),
+                        ),
+                      ],
+                    ]),
+                  ),
+                );
 
-      // ── 2. Search & Filter Bar ────────────────────────────────────
-      Row(children: [
-        // Search textfield
-        Expanded(
-          flex: 3,
-          child: Container(
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _searchQuery = v.trim()),
-              style: GoogleFonts.nunitoSans(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Search by title, payee, or notes…',
-                hintStyle: GoogleFonts.nunitoSans(
-                    fontSize: 13, color: AppColors.textLight),
-                prefixIcon: const Icon(Icons.search,
-                    size: 18, color: AppColors.textSecondary),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
+                final sortDropdown = PopupMenuButton<String>(
+                  initialValue: _sortBy,
+                  tooltip: 'Sort Expenses',
+                  onSelected: (val) => setState(() => _sortBy = val),
+                  itemBuilder: (ctx) => const [
+                    PopupMenuItem(
+                        value: 'date_desc', child: Text('Date: Newest first')),
+                    PopupMenuItem(
+                        value: 'date_asc', child: Text('Date: Oldest first')),
+                    PopupMenuItem(
+                        value: 'amount_desc',
+                        child: Text('Amount: High to Low')),
+                    PopupMenuItem(
+                        value: 'amount_asc',
+                        child: Text('Amount: Low to High')),
+                  ],
+                  child: Container(
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.sort_rounded,
+                          size: 16, color: AppColors.navy),
+                      const SizedBox(width: 6),
+                      Text(
+                        _sortLabel(_sortBy),
+                        style: GoogleFonts.nunitoSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary),
+                      ),
+                      const Icon(Icons.arrow_drop_down,
+                          size: 18, color: AppColors.textSecondary),
+                    ]),
+                  ),
+                );
+
+                final resetBtn = hasActiveFilter
+                    ? TextButton.icon(
                         onPressed: () {
                           _searchCtrl.clear();
-                          setState(() => _searchQuery = '');
+                          setState(() {
+                            _searchQuery = '';
+                            _selectedCategory = null;
+                            _filterMonth = null;
+                          });
+                          _fetchExpenses();
                         },
+                        icon: const Icon(Icons.filter_alt_off_outlined,
+                            size: 15),
+                        label: const Text('Reset'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          textStyle: GoogleFonts.nunitoSans(
+                              fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
                       )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
+                    : null;
 
-        // Month Picker Chip
-        InkWell(
-          onTap: _pickFilterMonth,
-          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-          child: Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: _filterMonth != null ? AppColors.navy : Colors.white,
-              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-              border: Border.all(
-                  color: _filterMonth != null
-                      ? AppColors.navy
-                      : AppColors.border),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.calendar_month_outlined,
-                  size: 16,
-                  color: _filterMonth != null
-                      ? Colors.white
-                      : AppColors.textSecondary),
-              const SizedBox(width: 8),
-              Text(
-                _filterMonth != null
-                    ? _monthLabel(_filterMonth!)
-                    : 'All Months',
-                style: GoogleFonts.nunitoSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _filterMonth != null
-                        ? Colors.white
-                        : AppColors.textPrimary),
-              ),
-              if (_filterMonth != null) ...[
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: _clearFilter,
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
-                ),
-              ],
-            ]),
-          ),
-        ),
-        const SizedBox(width: 10),
-
-        // Sort popup
-        PopupMenuButton<String>(
-          initialValue: _sortBy,
-          tooltip: 'Sort Expenses',
-          onSelected: (val) => setState(() => _sortBy = val),
-          itemBuilder: (ctx) => const [
-            PopupMenuItem(value: 'date_desc', child: Text('Date: Newest first')),
-            PopupMenuItem(value: 'date_asc', child: Text('Date: Oldest first')),
-            PopupMenuItem(value: 'amount_desc', child: Text('Amount: High to Low')),
-            PopupMenuItem(value: 'amount_asc', child: Text('Amount: Low to High')),
-          ],
-          child: Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.sort_rounded, size: 16, color: AppColors.navy),
-              const SizedBox(width: 6),
-              Text(
-                _sortLabel(_sortBy),
-                style: GoogleFonts.nunitoSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary),
-              ),
-              const Icon(Icons.arrow_drop_down,
-                  size: 18, color: AppColors.textSecondary),
-            ]),
-          ),
-        ),
-
-        // Reset Filter Action
-        if (hasActiveFilter) ...[
-          const SizedBox(width: 10),
-          TextButton.icon(
-            onPressed: () {
-              _searchCtrl.clear();
-              setState(() {
-                _searchQuery = '';
-                _selectedCategory = null;
-                _filterMonth = null;
-              });
-              _fetchExpenses();
-            },
-            icon: const Icon(Icons.filter_alt_off_outlined, size: 15),
-            label: const Text('Reset'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.error,
-              textStyle: GoogleFonts.nunitoSans(
-                  fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ]),
-      const SizedBox(height: 12),
-
-      // ── 3. Horizontal Category Filter Pills ───────────────────────
-      SizedBox(
-        height: 38,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            // "All" chip
-            _buildCategoryFilterChip(
-              label: 'All Categories',
-              count: _expenses.length,
-              icon: Icons.dashboard_outlined,
-              color: AppColors.navy,
-              isSelected: _selectedCategory == null,
-              onTap: () => setState(() => _selectedCategory = null),
-            ),
-            const SizedBox(width: 8),
-
-            // Individual category chips
-            ..._categories.map((cat) {
-              final isSel = _selectedCategory == cat;
-              final col = _catColor(cat);
-              final icon = _catIcon(cat);
-              final count = catCounts[cat] ?? 0;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _buildCategoryFilterChip(
-                  label: cat,
-                  count: count,
-                  icon: icon,
-                  color: col,
-                  isSelected: isSel,
-                  onTap: () {
-                    setState(() {
-                      _selectedCategory = isSel ? null : cat;
-                    });
-                  },
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-      const SizedBox(height: 14),
-
-      // ── 4. Expense List View ──────────────────────────────────────
-      Expanded(
-        child: filtered.isEmpty
-            ? Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                if (isNarrow) {
+                  return Column(
                     children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: const BoxDecoration(
-                          color: AppColors.creamDark,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          hasActiveFilter
-                              ? Icons.filter_list_off_rounded
-                              : Icons.receipt_long_outlined,
-                          size: 28,
-                          color: AppColors.textLight,
-                        ),
-                      ),
+                      searchField,
                       const SizedBox(height: 10),
-                      Text(
-                        hasActiveFilter
-                            ? 'No expenses match your filters'
-                            : 'No expenses recorded yet',
-                        style: GoogleFonts.cormorantGaramond(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navy),
+                      Row(
+                        children: [
+                          Expanded(child: monthFilter),
+                          const SizedBox(width: 8),
+                          Expanded(child: sortDropdown),
+                          if (resetBtn != null) ...[
+                            const SizedBox(width: 4),
+                            resetBtn,
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        hasActiveFilter
-                            ? 'Try clearing search terms or selecting another category.'
-                            : 'Click "Add Expense" above to record your first operational expense.',
-                        style: GoogleFonts.nunitoSans(
-                            color: AppColors.textSecondary, fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (hasActiveFilter) ...[
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.refresh_rounded, size: 14),
-                          label: const Text('Clear All Filters'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.navy,
-                            side: const BorderSide(color: AppColors.navy),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            textStyle: GoogleFonts.nunitoSans(
-                                fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                          onPressed: () {
-                            _searchCtrl.clear();
+                    ],
+                  );
+                }
+
+                return Row(children: [
+                  Expanded(flex: 3, child: searchField),
+                  const SizedBox(width: 10),
+                  monthFilter,
+                  const SizedBox(width: 10),
+                  sortDropdown,
+                  if (resetBtn != null) ...[
+                    const SizedBox(width: 10),
+                    resetBtn,
+                  ],
+                ]);
+              }),
+              const SizedBox(height: 14),
+
+              // 3. Category Filter Chips Carousel
+              SizedBox(
+                height: 38,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _buildCategoryFilterChip(
+                      label: 'All Categories',
+                      count: _expenses.length,
+                      icon: Icons.dashboard_outlined,
+                      color: AppColors.navy,
+                      isSelected: _selectedCategory == null,
+                      onTap: () => setState(() => _selectedCategory = null),
+                    ),
+                    const SizedBox(width: 8),
+                    ..._categories.map((cat) {
+                      final isSel = _selectedCategory == cat;
+                      final col = _catColor(cat);
+                      final icon = _catIcon(cat);
+                      final count = catCounts[cat] ?? 0;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _buildCategoryFilterChip(
+                          label: cat,
+                          count: count,
+                          icon: icon,
+                          color: col,
+                          isSelected: isSel,
+                          onTap: () {
                             setState(() {
-                              _searchQuery = '';
-                              _selectedCategory = null;
-                              _filterMonth = null;
+                              _selectedCategory = isSel ? null : cat;
                             });
-                            _fetchExpenses();
                           },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+
+        // ── Expense List or Empty State ─────────────────────────────
+        if (filtered.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(hasActiveFilter),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.only(bottom: 32),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final e = filtered[i];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _buildExpenseCard(e),
+                  );
+                },
+                childCount: filtered.length,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── Polished Expense Item Card with View, Edit, Update, Delete ───────
+
+  Widget _buildExpenseCard(Expense e) {
+    final col = _catColor(e.category);
+    final icon = _catIcon(e.category);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showViewDialog(e),
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Category Icon Squircle
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: col.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: col.withValues(alpha: 0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(icon, color: col, size: 24),
+                ),
+                const SizedBox(width: 14),
+
+                // Title, metadata, remarks
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              e.title,
+                              style: GoogleFonts.nunitoSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                color: AppColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Category Pill Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: col.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: col.withValues(alpha: 0.25)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: col,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  e.category,
+                                  style: GoogleFonts.nunitoSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: col,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+
+                      // Beneficiary & Date Row
+                      Row(
+                        children: [
+                          Icon(Icons.business_outlined,
+                              size: 13, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Paid to: ${e.paidTo}',
+                              style: GoogleFonts.nunitoSans(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Icon(Icons.calendar_today_outlined,
+                              size: 12, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Text(
+                            _dateFmt.format(e.date),
+                            style: GoogleFonts.nunitoSans(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Optional Remarks Snippet
+                      if (e.remarks != null && e.remarks!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.creamDark,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.sticky_note_2_outlined,
+                                  size: 12, color: AppColors.textSecondary),
+                              const SizedBox(width: 5),
+                              Flexible(
+                                child: Text(
+                                  e.remarks!,
+                                  style: GoogleFonts.nunitoSans(
+                                    fontSize: 11,
+                                    fontStyle: FontStyle.italic,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ],
                   ),
                 ),
-              )
-            : ListView.separated(
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final e = filtered[i];
-                  final col = _catColor(e.category);
-                  final icon = _catIcon(e.category);
+                const SizedBox(width: 14),
 
-                  return Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _showViewDialog(e),
-                      borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-                          border: Border.all(color: AppColors.border),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Squircle category icon
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: col.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                      color: col.withValues(alpha: 0.25), width: 1),
-                                ),
-                                child: Icon(icon, color: col, size: 24),
-                              ),
-                              const SizedBox(width: 14),
-
-                              // Title, tags & details
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(children: [
-                                      Expanded(
-                                        child: Text(
-                                          e.title,
-                                          style: GoogleFonts.nunitoSans(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 15,
-                                              color: AppColors.textPrimary),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      // Category Pill
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: col.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: col.withValues(alpha: 0.3)),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Container(
-                                              width: 6,
-                                              height: 6,
-                                              decoration: BoxDecoration(
-                                                color: col,
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 5),
-                                            Text(
-                                              e.category,
-                                              style: GoogleFonts.nunitoSans(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: col),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ]),
-                                    const SizedBox(height: 6),
-
-                                    // Payee & Date metadata
-                                    Row(children: [
-                                      Icon(Icons.business_outlined,
-                                          size: 13,
-                                          color: AppColors.textSecondary),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Paid to: ${e.paidTo}',
-                                        style: GoogleFonts.nunitoSans(
-                                            fontSize: 12,
-                                            color: AppColors.textSecondary),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Icon(Icons.calendar_today_outlined,
-                                          size: 12,
-                                          color: AppColors.textSecondary),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _dateFmt.format(e.date),
-                                        style: GoogleFonts.nunitoSans(
-                                            fontSize: 12,
-                                            color: AppColors.textSecondary),
-                                      ),
-                                    ]),
-
-                                    // Optional remarks preview
-                                    if (e.remarks != null &&
-                                        e.remarks!.trim().isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.creamDark,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                                Icons.sticky_note_2_outlined,
-                                                size: 12,
-                                                color: AppColors.textSecondary),
-                                            const SizedBox(width: 4),
-                                            Flexible(
-                                              child: Text(
-                                                e.remarks!,
-                                                style: GoogleFonts.nunitoSans(
-                                                    fontSize: 11,
-                                                    fontStyle: FontStyle.italic,
-                                                    color:
-                                                        AppColors.textSecondary),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-
-                              // Amount and Action buttons (View, Edit, Delete)
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    _currency.format(e.amount),
-                                    style: GoogleFonts.cormorantGaramond(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.error),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.visibility_outlined,
-                                            color: AppColors.textSecondary, size: 17),
-                                        tooltip: 'View Voucher',
-                                        visualDensity: VisualDensity.compact,
-                                        padding: const EdgeInsets.all(4),
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () => _showViewDialog(e),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined,
-                                            color: AppColors.navy, size: 17),
-                                        tooltip: 'Edit Expense',
-                                        visualDensity: VisualDensity.compact,
-                                        padding: const EdgeInsets.all(4),
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () =>
-                                            _showExpenseFormDialog(expenseToEdit: e),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline_rounded,
-                                            color: AppColors.error, size: 17),
-                                        tooltip: 'Delete Expense',
-                                        visualDensity: VisualDensity.compact,
-                                        padding: const EdgeInsets.all(4),
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () => _delete(e),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                // Amount & Action Button Toolbar
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _currency.format(e.amount),
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.error,
                       ),
                     ),
-                  );
-                },
-              ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // View Voucher Button
+                        Tooltip(
+                          message: 'View Voucher',
+                          child: InkWell(
+                            onTap: () => _showViewDialog(e),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: AppColors.navy.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color:
+                                        AppColors.navy.withValues(alpha: 0.15)),
+                              ),
+                              child: const Icon(
+                                Icons.visibility_outlined,
+                                color: AppColors.navy,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
+                        // Edit Expense Button
+                        Tooltip(
+                          message: 'Edit Expense',
+                          child: InkWell(
+                            onTap: () =>
+                                _showExpenseFormDialog(expenseToEdit: e),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: AppColors.info.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color:
+                                        AppColors.info.withValues(alpha: 0.2)),
+                              ),
+                              child: const Icon(
+                                Icons.edit_outlined,
+                                color: AppColors.info,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
+                        // Delete Expense Button
+                        Tooltip(
+                          message: 'Delete Expense',
+                          child: InkWell(
+                            onTap: () => _delete(e),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color:
+                                        AppColors.error.withValues(alpha: 0.2)),
+                              ),
+                              child: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: AppColors.error,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-    ]);
+    );
+  }
+
+  // ── Empty State Widget ───────────────────────────────────────────────
+
+  Widget _buildEmptyState(bool hasActiveFilter) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: AppColors.creamDark,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                hasActiveFilter
+                    ? Icons.filter_list_off_rounded
+                    : Icons.receipt_long_outlined,
+                size: 28,
+                color: AppColors.textLight,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              hasActiveFilter
+                  ? 'No expenses match your filters'
+                  : 'No expenses recorded yet',
+              style: GoogleFonts.cormorantGaramond(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navy,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              hasActiveFilter
+                  ? 'Try clearing search terms or selecting another category.'
+                  : 'Click "Add Expense" above to record your first operational expense.',
+              style: GoogleFonts.nunitoSans(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            if (hasActiveFilter)
+              OutlinedButton.icon(
+                icon: const Icon(Icons.refresh_rounded, size: 15),
+                label: const Text('Clear All Filters'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.navy,
+                  side: const BorderSide(color: AppColors.navy),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  textStyle: GoogleFonts.nunitoSans(
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () {
+                  _searchCtrl.clear();
+                  setState(() {
+                    _searchQuery = '';
+                    _selectedCategory = null;
+                    _filterMonth = null;
+                  });
+                  _fetchExpenses();
+                },
+              )
+            else
+              ElevatedButton.icon(
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('Add Expense'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                onPressed: _showAddDialog,
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Helper Widgets for Expenses Tab ─────────────────────────────────

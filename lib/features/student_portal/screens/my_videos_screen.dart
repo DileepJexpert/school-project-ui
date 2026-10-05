@@ -105,7 +105,7 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: AppColors.navy.withOpacity(0.06),
+                  color: AppColors.navy.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.play_circle_filled_rounded,
@@ -216,7 +216,7 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,

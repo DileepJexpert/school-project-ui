@@ -11,6 +11,7 @@ import '../../../models/student_model.dart';
 import '../../../models/transport_models.dart';
 import '../../../services/student_api_service.dart';
 import '../../../services/transport_api_service.dart';
+import '../../../services/bus_pass_print_service.dart';
 
 class TransportAdminScreen extends StatefulWidget {
   const TransportAdminScreen({super.key});
@@ -1525,6 +1526,18 @@ class _RosterSheetState extends State<_RosterSheet> {
                                             ),
                                         ],
                                       ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Print Bus Pass',
+                                      icon: const Icon(Icons.badge_outlined),
+                                      color: context.palette.brand,
+                                      onPressed: () {
+                                        BusPassPrintService.printBusPass(
+                                          assignment: item,
+                                          bus: widget.bus,
+                                          route: route,
+                                        );
+                                      },
                                     ),
                                     IconButton(
                                       tooltip: 'Remove assignment',

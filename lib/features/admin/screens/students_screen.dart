@@ -11,10 +11,11 @@ import '../../../services/fee_api_service.dart';
 import '../../../services/csv_export_service.dart';
 import '../../../services/student_api_service.dart';
 import '../../../core/widgets/searchable_dropdown.dart';
+import 'fee_collection_screen.dart';
 import 'new_admission_screen.dart';
 import 'student_detail_screen.dart';
 
-enum _SortBy { nameAZ, nameZA, classAsc }
+enum _SortBy { nameAZ, nameZA, classAsc, rollNoAsc }
 
 enum _CardAction { edit, activate, deactivate, issueTC, markLeft }
 
@@ -115,22 +116,45 @@ class _StudentsScreenState extends State<StudentsScreen> {
     return result;
   }
 
+  /// Student count breakdown per base class.
+  Map<String, int> get _classCounts {
+    final counts = <String, int>{};
+    for (final s in _students) {
+      if (s.classForAdmission == null) continue;
+      final base = SchoolConstants.parseClassName(s.classForAdmission!).$1;
+      counts[base] = (counts[base] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   /// Client-side filtered + sorted view of [_students].
   List<StudentModel> get _filtered {
     var list = _students.where((s) {
       if (_filterClass != null) {
-        final base = SchoolConstants.parseClassName(s.classForAdmission ?? '').$1;
+        final base =
+            SchoolConstants.parseClassName(s.classForAdmission ?? '').$1;
         if (base != _filterClass) return false;
       }
       if (_filterStatus != 'ALL' && s.status != _filterStatus) return false;
+      if (_searchCtrl.text.trim().isNotEmpty) {
+        final q = _searchCtrl.text.trim().toLowerCase();
+        final nameMatch = s.fullName.toLowerCase().contains(q);
+        final admMatch = (s.admissionNumber ?? '').toLowerCase().contains(q);
+        final rollMatch = (s.rollNumber ?? '').toLowerCase().contains(q);
+        final classMatch =
+            (s.classForAdmission ?? '').toLowerCase().contains(q);
+        if (!nameMatch && !admMatch && !rollMatch && !classMatch) return false;
+      }
       return true;
     }).toList();
 
     switch (_sortBy) {
       case _SortBy.nameAZ:
-        list.sort((a, b) => a.fullName.compareTo(b.fullName));
+        list.sort((a, b) =>
+            a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
       case _SortBy.nameZA:
-        list.sort((a, b) => b.fullName.compareTo(a.fullName));
+        list.sort((a, b) =>
+            b.fullName.toLowerCase().compareTo(a.fullName.toLowerCase()));
       case _SortBy.classAsc:
         list.sort((a, b) {
           final ai =
@@ -139,12 +163,21 @@ class _StudentsScreenState extends State<StudentsScreen> {
               SchoolConstants.allClasses.indexOf(b.classForAdmission ?? '');
           return ai.compareTo(bi);
         });
+      case _SortBy.rollNoAsc:
+        list.sort((a, b) {
+          final ar = int.tryParse(a.rollNumber ?? '') ?? 999999;
+          final br = int.tryParse(b.rollNumber ?? '') ?? 999999;
+          final cmp = ar.compareTo(br);
+          return cmp != 0 ? cmp : a.fullName.compareTo(b.fullName);
+        });
     }
     return list;
   }
 
   bool get _hasActiveFilters =>
-      _filterClass != null || _filterStatus != 'ALL';
+      _filterClass != null ||
+      _filterStatus != 'ALL' ||
+      _searchCtrl.text.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -154,15 +187,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          _buildStatsRow(),
+          const SizedBox(height: 16),
           _buildSearchBar(),
           const SizedBox(height: 12),
           _buildClassFilterRow(),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _buildStatusAndSort(),
-          const SizedBox(height: 12),
-          _buildStatsRow(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -173,129 +206,331 @@ class _StudentsScreenState extends State<StudentsScreen> {
     final total = _students.length;
     final filtered = _loading ? 0 : _filtered.length;
     final subtitle = _loading
-        ? 'Loading…'
+        ? 'Loading student directory…'
         : (_hasActiveFilters
-            ? '$filtered of $total students'
-            : '$total student(s) found');
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
+            ? '$filtered of $total students match criteria'
+            : '$total student(s) actively registered');
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final isNarrow = constraints.maxWidth < 780;
+
+      final titleSection = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.navy.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.navy.withValues(alpha: 0.2)),
+            ),
+            child: const Icon(Icons.people_alt_rounded,
+                color: AppColors.navy, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Students',
-                  style: GoogleFonts.cormorantGaramond(
-                      fontSize: 28,
+              Row(
+                children: [
+                  Text(
+                    'Student Directory',
+                    style: GoogleFonts.cormorantGaramond(
+                      fontSize: 26,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.navy)),
-              Text(subtitle,
-                  style: GoogleFonts.nunitoSans(
-                      color: AppColors.textSecondary, fontSize: 13)),
+                      color: AppColors.navy,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.navy.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$total Total',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                subtitle,
+                style: GoogleFonts.nunitoSans(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
-        ),
-        if (_hasActiveFilters)
-          TextButton.icon(
-            onPressed: _clearFilters,
-            icon: const Icon(Icons.filter_list_off_rounded, size: 16),
-            label: const Text('Clear'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+        ],
+      );
+
+      final actionButtons = Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (_hasActiveFilters)
+            TextButton.icon(
+              onPressed: _clearFilters,
+              icon: const Icon(Icons.filter_list_off_rounded, size: 16),
+              label: const Text('Reset'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error,
+                textStyle: GoogleFonts.nunitoSans(
+                    fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ElevatedButton.icon(
+            onPressed: () => _openNewAdmission(context),
+            icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+            label: const Text('Add Student'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              foregroundColor: Colors.white,
+              elevation: 1,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+              ),
+            ),
           ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          onPressed: _loading ? null : () => _showPromoteDialog(context),
-          icon: const Icon(Icons.school_rounded, size: 16),
-          label: const Text('Promote'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.gold,
-            side: const BorderSide(color: AppColors.gold),
+          OutlinedButton.icon(
+            onPressed: _loading ? null : () => _showPromoteDialog(context),
+            icon: const Icon(Icons.school_rounded, size: 16),
+            label: const Text('Promote'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.gold,
+              side: const BorderSide(color: AppColors.gold),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          onPressed:
-              _students.isEmpty ? null : () => _showRollNumberDialog(context),
-          icon: const Icon(Icons.format_list_numbered_rounded, size: 16),
-          label: const Text('Roll No.'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.info,
-            side: const BorderSide(color: AppColors.info),
+          OutlinedButton.icon(
+            onPressed:
+                _students.isEmpty ? null : () => _showRollNumberDialog(context),
+            icon: const Icon(Icons.format_list_numbered_rounded, size: 16),
+            label: const Text('Roll No.'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.info,
+              side: const BorderSide(color: AppColors.info),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          onPressed: _filtered.isEmpty
-              ? null
-              : () => CsvExportService.exportStudents(_filtered),
-          icon: const Icon(Icons.download_rounded, size: 16),
-          label: const Text('Export CSV'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.navy,
-            side: const BorderSide(color: AppColors.navy),
+          OutlinedButton.icon(
+            onPressed: _filtered.isEmpty
+                ? null
+                : () => CsvExportService.exportStudents(_filtered),
+            icon: const Icon(Icons.download_rounded, size: 16),
+            label: const Text('Export'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.navy,
+              side: const BorderSide(color: AppColors.navy),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        ElevatedButton.icon(
-          onPressed: _loadStudents,
-          icon: const Icon(Icons.refresh_rounded, size: 16),
-          label: const Text('Refresh'),
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.navy, foregroundColor: Colors.white),
-        ),
-      ],
-    );
+          IconButton(
+            onPressed: _loadStudents,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            tooltip: 'Refresh list',
+            color: AppColors.textSecondary,
+          ),
+        ],
+      );
+
+      if (isNarrow) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            titleSection,
+            const SizedBox(height: 12),
+            actionButtons,
+          ],
+        );
+      }
+
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(child: titleSection),
+          actionButtons,
+        ],
+      );
+    });
   }
 
   void _clearFilters() => setState(() {
+        _searchCtrl.clear();
         _filterClass = null;
         _filterStatus = 'ALL';
       });
 
-  /// Three stat cards: Total / Active / Inactive — always reflects the full loaded list.
+  Future<void> _openNewAdmission(BuildContext ctx) async {
+    final created = await Navigator.push<bool>(
+      ctx,
+      MaterialPageRoute(builder: (_) => const NewAdmissionScreen()),
+    );
+    if (created == true) _loadStudents();
+  }
+
+  void _collectFee(BuildContext ctx, StudentModel s) {
+    if (s.id == null) return;
+    Navigator.push(
+      ctx,
+      MaterialPageRoute(
+        builder: (_) => FeeCollectionScreen(preSelectedStudentId: s.id),
+      ),
+    );
+  }
+
+  /// 4 Interactive KPI cards: Total / Active / Inactive / Classes
   Widget _buildStatsRow() {
     if (_loading || _students.isEmpty) return const SizedBox.shrink();
     final total = _students.length;
     final active = _students.where((s) => s.status == 'ACTIVE').length;
     final inactive = total - active;
-    return Row(
-      children: [
-        _statCard('Total', total, AppColors.navy, Icons.people_rounded),
-        const SizedBox(width: 10),
-        _statCard('Active', active, AppColors.success, Icons.check_circle_outline_rounded),
-        const SizedBox(width: 10),
-        _statCard('Inactive', inactive, AppColors.error, Icons.highlight_off_rounded),
-      ],
-    );
+    final classesCount = _availableClasses.length;
+
+    return LayoutBuilder(builder: (ctx, constraints) {
+      final isWide = constraints.maxWidth > 720;
+      final cards = [
+        _statCard(
+          'Total Enrolled',
+          total,
+          AppColors.navy,
+          Icons.people_rounded,
+          _filterStatus == 'ALL' && _filterClass == null,
+          () => setState(() {
+            _filterStatus = 'ALL';
+            _filterClass = null;
+          }),
+        ),
+        _statCard(
+          'Active Students',
+          active,
+          AppColors.success,
+          Icons.check_circle_outline_rounded,
+          _filterStatus == 'ACTIVE',
+          () => setState(() =>
+              _filterStatus = _filterStatus == 'ACTIVE' ? 'ALL' : 'ACTIVE'),
+        ),
+        _statCard(
+          'Inactive / Left',
+          inactive,
+          AppColors.error,
+          Icons.highlight_off_rounded,
+          _filterStatus == 'INACTIVE',
+          () => setState(() =>
+              _filterStatus = _filterStatus == 'INACTIVE' ? 'ALL' : 'INACTIVE'),
+        ),
+        _statCard(
+          'Classes Covered',
+          classesCount,
+          AppColors.info,
+          Icons.domain_rounded,
+          _filterClass != null,
+          () => setState(() => _filterClass = null),
+        ),
+      ];
+
+      if (isWide) {
+        return Row(
+          children: cards
+              .map((c) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: c,
+                    ),
+                  ))
+              .toList(),
+        );
+      }
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 2.5,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        children: cards,
+      );
+    });
   }
 
-  Widget _statCard(String label, int count, Color color, IconData icon) {
-    return Expanded(
-      child: Container(
+  Widget _statCard(
+    String label,
+    int count,
+    Color color,
+    IconData icon,
+    bool isSelected,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.07),
-          border: Border.all(color: color.withOpacity(0.22)),
+          color: isSelected
+              ? color.withValues(alpha: 0.12)
+              : Colors.white,
+          border: Border.all(
+            color: isSelected ? color : AppColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
           borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? color.withValues(alpha: 0.18)
+                  : Colors.black.withValues(alpha: 0.02),
+              blurRadius: isSelected ? 6 : 3,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 22),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 19),
+            ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('$count',
-                    style: GoogleFonts.cormorantGaramond(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: color,
-                        height: 1.1)),
-                Text(label,
-                    style: GoogleFonts.nunitoSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: color.withOpacity(0.75))),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('$count',
+                      style: GoogleFonts.cormorantGaramond(
+                          fontSize: 21,
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                          height: 1.1)),
+                  Text(label,
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? color
+                              : AppColors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
             ),
           ],
         ),
@@ -304,80 +539,142 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   Widget _buildSearchBar() {
-    return TextField(
-      controller: _searchCtrl,
-      decoration: InputDecoration(
-        hintText: 'Search student by name…',
-        hintStyle: GoogleFonts.nunitoSans(color: AppColors.textLight),
-        prefixIcon: const Icon(Icons.search, color: AppColors.navy),
-        suffixIcon: _searchCtrl.text.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear, size: 18),
-                onPressed: () {
-                  _searchCtrl.clear();
-                  setState(() {});
-                  _loadStudents();
-                },
-              )
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusMD),
-          borderSide: const BorderSide(color: AppColors.navy, width: 2),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
-      onChanged: (v) {
-        setState(() {});
-        if (v.length > 2 || v.isEmpty) _search(v);
-      },
+      child: TextField(
+        controller: _searchCtrl,
+        style: GoogleFonts.nunitoSans(fontSize: 13),
+        decoration: InputDecoration(
+          hintText: 'Search by student name, roll number, admission number, or class…',
+          hintStyle: GoogleFonts.nunitoSans(color: AppColors.textLight, fontSize: 13),
+          prefixIcon: const Icon(Icons.search, color: AppColors.navy, size: 19),
+          suffixIcon: _searchCtrl.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    _searchCtrl.clear();
+                    setState(() {});
+                    _loadStudents();
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 11, horizontal: 16),
+        ),
+        onChanged: (v) {
+          setState(() {});
+          if (v.length > 2 || v.isEmpty) _search(v);
+        },
+      ),
     );
   }
 
-  /// Horizontally scrollable class filter chips — only classes with students.
+  /// Horizontally scrollable class filter carousel with student counts.
   Widget _buildClassFilterRow() {
     final classes = _availableClasses;
     if (classes.isEmpty) return const SizedBox.shrink();
+    final counts = _classCounts;
+
     return SizedBox(
-      height: 34,
+      height: 36,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          _classChip('All', _filterClass == null,
-              () => setState(() => _filterClass = null)),
-          const SizedBox(width: 6),
+          _classChip(
+            'All Classes',
+            _students.length,
+            _filterClass == null,
+            () => setState(() => _filterClass = null),
+          ),
+          const SizedBox(width: 8),
           ...classes.map((cls) => Padding(
-                padding: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.only(right: 8),
                 child: _classChip(
-                    cls, _filterClass == cls, () => setState(() => _filterClass = cls)),
+                  cls,
+                  counts[cls] ?? 0,
+                  _filterClass == cls,
+                  () => setState(() =>
+                      _filterClass = _filterClass == cls ? null : cls),
+                ),
               )),
         ],
       ),
     );
   }
 
-  Widget _classChip(String label, bool selected, VoidCallback onTap) {
-    return GestureDetector(
+  Widget _classChip(String label, int count, bool selected, VoidCallback onTap) {
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? AppColors.navy : Colors.white,
-          border: Border.all(color: selected ? AppColors.navy : AppColors.border),
+          border: Border.all(
+            color: selected ? AppColors.navy : AppColors.border,
+            width: selected ? 1.5 : 1,
+          ),
           borderRadius: BorderRadius.circular(20),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.navy.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
-        child: Text(label,
-            style: GoogleFonts.nunitoSans(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.school_outlined,
+              size: 14,
+              color: selected ? Colors.white : AppColors.navy,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.nunitoSans(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : AppColors.textSecondary)),
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                color: selected ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: selected
+                    ? Colors.white.withValues(alpha: 0.25)
+                    : AppColors.creamDark,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.nunitoSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -392,7 +689,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                _statusChip('ALL', 'All', AppColors.navy),
+                _statusChip('ALL', 'All Statuses', AppColors.navy),
                 const SizedBox(width: 6),
                 _statusChip('ACTIVE', 'Active', AppColors.success),
                 const SizedBox(width: 6),
@@ -413,20 +710,21 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   Widget _statusChip(String value, String label, Color color) {
     final selected = _filterStatus == value;
-    return GestureDetector(
+    return InkWell(
       onTap: () => setState(() => _filterStatus = value),
+      borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.12) : Colors.transparent,
+          color: selected ? color.withValues(alpha: 0.12) : Colors.white,
           border: Border.all(color: selected ? color : AppColors.border),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label,
             style: GoogleFonts.nunitoSans(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                 color: selected ? color : AppColors.textSecondary)),
       ),
     );
@@ -434,16 +732,18 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   Widget _buildSortButton() {
     final label = switch (_sortBy) {
-      _SortBy.nameAZ => 'Name A→Z',
-      _SortBy.nameZA => 'Name Z→A',
+      _SortBy.nameAZ => 'Name: A→Z',
+      _SortBy.nameZA => 'Name: Z→A',
       _SortBy.classAsc => 'By Class',
+      _SortBy.rollNoAsc => 'By Roll No.',
     };
     return PopupMenuButton<_SortBy>(
       onSelected: (v) => setState(() => _sortBy = v),
       itemBuilder: (_) => const [
-        PopupMenuItem(value: _SortBy.nameAZ, child: Text('Name A→Z')),
-        PopupMenuItem(value: _SortBy.nameZA, child: Text('Name Z→A')),
+        PopupMenuItem(value: _SortBy.nameAZ, child: Text('Name: A→Z')),
+        PopupMenuItem(value: _SortBy.nameZA, child: Text('Name: Z→A')),
         PopupMenuItem(value: _SortBy.classAsc, child: Text('By Class')),
+        PopupMenuItem(value: _SortBy.rollNoAsc, child: Text('By Roll No.')),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -456,7 +756,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.sort_rounded, size: 16, color: AppColors.navy),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             Text(label,
                 style: GoogleFonts.nunitoSans(
                     fontSize: 12,
@@ -486,6 +786,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
       itemBuilder: (ctx, i) => _StudentCard(
         student: students[i],
         onTap: () => _showDetail(ctx, students[i]),
+        onCollectFee: () => _collectFee(ctx, students[i]),
         onEdit: () => _editStudent(ctx, students[i]),
         onSetStatus: (status) => _setStatus(students[i], status),
       ),
@@ -541,7 +842,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.people_outline,
-              size: 60, color: AppColors.textLight.withOpacity(0.5)),
+              size: 60, color: AppColors.textLight.withValues(alpha: 0.5)),
           const SizedBox(height: 14),
           Text('No students found',
               style: GoogleFonts.cormorantGaramond(
@@ -563,7 +864,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.filter_list_off_rounded,
-              size: 52, color: AppColors.textLight.withOpacity(0.5)),
+              size: 52, color: AppColors.textLight.withValues(alpha: 0.5)),
           const SizedBox(height: 14),
           Text('No students match filters',
               style: GoogleFonts.cormorantGaramond(
@@ -793,12 +1094,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: affectedCount == 0
-                            ? AppColors.error.withOpacity(0.07)
-                            : AppColors.gold.withOpacity(0.08),
+                            ? AppColors.error.withValues(alpha: 0.07)
+                            : AppColors.gold.withValues(alpha: 0.08),
                         border: Border.all(
                             color: affectedCount == 0
-                                ? AppColors.error.withOpacity(0.3)
-                                : AppColors.gold.withOpacity(0.4)),
+                                ? AppColors.error.withValues(alpha: 0.3)
+                                : AppColors.gold.withValues(alpha: 0.4)),
                         borderRadius:
                             BorderRadius.circular(AppSizes.radiusMD),
                       ),
@@ -1121,12 +1422,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
 class _StudentCard extends StatelessWidget {
   final StudentModel student;
   final VoidCallback onTap;
+  final VoidCallback onCollectFee;
   final VoidCallback onEdit;
   final void Function(String status) onSetStatus;
 
   const _StudentCard({
     required this.student,
     required this.onTap,
+    required this.onCollectFee,
     required this.onEdit,
     required this.onSetStatus,
   });
@@ -1134,52 +1437,145 @@ class _StudentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 1,
+      elevation: 0.5,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        side: const BorderSide(color: AppColors.border, width: 0.8),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppSizes.radiusLG),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.navy.withOpacity(0.1),
-              child: Text(
-                student.fullName.isNotEmpty
-                    ? student.fullName[0].toUpperCase()
-                    : '?',
-                style: GoogleFonts.cormorantGaramond(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navy),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(student.fullName,
-                      style: GoogleFonts.nunitoSans(
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: AppColors.navy.withValues(alpha: 0.1),
+                    child: Text(
+                      student.fullName.isNotEmpty
+                          ? student.fullName[0].toUpperCase()
+                          : '?',
+                      style: GoogleFonts.cormorantGaramond(
+                          fontSize: 20,
                           fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: AppColors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Wrap(spacing: 6, children: [
-                    if (student.classForAdmission != null)
-                      _chip(student.classForAdmission!, AppColors.navy),
-                    if (student.admissionNumber != null)
-                      _chip(student.admissionNumber!, AppColors.gold),
-                  ]),
+                          color: AppColors.navy),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          student.fullName,
+                          style: GoogleFonts.nunitoSans(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            if (student.classForAdmission != null &&
+                                student.classForAdmission!.isNotEmpty)
+                              _chip(student.classForAdmission!, AppColors.navy),
+                            if (student.rollNumber != null &&
+                                student.rollNumber!.trim().isNotEmpty)
+                              _chip('Roll #${student.rollNumber}',
+                                  const Color(0xFF6366F1)),
+                            if (student.admissionNumber != null &&
+                                student.admissionNumber!.trim().isNotEmpty)
+                              _chip('Adm: ${student.admissionNumber}',
+                                  AppColors.gold),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _statusBadge(student.status),
                 ],
               ),
-            ),
-            _statusBadge(student.status),
-            const SizedBox(width: 4),
-            _buildMenu(),
-          ]),
+              const SizedBox(height: 10),
+              const Divider(height: 1, thickness: 0.6, color: AppColors.border),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  InkWell(
+                    onTap: onTap,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.navy.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.visibility_outlined,
+                              size: 14, color: AppColors.navy),
+                          const SizedBox(width: 5),
+                          Text('Profile',
+                              style: GoogleFonts.nunitoSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navy)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: onCollectFee,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.receipt_long_rounded,
+                              size: 14, color: AppColors.success),
+                          const SizedBox(width: 5),
+                          Text('Collect Fee',
+                              style: GoogleFonts.nunitoSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.success)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined,
+                        size: 17, color: AppColors.textSecondary),
+                    tooltip: 'Edit Student',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                        minWidth: 32, minHeight: 32),
+                    onPressed: onEdit,
+                  ),
+                  const SizedBox(width: 2),
+                  _buildMenu(),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1217,7 +1613,7 @@ class _StudentCard extends StatelessWidget {
             child: Row(children: [
               Icon(Icons.description_outlined,
                   size: 18, color: AppColors.warning),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Text('Issue TC',
                   style: const TextStyle(color: AppColors.warning)),
             ]),
@@ -1227,7 +1623,7 @@ class _StudentCard extends StatelessWidget {
             child: Row(children: [
               Icon(Icons.exit_to_app_rounded,
                   size: 18, color: AppColors.textSecondary),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               const Text('Mark as Left'),
             ]),
           ),
@@ -1235,7 +1631,7 @@ class _StudentCard extends StatelessWidget {
             value: _CardAction.deactivate,
             child: Row(children: [
               Icon(Icons.block_rounded, size: 18, color: AppColors.error),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Text('Deactivate',
                   style: const TextStyle(color: AppColors.error)),
             ]),
@@ -1246,15 +1642,16 @@ class _StudentCard extends StatelessWidget {
             child: Row(children: [
               Icon(Icons.check_circle_outline_rounded,
                   size: 18, color: AppColors.success),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Text('Re-enroll',
                   style: const TextStyle(color: AppColors.success)),
             ]),
           ),
       ],
       icon: const Icon(Icons.more_vert_rounded,
-          size: 20, color: AppColors.textSecondary),
+          size: 18, color: AppColors.textSecondary),
       padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       splashRadius: 18,
     );
   }
@@ -1262,7 +1659,7 @@ class _StudentCard extends StatelessWidget {
   Widget _chip(String text, Color color) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20)),
         child: Text(text,
             style: GoogleFonts.nunitoSans(
@@ -1286,9 +1683,9 @@ class _StudentCard extends StatelessWidget {
   Widget _statusBadge(String status) {
     final color = _badgeColor(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(_badgeLabel(status),

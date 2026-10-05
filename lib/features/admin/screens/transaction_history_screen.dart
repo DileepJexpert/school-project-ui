@@ -6,6 +6,8 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
+import '../../../services/csv_export_service.dart';
+import '../../../services/receipt_print_service.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -43,10 +45,84 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _source = _TxnSource([], _currency, _dateFmt);
+    _source =
+        _TxnSource([], _currency, _dateFmt, (txn) => _reprintReceipt(txn));
     _range = _rangeFor('30D');
     _searchCtrl.addListener(_applySearch);
     _fetch();
+  }
+
+  void _reprintReceipt(TransactionRecord txn) {
+    ReceiptPrintService.printFeeReceipt(
+      schoolName: AppStrings.schoolName,
+      receiptNumber: txn.receiptNumber,
+      studentName: txn.studentName,
+      className: txn.className,
+      rollNumber: txn.rollNumber,
+      admissionNumber: txn.id,
+      paymentDate: _dateFmt.format(txn.paymentDate),
+      paymentMode: txn.paymentMode,
+      amountPaid: txn.amountPaid,
+      discount: txn.discount,
+      installments: txn.paidForMonths,
+      remarks: txn.remarks,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content:
+            Text('Opening printable receipt for #${txn.receiptNumber}...'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _exportTransactionsCsv() {
+    if (_filtered.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No transactions to export.')),
+      );
+      return;
+    }
+    final headers = [
+      'Receipt Number',
+      'Payment Date',
+      'Student Name',
+      'Class',
+      'Installments / Months',
+      'Gross Amount',
+      'Discount',
+      'Amount Paid',
+      'Payment Mode',
+      'Remarks',
+    ];
+    final rows = _filtered.map((t) {
+      final gross = t.amountPaid + t.discount;
+      return [
+        t.receiptNumber,
+        _dateFmt.format(t.paymentDate),
+        t.studentName,
+        t.className,
+        t.paidForMonths.join('; '),
+        _currency.format(gross),
+        _currency.format(t.discount),
+        _currency.format(t.amountPaid),
+        t.paymentMode,
+        t.remarks ?? '',
+      ];
+    }).toList();
+
+    final dateStr = DateTime.now().toIso8601String().substring(0, 10);
+    CsvExportService.exportCustomCsv(
+      filename: 'Fee_Transactions_${_modeFilter}_$dateStr.csv',
+      headers: headers,
+      rows: rows,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Exported ${_filtered.length} transactions to CSV.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
   }
 
   @override
@@ -194,6 +270,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           ),
         ),
         actions: [
+          if (_filtered.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.download_rounded),
+              tooltip: 'Export Transactions to CSV',
+              onPressed: _exportTransactionsCsv,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _loading ? null : _fetch,
@@ -493,6 +575,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   DataColumn(label: Text('Discount'), numeric: true),
                   DataColumn(label: Text('Net'), numeric: true),
                   DataColumn(label: Text('Mode')),
+                  DataColumn(label: Text('Action')),
                 ],
                 source: _source,
               ),
@@ -584,9 +667,9 @@ class _TxnSource extends DataTableSource {
   List<TransactionRecord> _data;
   final NumberFormat currency;
   final DateFormat dateFmt;
+  final void Function(TransactionRecord) onPrint;
 
-  _TxnSource(List<TransactionRecord> data, this.currency, this.dateFmt)
-      : _data = data;
+  _TxnSource(this._data, this.currency, this.dateFmt, this.onPrint);
 
   void updateData(List<TransactionRecord> data) {
     _data = data;
@@ -656,6 +739,12 @@ class _TxnSource extends DataTableSource {
         Text(transaction.paymentMode.replaceAll('_', ' '),
             style: GoogleFonts.nunitoSans(fontSize: 12)),
       ])),
+      DataCell(IconButton(
+        icon: const Icon(Icons.print_outlined, size: 18),
+        tooltip: 'Re-print Receipt',
+        color: AppColors.navy,
+        onPressed: () => onPrint(transaction),
+      )),
     ]);
   }
 

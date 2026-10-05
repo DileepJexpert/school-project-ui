@@ -1,3 +1,4 @@
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:js' as js;
 
 /// Thin wrapper around Razorpay Checkout.js (web).
@@ -30,7 +31,7 @@ class RazorpayWeb {
       return;
     }
 
-    // Plain Dart map with allowInterop callbacks — jsify converts nested maps
+    // Plain Dart map with JsFunction callbacks — jsify converts nested maps
     // to JS objects and passes the JS functions straight through.
     final options = js.JsObject.jsify({
       'key': keyId,
@@ -44,7 +45,7 @@ class RazorpayWeb {
         if (contact != null && contact.isNotEmpty) 'contact': contact,
       },
       'theme': {'color': '#1A2A4F'},
-      'handler': js.allowInterop((response) {
+      'handler': js.JsFunction.withThis((_, response) {
         onSuccess(
           response['razorpay_payment_id']?.toString() ?? '',
           response['razorpay_order_id']?.toString() ?? '',
@@ -52,7 +53,7 @@ class RazorpayWeb {
         );
       }),
       'modal': {
-        'ondismiss': js.allowInterop(() => onDismiss()),
+        'ondismiss': js.JsFunction.withThis((_, __) => onDismiss()),
       },
     });
 
@@ -60,7 +61,7 @@ class RazorpayWeb {
       final rzp = js.JsObject(js.context['Razorpay'], [options]);
       rzp.callMethod('on', [
         'payment.failed',
-        js.allowInterop((response) {
+        js.JsFunction.withThis((_, response) {
           String msg = 'Payment failed. Please try again.';
           try {
             final err = response['error'];
@@ -69,7 +70,7 @@ class RazorpayWeb {
             }
           } catch (_) {}
           onError(msg);
-        })
+        }),
       ]);
       rzp.callMethod('open');
     } catch (e) {

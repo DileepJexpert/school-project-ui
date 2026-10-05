@@ -420,7 +420,7 @@ class _MobileDrawer extends StatelessWidget {
                       ),
                     ),
                     tileColor:
-                        isActive ? PublicColors.gold.withOpacity(0.1) : null,
+                        isActive ? PublicColors.gold.withValues(alpha: 0.1) : null,
                     onTap: () {
                       Navigator.pop(context);
                       if (item.route != currentRoute) {

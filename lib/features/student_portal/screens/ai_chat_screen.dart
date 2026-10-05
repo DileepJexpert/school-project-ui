@@ -142,7 +142,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text('$_questionsToday/$_dailyLimit',
@@ -160,7 +160,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
-              color: _modeColor.withOpacity(0.05),
+              color: _modeColor.withValues(alpha: 0.05),
               child: Column(
                 children: [
                   Icon(_modeIcon, size: 48, color: _modeColor),
@@ -185,7 +185,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _modeColor.withOpacity(0.1),
+                        color: _modeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(widget.subject!,
@@ -291,7 +291,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             CircleAvatar(
               radius: 16,
               backgroundColor:
-                  isError ? Colors.red.withOpacity(0.1) : _modeColor.withOpacity(0.1),
+                  isError ? Colors.red.withValues(alpha: 0.1) : _modeColor.withValues(alpha: 0.1),
               child: Icon(
                 isError ? Icons.error_outline : _modeIcon,
                 size: 16,
@@ -307,7 +307,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                 color: isUser
                     ? _modeColor
                     : isError
-                        ? Colors.red.withOpacity(0.05)
+                        ? Colors.red.withValues(alpha: 0.05)
                         : Colors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
@@ -317,7 +317,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -350,7 +350,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
         children: [
           CircleAvatar(
             radius: 16,
-            backgroundColor: _modeColor.withOpacity(0.1),
+            backgroundColor: _modeColor.withValues(alpha: 0.1),
             child: Icon(_modeIcon, size: 16, color: _modeColor),
           ),
           const SizedBox(width: 8),
@@ -385,7 +385,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: _modeColor.withOpacity(0.3 + value * 0.4),
+            color: _modeColor.withValues(alpha: 0.3 + value * 0.4),
             shape: BoxShape.circle,
           ),
         );

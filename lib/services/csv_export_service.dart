@@ -62,6 +62,21 @@ class CsvExportService {
     _download(buf.toString(), 'admissions_${_today()}.csv');
   }
 
+  // ── Generic / Reports CSV export ──────────────────────────────────────────
+
+  static void exportCustomCsv({
+    required String filename,
+    required List<String> headers,
+    required List<List<String>> rows,
+  }) {
+    final buf = StringBuffer();
+    buf.writeln(headers.map(_q).join(','));
+    for (final r in rows) {
+      buf.writeln(r.map(_q).join(','));
+    }
+    _download(buf.toString(), filename);
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   /// RFC-4180 quoting: wrap in double-quotes if value contains comma/quote/newline.

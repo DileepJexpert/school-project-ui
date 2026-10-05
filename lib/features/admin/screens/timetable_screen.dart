@@ -6,6 +6,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/academic_year.dart';
 import '../../../models/timetable_model.dart';
 import '../../../services/timetable_api_service.dart';
+import '../../../services/timetable_print_service.dart';
 
 class TimetableScreen extends StatefulWidget {
   const TimetableScreen({super.key});
@@ -168,7 +169,7 @@ class _TimetableScreenState extends State<TimetableScreen>
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 12)),
             ),
-            if (_loaded)
+            if (_loaded) ...[
               OutlinedButton.icon(
                 onPressed: () => _openAddEditDialog(),
                 icon: const Icon(Icons.add_rounded, size: 16),
@@ -177,8 +178,25 @@ class _TimetableScreenState extends State<TimetableScreen>
                     foregroundColor: AppColors.navy,
                     side: const BorderSide(color: AppColors.navy),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12)),
+                        horizontal: 16, vertical: 12)),
               ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  TimetablePrintService.printClassTimetable(
+                    className: _classCtrl.text.trim(),
+                    academicYear: _yearCtrl.text.trim(),
+                    schedule: _timetable,
+                  );
+                },
+                icon: const Icon(Icons.print_outlined, size: 16),
+                label: const Text('Print Schedule'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12)),
+              ),
+            ],
           ],
         ),
       ),
@@ -212,7 +230,7 @@ class _TimetableScreenState extends State<TimetableScreen>
       return Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.table_chart_outlined,
-              size: 60, color: AppColors.textLight.withOpacity(0.4)),
+              size: 60, color: AppColors.textLight.withValues(alpha: 0.4)),
           const SizedBox(height: 14),
           Text('Enter class details and tap Load',
               style: GoogleFonts.nunitoSans(
@@ -255,7 +273,7 @@ class _TimetableScreenState extends State<TimetableScreen>
   Widget _buildEmptyDay(String day) => Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.event_busy_outlined,
-              size: 52, color: AppColors.textLight.withOpacity(0.4)),
+              size: 52, color: AppColors.textLight.withValues(alpha: 0.4)),
           const SizedBox(height: 12),
           Text('No schedule for $day',
               style: GoogleFonts.cormorantGaramond(
@@ -360,7 +378,7 @@ class _PeriodCard extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-                color: AppColors.navy.withOpacity(0.1),
+                color: AppColors.navy.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8)),
             alignment: Alignment.center,
             child: Text('${period.periodNumber}',

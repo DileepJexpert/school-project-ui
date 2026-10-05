@@ -1,10 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../../services/certificate_api_service.dart';
+import '../../../services/certificate_print_service.dart';
 
 class CertificatesScreen extends StatefulWidget {
   const CertificatesScreen({super.key});
@@ -55,14 +56,39 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     }
   }
 
+  String _searchQuery = '';
+  String _selectedTypeFilter = 'ALL';
+
+  List<Map<String, dynamic>> get _filteredCertificates {
+    return _certificates.where((c) {
+      final type = (c['certificateType'] as String? ?? '').toUpperCase();
+      if (_selectedTypeFilter != 'ALL' && type != _selectedTypeFilter) {
+        return false;
+      }
+      final name = (c['studentName'] as String? ?? '').toLowerCase();
+      final serial = (c['serialNumber'] as String? ?? '').toLowerCase();
+      final reason = (c['reason'] as String? ?? '').toLowerCase();
+      final q = _searchQuery.trim().toLowerCase();
+      if (q.isNotEmpty && !name.contains(q) && !serial.contains(q) && !reason.contains(q)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  int _countFor(String type) =>
+      _certificates.where((c) => (c['certificateType'] as String? ?? '').toUpperCase() == type).length;
+
   @override
   Widget build(BuildContext context) {
+    final filtered = _filteredCertificates;
+
     return AdminPageScaffold(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         AdminPageHeader(
-          title: 'Certificates',
+          title: 'Certificates & Documents',
           subtitle:
-              'Generate and track student certificates with a clean recent history.',
+              'Generate, verify, and print official CBSE transfer, bonafide, and conduct certificates.',
           icon: Icons.description_outlined,
           actions: [
             OutlinedButton.icon(
@@ -71,19 +97,68 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
               label: const Text('Refresh'),
             ),
             ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () => _showGenerateDialog(),
               icon: const Icon(Icons.add_rounded, size: 17),
-              label: const Text('Generate'),
+              label: const Text('Generate Certificate'),
             ),
           ],
         ),
         const SizedBox(height: 16),
         _typeGrid(),
         const SizedBox(height: 18),
+
+        // Search & Filter bar
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search by student name, certificate no, or purpose…',
+                  hintStyle: GoogleFonts.nunitoSans(color: AppColors.textLight, fontSize: 13),
+                  prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textLight),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                onChanged: (v) => setState(() => _searchQuery = v),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Type filter chips
+        SizedBox(
+          height: 34,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _filterChip('ALL', 'All (${_certificates.length})'),
+              const SizedBox(width: 6),
+              _filterChip('TRANSFER', 'Transfer TC (${_countFor('TRANSFER')})'),
+              const SizedBox(width: 6),
+              _filterChip('BONAFIDE', 'Bonafide (${_countFor('BONAFIDE')})'),
+              const SizedBox(width: 6),
+              _filterChip('CHARACTER', 'Character (${_countFor('CHARACTER')})'),
+              const SizedBox(width: 6),
+              _filterChip('STUDY', 'Study (${_countFor('STUDY')})'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
         Row(children: [
           Expanded(
             child: Text(
-              'Recent Certificates',
+              'Issued Certificates',
               style: GoogleFonts.nunitoSans(
                 fontSize: 17,
                 fontWeight: FontWeight.w900,
@@ -92,7 +167,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
             ),
           ),
           Text(
-            '${_certificates.length} records',
+            '${filtered.length} matching',
             style: GoogleFonts.nunitoSans(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w800,
@@ -108,21 +183,46 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
           )
         else if (_error != null)
           _errorState()
-        else if (_certificates.isEmpty)
+        else if (filtered.isEmpty)
           _emptyState()
         else
           Card(
             clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _certificates.length,
+              itemCount: filtered.length,
               separatorBuilder: (_, __) =>
-                  Divider(color: context.palette.border),
-              itemBuilder: (_, index) => _certificateTile(_certificates[index]),
+                  Divider(color: context.palette.border, height: 1),
+              itemBuilder: (_, index) => _certificateTile(filtered[index]),
             ),
           ),
       ]),
+    );
+  }
+
+  Widget _filterChip(String code, String label) {
+    final active = _selectedTypeFilter == code;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTypeFilter = code),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? AppColors.navy : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: active ? AppColors.navy : AppColors.border),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.nunitoSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
     );
   }
 
@@ -197,40 +297,88 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     final studentName = certificate['studentName'] as String? ?? 'Student';
     final serial = certificate['serialNumber'] as String? ?? '';
     final generatedAt = certificate['generatedAt'] as String? ?? '';
+    final reason = certificate['reason'] as String? ?? '';
     final typeInfo = _certificateTypes.firstWhere(
       (item) => item.code == type,
       orElse: () => _certificateTypes.first,
     );
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: typeInfo.color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-        ),
-        child: Icon(typeInfo.icon, color: typeInfo.color, size: 21),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: typeInfo.color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(typeInfo.icon, color: typeInfo.color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      studentName,
+                      style: GoogleFonts.nunitoSans(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: typeInfo.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        typeInfo.label,
+                        style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                          color: typeInfo.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  [
+                    if (serial.isNotEmpty) 'Serial: $serial',
+                    if (reason.isNotEmpty) 'Purpose: $reason',
+                    if (generatedAt.isNotEmpty) generatedAt,
+                  ].join(' · '),
+                  style: GoogleFonts.nunitoSans(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.print_outlined, size: 16),
+            label: Text('Print', style: GoogleFonts.nunitoSans(fontSize: 12, fontWeight: FontWeight.w700)),
+            onPressed: () {
+              CertificatePrintService.printCertificate(certificate: certificate);
+            },
+          ),
+        ],
       ),
-      title: Text(
-        '${typeInfo.label} - $studentName',
-        style: GoogleFonts.nunitoSans(
-          fontWeight: FontWeight.w900,
-          color: AppColors.textPrimary,
-        ),
-      ),
-      subtitle: Text(
-        [
-          if (serial.isNotEmpty) 'Serial: $serial',
-          if (generatedAt.isNotEmpty) generatedAt,
-        ].join(' - '),
-        style: GoogleFonts.nunitoSans(
-          color: AppColors.textSecondary,
-          fontSize: 12,
-        ),
-      ),
-      trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
 

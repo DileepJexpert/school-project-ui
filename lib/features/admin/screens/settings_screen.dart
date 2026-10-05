@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -369,10 +369,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withOpacity(0.06),
+                        color: AppColors.info.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(AppSizes.radiusMD),
                         border:
-                            Border.all(color: AppColors.info.withOpacity(0.2)),
+                            Border.all(color: AppColors.info.withValues(alpha: 0.2)),
                       ),
                       child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,10 +474,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.gold.withOpacity(0.08),
+                        color: AppColors.gold.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(AppSizes.radiusMD),
                         border:
-                            Border.all(color: AppColors.gold.withOpacity(0.3)),
+                            Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,10 +675,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withOpacity(0.06),
+                        color: AppColors.info.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(AppSizes.radiusMD),
                         border:
-                            Border.all(color: AppColors.info.withOpacity(0.2)),
+                            Border.all(color: AppColors.info.withValues(alpha: 0.2)),
                       ),
                       child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,

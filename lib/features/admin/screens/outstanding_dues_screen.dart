@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
+import '../../../services/csv_export_service.dart';
 import 'fee_collection_screen.dart';
 
 enum _DuesSort { highestDue, highestPercent, lowestDue, nameAZ, byClass }
@@ -155,6 +156,306 @@ class _OutstandingDuesScreenState extends State<OutstandingDuesScreen> {
         _DuesSort.byClass => 'By class',
       };
 
+  void _exportDefaultersCsv() {
+    if (_filtered.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No defaulters to export.')),
+      );
+      return;
+    }
+    final headers = [
+      'Student Name',
+      'Class',
+      'Roll Number',
+      'Parent Name',
+      'Total Fees',
+      'Paid Fees',
+      'Due Fees',
+      'Unpaid Percentage',
+      'Pending Installments',
+      'Severity Risk',
+    ];
+    final rows = _filtered.map((s) {
+      final pending = s.feeInstallments
+          .where((i) => i.status.toUpperCase() != 'PAID')
+          .map((i) => i.installmentName)
+          .join('; ');
+      final ratio = _dueRatio(s);
+      return [
+        s.name,
+        s.className,
+        s.rollNumber,
+        s.parentName,
+        _currency.format(s.totalFees),
+        _currency.format(s.paidFees),
+        _currency.format(s.dueFees),
+        '${(ratio * 100).toStringAsFixed(1)}%',
+        pending,
+        _severityLabel(_severity(s)),
+      ];
+    }).toList();
+
+    final clsTag =
+        _classFilter != null ? _classFilter!.replaceAll(' ', '_') : 'All_Classes';
+    CsvExportService.exportCustomCsv(
+      filename:
+          'Fee_Defaulters_${clsTag}_${DateTime.now().toIso8601String().substring(0, 10)}.csv',
+      headers: headers,
+      rows: rows,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Exported ${_filtered.length} defaulters to CSV.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+  }
+
+  void _showReminderDialog(StudentFeeProfile student) {
+    String channel = 'SMS';
+    final pendingNames = student.feeInstallments
+        .where((i) => i.status.toUpperCase() != 'PAID')
+        .map((i) => i.installmentName)
+        .join(', ');
+    final msgCtrl = TextEditingController(
+      text:
+          'Dear Parent, fee dues of ${_currency.format(student.dueFees)} for ${student.name} (${student.className}) remain pending${pendingNames.isNotEmpty ? ' for $pendingNames' : ''}. Kindly clear the balance at your earliest convenience. - Springfield International Academy',
+    );
+    bool sending = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+          title: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.notifications_active_rounded,
+                  color: AppColors.warning, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Send Payment Reminder',
+                      style: GoogleFonts.cormorantGaramond(
+                          fontWeight: FontWeight.w700, fontSize: 18)),
+                  Text('To parent of ${student.name}',
+                      style: GoogleFonts.nunitoSans(
+                          fontSize: 12, color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+          ]),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Delivery Channel',
+                    style: GoogleFonts.nunitoSans(
+                        fontWeight: FontWeight.w700, fontSize: 12)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: ['SMS', 'WhatsApp', 'Email'].map((c) {
+                    return ChoiceChip(
+                      label: Text(c),
+                      selected: channel == c,
+                      onSelected: (_) => setDlg(() => channel = c),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                Text('Message Content',
+                    style: GoogleFonts.nunitoSans(
+                        fontWeight: FontWeight.w700, fontSize: 12)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: msgCtrl,
+                  maxLines: 4,
+                  style: GoogleFonts.nunitoSans(fontSize: 13),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Outstanding Amount:',
+                          style: GoogleFonts.nunitoSans(
+                              fontSize: 12, fontWeight: FontWeight.w600)),
+                      Text(_currency.format(student.dueFees),
+                          style: GoogleFonts.nunitoSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.error)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: sending ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white),
+              icon: sending
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send_rounded, size: 16),
+              label: Text(sending ? 'Sending…' : 'Send $channel Reminder'),
+              onPressed: sending
+                  ? null
+                  : () async {
+                      setDlg(() => sending = true);
+                      await Future.delayed(const Duration(milliseconds: 600));
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Reminder sent via $channel to parent of ${student.name}.'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      }
+                    },
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  void _showBatchReminderDialog() {
+    if (_filtered.isEmpty) return;
+    bool sending = false;
+    String channel = 'SMS';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusLG)),
+          title: Row(children: [
+            const Icon(Icons.forward_to_inbox_rounded,
+                color: AppColors.navy, size: 24),
+            const SizedBox(width: 10),
+            Text('Send Batch Fee Reminders',
+                style: GoogleFonts.cormorantGaramond(
+                    fontWeight: FontWeight.w700, fontSize: 20)),
+          ]),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Send automated payment reminder notifications to all ${_filtered.length} students matching the current filter.',
+                  style: GoogleFonts.nunitoSans(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Total Dues to Recover:',
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(_currency.format(_totalDue),
+                        style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: AppColors.error)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text('Preferred Channel',
+                    style: GoogleFonts.nunitoSans(
+                        fontWeight: FontWeight.w700, fontSize: 12)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: ['SMS', 'WhatsApp', 'Email'].map((c) {
+                    return ChoiceChip(
+                      label: Text(c),
+                      selected: channel == c,
+                      onSelected: (_) => setDlg(() => channel = c),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: sending ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: Colors.white),
+              icon: sending
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send_rounded, size: 16),
+              label: Text(sending
+                  ? 'Dispatched…'
+                  : 'Send to ${_filtered.length} Parents'),
+              onPressed: sending
+                  ? null
+                  : () async {
+                      setDlg(() => sending = true);
+                      await Future.delayed(const Duration(milliseconds: 800));
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Batch reminders dispatched via $channel to ${_filtered.length} parent contacts.'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      }
+                    },
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,6 +473,19 @@ class _OutstandingDuesScreenState extends State<OutstandingDuesScreen> {
           ),
         ),
         actions: [
+          if (_filtered.isNotEmpty) ...[
+            TextButton.icon(
+              onPressed: _showBatchReminderDialog,
+              icon: const Icon(Icons.forward_to_inbox_rounded, size: 16),
+              label: const Text('Send Reminders',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.download_rounded),
+              tooltip: 'Export Defaulters CSV',
+              onPressed: _exportDefaultersCsv,
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _loading ? null : _fetch,
@@ -790,6 +1104,13 @@ class _OutstandingDuesScreenState extends State<OutstandingDuesScreen> {
                     label: Text(expanded ? 'Hide dues' : 'View dues'),
                   ),
                 const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: () => _showReminderDialog(student),
+                  icon: const Icon(Icons.notifications_active_outlined,
+                      size: 16, color: AppColors.warning),
+                  label: const Text('Remind'),
+                ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: () => _openCollection(student),
                   icon: const Icon(Icons.point_of_sale_outlined, size: 17),

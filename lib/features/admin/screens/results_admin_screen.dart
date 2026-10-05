@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/result_models.dart';
 import '../../../models/student_model.dart';
 import '../../../services/result_api_service.dart';
+import '../../../services/report_card_print_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -1362,6 +1363,20 @@ class _ReportCardTabState extends State<_ReportCardTab> {
                 style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700)),
             onPressed: _loading ? null : _load,
           ),
+          if (card != null) ...[
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
+              icon: const Icon(Icons.print_outlined),
+              label: Text('Print Marksheet',
+                  style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700)),
+              onPressed: () => ReportCardPrintService.printReportCard(card: card),
+            ),
+          ],
         ]),
         const SizedBox(height: 24),
         if (card != null) ...[

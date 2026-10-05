@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -7,6 +8,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/fee_models.dart';
 import '../../../services/fee_api_service.dart';
+import '../../../services/receipt_print_service.dart';
 import '../../../core/widgets/searchable_dropdown.dart';
 
 class FeeCollectionScreen extends StatefulWidget {
@@ -233,9 +235,10 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                 ? _txnCtrl.text.trim()
                 : null,
       );
+      final currentStudent = _selected!;
       final record = await FeeApiService.collectFee(req);
       if (mounted) {
-        _showSuccessDialog(record);
+        _showSuccessDialog(record, currentStudent);
         _profileGeneration++;
         _searchSeq++;
         _resetPaymentDetails();
@@ -258,41 +261,214 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     }
   }
 
-  void _showSuccessDialog(PaymentRecord r) {
+  void _selectAllDueInstallments() {
+    if (_selected == null) return;
+    setState(() {
+      for (final f in _selected!.feeInstallments) {
+        if (f.status.toUpperCase() != 'PAID') {
+          f.isSelectedForPayment = true;
+        }
+      }
+    });
+  }
+
+  void _clearSelectedInstallments() {
+    if (_selected == null) return;
+    setState(() {
+      for (final f in _selected!.feeInstallments) {
+        f.isSelectedForPayment = false;
+      }
+      _discountCtrl.text = '0.00';
+      _discount = 0.0;
+    });
+  }
+
+  void _applyDiscountPercent(double percent) {
+    if (_selectedTotal <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Select at least one installment before applying discount.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+    final disc = (_selectedTotal * percent);
+    setState(() {
+      _discountCtrl.text = disc.toStringAsFixed(2);
+      _discount = disc;
+    });
+  }
+
+  Widget _discountChip(String label, double percent) {
+    return ActionChip(
+      label: Text(label,
+          style: GoogleFonts.nunitoSans(
+              fontSize: 11, fontWeight: FontWeight.w600)),
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      backgroundColor: context.palette.brand.withValues(alpha: 0.07),
+      side: BorderSide(color: context.palette.brand.withValues(alpha: 0.2)),
+      onPressed: () => _applyDiscountPercent(percent),
+    );
+  }
+
+  void _showSuccessDialog(PaymentRecord r, StudentFeeProfile s) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      barrierDismissible: false,
+      builder: (dlgContext) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSizes.radiusXL)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
         title: Row(children: [
-          const Icon(Icons.check_circle, color: AppColors.success, size: 28),
-          const SizedBox(width: 10),
-          Text('Payment Successful',
-              style:
-                  GoogleFonts.cormorantGaramond(fontWeight: FontWeight.w700)),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check_circle_rounded,
+                color: AppColors.success, size: 28),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Fee Payment Recorded',
+                    style: GoogleFonts.cormorantGaramond(
+                        fontWeight: FontWeight.w700, fontSize: 20)),
+                Text('Transaction completed successfully',
+                    style: GoogleFonts.nunitoSans(
+                        fontSize: 12, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
         ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _receiptRow('Student', r.studentName),
-          _receiptRow('Receipt No.', r.receiptNumber),
-          _receiptRow('Amount Paid', _fmt.format(r.amountPaid)),
-          if (r.discount > 0) _receiptRow('Discount', _fmt.format(r.discount)),
-          _receiptRow('Mode', r.paymentMode),
-          _receiptRow('Date', _dateFmt.format(r.paymentDate)),
-        ]),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: dlgContext.palette.surface,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+                  border: Border.all(color: dlgContext.palette.border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('RECEIPT NUMBER',
+                              style: GoogleFonts.nunitoSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary,
+                                  letterSpacing: 0.5)),
+                          const SizedBox(height: 2),
+                          SelectableText(r.receiptNumber,
+                              style: GoogleFonts.nunitoSans(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  color: dlgContext.palette.brand)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Copy Receipt Number',
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: r.receiptNumber));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Receipt number copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _receiptRow('Student Name', s.name),
+              _receiptRow('Class & Roll',
+                  '${s.className}${s.rollNumber.isNotEmpty ? ' • Roll: ${s.rollNumber}' : ''}'),
+              _receiptRow(
+                  'Installments',
+                  r.paidForInstallments.isEmpty
+                      ? 'General Tuition'
+                      : r.paidForInstallments.join(', ')),
+              _receiptRow('Payment Mode', r.paymentMode),
+              _receiptRow('Payment Date', _dateFmt.format(r.paymentDate)),
+              if (r.discount > 0)
+                _receiptRow('Discount', _fmt.format(r.discount),
+                    valueColor: AppColors.warning),
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Amount Paid',
+                      style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: AppColors.textPrimary)),
+                  Text(_fmt.format(r.amountPaid),
+                      style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: AppColors.success)),
+                ],
+              ),
+            ],
+          ),
+        ),
         actions: [
-          ElevatedButton(
+          OutlinedButton(
+            onPressed: () => Navigator.pop(dlgContext),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-                backgroundColor: context.palette.brand,
-                foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
+              backgroundColor: dlgContext.palette.brand,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.print_rounded, size: 18),
+            label: const Text('Print Receipt'),
+            onPressed: () {
+              ReceiptPrintService.printFeeReceipt(
+                schoolName: AppStrings.schoolName,
+                receiptNumber: r.receiptNumber,
+                studentName: s.name,
+                className: s.className,
+                rollNumber: s.rollNumber,
+                admissionNumber: s.id,
+                paymentDate: _dateFmt.format(r.paymentDate),
+                paymentMode: r.paymentMode,
+                amountPaid: r.amountPaid,
+                discount: r.discount,
+                installments: r.paidForInstallments,
+                remarks: r.remarks,
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _receiptRow(String label, String value) => Padding(
+  Widget _receiptRow(String label, String value,
+          {Color? valueColor, bool isBold = false}) =>
+      Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(children: [
           SizedBox(
@@ -304,7 +480,9 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
           Expanded(
             child: Text(value,
                 style: GoogleFonts.nunitoSans(
-                    fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                    fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
+                    color: valueColor ?? AppColors.textPrimary,
+                    fontSize: 13)),
           ),
         ]),
       );
@@ -628,9 +806,43 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
           _summaryChip('Due', _fmt.format(s.dueFees), AppColors.error),
         ]),
         const SizedBox(height: 16),
-        Text('Select Installments',
-            style: GoogleFonts.nunitoSans(
-                fontWeight: FontWeight.w700, color: palette.brand)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Select Installments',
+                style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w700, color: palette.brand)),
+            if (s.feeInstallments.any((f) => f.status.toUpperCase() != 'PAID'))
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.select_all, size: 16),
+                    label: const Text('Select All Due',
+                        style: TextStyle(fontSize: 12)),
+                    onPressed: _selectAllDueInstallments,
+                  ),
+                  const SizedBox(width: 4),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.clear_all, size: 16),
+                    label:
+                        const Text('Clear', style: TextStyle(fontSize: 12)),
+                    onPressed: _clearSelectedInstallments,
+                  ),
+                ],
+              ),
+          ],
+        ),
         const SizedBox(height: 8),
         if (s.feeInstallments.isEmpty) ...[
           Container(
@@ -735,6 +947,39 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                 borderRadius: BorderRadius.circular(AppSizes.radiusMD)),
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Quick Presets:',
+                style: GoogleFonts.nunitoSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary)),
+            _discountChip('5% Sibling', 0.05),
+            _discountChip('10% Staff', 0.10),
+            _discountChip('15% Merit', 0.15),
+            if (_discount > 0)
+              ActionChip(
+                label: Text('Reset',
+                    style: GoogleFonts.nunitoSans(
+                        fontSize: 11, color: AppColors.error)),
+                avatar:
+                    const Icon(Icons.close, size: 13, color: AppColors.error),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                backgroundColor: AppColors.error.withValues(alpha: 0.08),
+                side: BorderSide(
+                    color: AppColors.error.withValues(alpha: 0.2)),
+                onPressed: () {
+                  _discountCtrl.text = '0.00';
+                  setState(() => _discount = 0.0);
+                },
+              ),
+          ],
         ),
         if (_payMode == 'CHEQUE') ...[
           const SizedBox(height: 12),
