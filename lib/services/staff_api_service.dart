@@ -9,8 +9,19 @@ class StaffApiService {
     return response.data as Map<String, dynamic>;
   }
 
-  static Future<List<dynamic>> getAllStaff() async {
-    final response = await DioClient.get(_staff);
+  static Future<List<dynamic>> getAllStaff({
+    String? category,
+    String? department,
+    String? search,
+  }) async {
+    final params = <String, dynamic>{};
+    if (category != null && category.isNotEmpty) params['category'] = category;
+    if (department != null && department.isNotEmpty) params['department'] = department;
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    final response = await DioClient.get(
+      _staff,
+      queryParams: params.isNotEmpty ? params : null,
+    );
     return response.data as List<dynamic>;
   }
 

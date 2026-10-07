@@ -3,12 +3,35 @@
 from __future__ import annotations
 
 from datetime import date
+import json
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from school_auth import _db, require_admin
 
 router = APIRouter(prefix="/api", tags=["overview"])
+root_router = APIRouter(tags=["overview_root"])
+
+
+def _detect_category(designation: str | None, department: str | None, explicit_cat: str | None = None) -> str:
+    if explicit_cat and explicit_cat.strip():
+        c = explicit_cat.strip().upper()
+        if c in ("TEACHER", "DRIVER", "PEON", "ADMIN", "ACCOUNTANT", "SECURITY", "OTHER"):
+            return c
+    text = f"{(designation or '').lower()} {(department or '').lower()}".strip()
+    if any(k in text for k in ("driver", "conductor", "transport", "bus", "van")):
+        return "DRIVER"
+    if any(k in text for k in ("peon", "helper", "attendant", "cleaner", "sweeper", "maid", "support", "ayah", "cook", "peon")):
+        return "PEON"
+    if any(k in text for k in ("teacher", "faculty", "lecturer", "educator", "prt", "tgt", "pgt", "headmaster", "teaching", "academic", "math", "science", "english", "hindi", "social", "art", "music", "computer")):
+        return "TEACHER"
+    if any(k in text for k in ("account", "cashier", "finance", "billing")):
+        return "ACCOUNTANT"
+    if any(k in text for k in ("security", "guard", "watchman")):
+        return "SECURITY"
+    if any(k in text for k in ("admin", "clerk", "principal", "manager", "office", "receptionist", "director")):
+        return "ADMIN"
+    return "OTHER"
 
 
 def _record(value) -> dict:
@@ -159,11 +182,121 @@ async def staff_dashboard(
         "AND l.from_date <= ? AND l.to_date >= ?)",
         tenant, today, today,
     )
+
+    all_staff = await _many(
+        db,
+        "SELECT id, full_name, department, designation, basic_salary, status, details "
+        "FROM staff WHERE tenant_id = ? AND deleted_at IS NULL",
+        tenant,
+    )
+    approved_leaves = await _many(
+        db,
+        "SELECT staff_id FROM leave_requests WHERE tenant_id = ? AND status = 'APPROVED' "
+        "AND from_date <= ? AND to_date >= ?",
+        tenant, today, today,
+    )
+    on_leave_ids = {r.get("staff_id") for r in approved_leaves if r.get("staff_id")}
+
+    cat_keys = ["TEACHER", "DRIVER", "PEON", "ADMIN", "ACCOUNTANT", "SECURITY", "OTHER"]
+    cat_meta = {
+        "TEACHER": {"label": "Teachers", "icon": "school"},
+        "DRIVER": {"label": "Drivers & Transport", "icon": "directions_bus"},
+        "PEON": {"label": "Peons & Support Staff", "icon": "handyman"},
+        "ADMIN": {"label": "Administration", "icon": "admin_panel_settings"},
+        "ACCOUNTANT": {"label": "Accounts & Finance", "icon": "account_balance"},
+        "SECURITY": {"label": "Security Staff", "icon": "shield"},
+        "OTHER": {"label": "Other Staff", "icon": "badge"},
+    }
+
+    groups: dict[str, dict] = {
+        k: {
+            "category": k,
+            "label": cat_meta[k]["label"],
+            "icon": cat_meta[k]["icon"],
+            "count": 0,
+            "activeCount": 0,
+            "onLeaveToday": 0,
+            "presentToday": 0,
+            "totalSalary": 0.0,
+            "avgSalary": 0.0,
+            "staffPercentage": 0.0,
+            "payrollPercentage": 0.0,
+        }
+        for k in cat_keys
+    }
+
+    total_staff_count = staff.get("total", 0)
+    total_payroll_amount = _money(staff.get("payroll"))
+
+    for s in all_staff:
+        det = {}
+        if s.get("details"):
+            try:
+                det = json.loads(s["details"])
+            except Exception:
+                det = {}
+        cat = _detect_category(s.get("designation"), s.get("department"), det.get("category"))
+        if cat not in groups:
+            groups[cat] = {
+                "category": cat,
+                "label": cat.replace("_", " ").title(),
+                "icon": "badge",
+                "count": 0,
+                "activeCount": 0,
+                "onLeaveToday": 0,
+                "presentToday": 0,
+                "totalSalary": 0.0,
+                "avgSalary": 0.0,
+                "staffPercentage": 0.0,
+                "payrollPercentage": 0.0,
+            }
+        g = groups[cat]
+        g["count"] += 1
+        is_active = (s.get("status") or "ACTIVE").upper() == "ACTIVE"
+        if is_active:
+            g["activeCount"] += 1
+            salary_val = (s.get("basic_salary") or 0) / 100.0
+            g["totalSalary"] += salary_val
+            if s.get("id") in on_leave_ids:
+                g["onLeaveToday"] += 1
+            else:
+                g["presentToday"] += 1
+
+    category_breakdown = []
+    always_include = {"TEACHER", "DRIVER", "PEON", "ADMIN"}
+    for k in cat_keys:
+        if k in groups:
+            g = groups[k]
+            if g["count"] > 0 or k in always_include:
+                if g["activeCount"] > 0:
+                    g["avgSalary"] = round(g["totalSalary"] / g["activeCount"], 2)
+                g["totalSalary"] = round(g["totalSalary"], 2)
+                if total_staff_count > 0:
+                    g["staffPercentage"] = round((g["count"] / total_staff_count) * 100, 1)
+                if total_payroll_amount > 0:
+                    g["payrollPercentage"] = round((g["totalSalary"] / total_payroll_amount) * 100, 1)
+                category_breakdown.append(g)
+
+    for k, g in groups.items():
+        if k not in cat_keys and g["count"] > 0:
+            if g["activeCount"] > 0:
+                g["avgSalary"] = round(g["totalSalary"] / g["activeCount"], 2)
+            g["totalSalary"] = round(g["totalSalary"], 2)
+            if total_staff_count > 0:
+                g["staffPercentage"] = round((g["count"] / total_staff_count) * 100, 1)
+            if total_payroll_amount > 0:
+                g["payrollPercentage"] = round((g["totalSalary"] / total_payroll_amount) * 100, 1)
+            category_breakdown.append(g)
+
     return {
-        "totalStaff": staff.get("total", 0),
+        "totalStaff": total_staff_count,
         "activeStaff": staff.get("active", 0),
         "onLeaveToday": on_leave.get("total", 0),
         "pendingLeaveRequests": leaves.get("total", 0),
         "departmentWise": {r["department"]: r["total"] for r in departments},
-        "totalMonthlyPayroll": _money(staff.get("payroll")),
+        "totalMonthlyPayroll": total_payroll_amount,
+        "categoryBreakdown": category_breakdown,
     }
+
+
+root_router.add_api_route("/staff/dashboard", staff_dashboard, methods=["GET"])

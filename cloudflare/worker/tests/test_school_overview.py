@@ -49,8 +49,8 @@ def _client(*, admin: bool = True):
             amount_paid INTEGER, discount INTEGER, payment_date TEXT, payment_mode TEXT);
         CREATE TABLE fee_installments (profile_id TEXT, amount_due INTEGER,
             paid_amount INTEGER, discount_amount INTEGER);
-        CREATE TABLE staff (id TEXT, tenant_id TEXT, deleted_at TEXT, status TEXT,
-            basic_salary INTEGER, department TEXT);
+        CREATE TABLE staff (id TEXT, tenant_id TEXT, full_name TEXT, designation TEXT,
+            deleted_at TEXT, status TEXT, basic_salary INTEGER, department TEXT, details TEXT);
         CREATE TABLE leave_requests (tenant_id TEXT, staff_id TEXT, status TEXT,
             from_date TEXT, to_date TEXT);
         INSERT INTO tenants VALUES ('school-a', 1), ('school-b', 1), ('inactive', 0);
@@ -67,10 +67,10 @@ def _client(*, admin: bool = True):
         INSERT INTO fee_installments VALUES
             ('fp-a', 20000, 12345, 500), ('fp-b', 99900, 99900, 0);
         INSERT INTO staff VALUES
-            ('s-a', 'school-a', NULL, 'ACTIVE', 100000, 'Teaching'),
-            ('s-b', 'school-a', NULL, 'INACTIVE', 20000, 'Office'),
-            ('s-deleted', 'school-a', '2026-09-01', 'ACTIVE', 30000, 'Teaching'),
-            ('s-other', 'school-b', NULL, 'ACTIVE', 250000, 'Teaching');
+            ('s-a', 'school-a', 'Teacher A', 'Math Teacher', NULL, 'ACTIVE', 100000, 'Teaching', NULL),
+            ('s-b', 'school-a', 'Clerk B', 'Office Clerk', NULL, 'INACTIVE', 20000, 'Office', NULL),
+            ('s-deleted', 'school-a', 'Deleted C', 'Teacher', '2026-09-01', 'ACTIVE', 30000, 'Teaching', NULL),
+            ('s-other', 'school-b', 'Other D', 'Teacher', NULL, 'ACTIVE', 250000, 'Teaching', NULL);
     """)
     today = date.today().isoformat()
     db.executemany(
@@ -112,14 +112,17 @@ def test_staff_summary_excludes_deleted_and_other_school():
     client = _client()
     result = client.get("/api/staff/dashboard", headers={"X-Tenant-ID": "school-a"})
     assert result.status_code == 200
-    assert result.json() == {
-        "totalStaff": 2,
-        "activeStaff": 1,
-        "onLeaveToday": 1,
-        "pendingLeaveRequests": 1,
-        "departmentWise": {"Teaching": 1, "Office": 1},
-        "totalMonthlyPayroll": 1000.0,
-    }
+    data = result.json()
+    assert data["totalStaff"] == 2
+    assert data["activeStaff"] == 1
+    assert data["onLeaveToday"] == 1
+    assert data["pendingLeaveRequests"] == 1
+    assert data["departmentWise"] == {"Teaching": 1, "Office": 1}
+    assert data["totalMonthlyPayroll"] == 1000.0
+    assert "categoryBreakdown" in data
+    teacher_cat = next((c for c in data["categoryBreakdown"] if c["category"] == "TEACHER"), None)
+    assert teacher_cat is not None
+    assert teacher_cat["count"] == 1
 
 
 def test_overview_requires_auth_and_rejects_inactive_school():

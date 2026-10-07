@@ -63,6 +63,14 @@ class _SalaryScreenState extends State<SalaryScreen> {
 
   String _search = '';
   String _statusFilter = 'ALL';
+  String _categoryFilter = 'ALL';
+
+  int _catCount(String code) {
+    if (code == 'ALL') return _salaries.length;
+    return _salaries
+        .where((s) => (s['category'] as String? ?? '').toUpperCase() == code)
+        .length;
+  }
 
   List<dynamic> get _filteredSalaries {
     return _salaries.where((item) {
@@ -77,6 +85,10 @@ class _SalaryScreenState extends State<SalaryScreen> {
       final status = (sal['status'] as String? ?? 'GENERATED').toUpperCase();
       if (_statusFilter == 'PAID' && status != 'PAID') return false;
       if (_statusFilter == 'PENDING' && status == 'PAID') return false;
+      if (_categoryFilter != 'ALL') {
+        final cat = (sal['category'] as String? ?? '').toUpperCase();
+        if (cat != _categoryFilter) return false;
+      }
       return true;
     }).toList();
   }
@@ -166,6 +178,10 @@ class _SalaryScreenState extends State<SalaryScreen> {
           // KPI Strip
           _buildKpiStrip(),
           const SizedBox(height: 14),
+
+          // Category filter row
+          _buildCategoryFilterRow(),
+          const SizedBox(height: 12),
 
           // Search & Filter row
           Row(
@@ -296,10 +312,89 @@ class _SalaryScreenState extends State<SalaryScreen> {
     );
   }
 
+  Widget _buildCategoryFilterRow() {
+    final categories = [
+      {'code': 'ALL', 'label': 'All Staff', 'icon': Icons.groups_outlined, 'color': AppColors.navy},
+      {'code': 'TEACHER', 'label': 'Teachers', 'icon': Icons.school_outlined, 'color': const Color(0xFF2563EB)},
+      {'code': 'DRIVER', 'label': 'Drivers', 'icon': Icons.directions_bus_filled_outlined, 'color': const Color(0xFFD97706)},
+      {'code': 'PEON', 'label': 'Peons & Support', 'icon': Icons.cleaning_services_outlined, 'color': const Color(0xFF0D9488)},
+      {'code': 'ADMIN', 'label': 'Administration', 'icon': Icons.admin_panel_settings_outlined, 'color': const Color(0xFF7C3AED)},
+    ];
+
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final cat = categories[i];
+          final code = cat['code'] as String;
+          final label = cat['label'] as String;
+          final icon = cat['icon'] as IconData;
+          final color = cat['color'] as Color;
+          final isSelected = _categoryFilter == code;
+          final count = _catCount(code);
+
+          return InkWell(
+            onTap: () => setState(() => _categoryFilter = code),
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? color : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? color : color.withValues(alpha: 0.3),
+                  width: isSelected ? 1.5 : 1.0,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 15, color: isSelected ? Colors.white : color),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.25)
+                          : color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: isSelected ? Colors.white : color,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildSalaryTile(Map<String, dynamic> sal) {
     final staffName = sal['staffName'] as String? ?? '';
     final department = sal['department'] as String? ?? '';
     final designation = sal['designation'] as String? ?? '';
+    final category = (sal['category'] as String? ?? 'OTHER').toUpperCase();
     final basicPay = (sal['basicPay'] as num?)?.toDouble() ?? 0;
     final hra = (sal['hra'] as num?)?.toDouble() ?? 0;
     final da = (sal['da'] as num?)?.toDouble() ?? 0;
@@ -318,6 +413,10 @@ class _SalaryScreenState extends State<SalaryScreen> {
     final id = sal['id'] as String? ?? '';
     final isPaid = status.toUpperCase() == 'PAID';
 
+    final catColor = _categoryColor(category);
+    final catIcon = _categoryIcon(category);
+    final catLabel = _categoryLabel(category);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -331,8 +430,41 @@ class _SalaryScreenState extends State<SalaryScreen> {
         title: Row(
           children: [
             Expanded(
-              child: Text(staffName,
-                  style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      staffName,
+                      style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w700, fontSize: 15),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: catColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(catIcon, size: 11, color: catColor),
+                        const SizedBox(width: 3),
+                        Text(
+                          catLabel,
+                          style: GoogleFonts.nunitoSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: catColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             IconButton(
               tooltip: 'Print Payslip',
@@ -466,5 +598,62 @@ class _SalaryScreenState extends State<SalaryScreen> {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return names[m];
+  }
+
+  static Color _categoryColor(String category) {
+    switch (category.toUpperCase()) {
+      case 'TEACHER':
+        return const Color(0xFF2563EB); // Royal Blue
+      case 'DRIVER':
+        return const Color(0xFFD97706); // Amber
+      case 'PEON':
+        return const Color(0xFF0D9488); // Teal
+      case 'ADMIN':
+        return const Color(0xFF7C3AED); // Purple
+      case 'ACCOUNTANT':
+        return const Color(0xFF059669); // Emerald
+      case 'SECURITY':
+        return const Color(0xFF475569); // Slate
+      default:
+        return const Color(0xFF6B7280); // Gray
+    }
+  }
+
+  static IconData _categoryIcon(String category) {
+    switch (category.toUpperCase()) {
+      case 'TEACHER':
+        return Icons.school_outlined;
+      case 'DRIVER':
+        return Icons.directions_bus_filled_outlined;
+      case 'PEON':
+        return Icons.cleaning_services_outlined;
+      case 'ADMIN':
+        return Icons.admin_panel_settings_outlined;
+      case 'ACCOUNTANT':
+        return Icons.account_balance_outlined;
+      case 'SECURITY':
+        return Icons.shield_outlined;
+      default:
+        return Icons.badge_outlined;
+    }
+  }
+
+  static String _categoryLabel(String category) {
+    switch (category.toUpperCase()) {
+      case 'TEACHER':
+        return 'Teacher';
+      case 'DRIVER':
+        return 'Driver';
+      case 'PEON':
+        return 'Peon / Support';
+      case 'ADMIN':
+        return 'Admin';
+      case 'ACCOUNTANT':
+        return 'Accountant';
+      case 'SECURITY':
+        return 'Security';
+      default:
+        return 'Staff';
+    }
   }
 }

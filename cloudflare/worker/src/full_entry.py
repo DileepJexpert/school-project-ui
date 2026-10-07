@@ -54,7 +54,7 @@ def _load_routers():
     if _routers_loaded:
         return
     from school_auth import router as school_auth_router
-    from school_overview import router as school_overview_router
+    from school_overview import router as school_overview_router, root_router as school_overview_root_router
     from school_students import router as school_students_router
     from school_setup import router as school_setup_router
     from school_fee_structures import router as school_fee_structures_router
@@ -65,8 +65,11 @@ def _load_routers():
     from school_expenses import router as school_expenses_router
     from school_attendance import router as school_attendance_router
     from school_transport import router as school_transport_router
+    from school_users import router as school_users_router, root_router as school_users_root_router
+    from school_hr import router as school_hr_router, root_router as school_hr_root_router
     app.include_router(school_auth_router)
     app.include_router(school_overview_router)
+    app.include_router(school_overview_root_router)
     app.include_router(school_students_router)
     app.include_router(school_setup_router)
     app.include_router(school_fee_structures_router)
@@ -77,6 +80,10 @@ def _load_routers():
     app.include_router(school_expenses_router)
     app.include_router(school_attendance_router)
     app.include_router(school_transport_router)
+    app.include_router(school_users_router)
+    app.include_router(school_users_root_router)
+    app.include_router(school_hr_router)
+    app.include_router(school_hr_root_router)
     _routers_loaded = True
 
 
