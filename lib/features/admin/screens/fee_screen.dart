@@ -154,24 +154,32 @@ class _FeeScreenState extends State<FeeScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         _buildDashboard(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
         Text(
           'Workflows',
-          style: Theme.of(context).textTheme.titleMedium,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         LayoutBuilder(builder: (context, constraints) {
-          final cols = Responsive.isDesktop(context)
-              ? 3
-              : constraints.maxWidth > 720
-                  ? 2
-                  : 1;
-          final cardW = (constraints.maxWidth - (cols - 1) * 16) / cols;
+          final cols = constraints.maxWidth > 1050
+              ? 5
+              : constraints.maxWidth > 800
+                  ? 4
+                  : constraints.maxWidth > 550
+                      ? 3
+                      : constraints.maxWidth > 360
+                          ? 2
+                          : 1;
+          final cardW = (constraints.maxWidth - (cols - 1) * 10) / cols;
           return Wrap(
-            spacing: 16,
-            runSpacing: 16,
+            spacing: 10,
+            runSpacing: 10,
             children: modules
                 .map((m) => SizedBox(
                       width: cardW,
@@ -187,24 +195,27 @@ class _FeeScreenState extends State<FeeScreen> {
   Widget _buildDashboard() {
     if (_loading) {
       return const SizedBox(
-        height: 96,
-        child: Center(child: CircularProgressIndicator()),
+        height: 72,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
     if (_error != null) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(children: [
-            const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
-            const SizedBox(width: 10),
+            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 18),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Could not load fee dashboard: $_error',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: GoogleFonts.inter(fontSize: 11.5, color: AppColors.textSecondary),
               ),
             ),
-            TextButton(onPressed: _loadDashboard, child: const Text('Retry')),
+            TextButton(
+              onPressed: _loadDashboard,
+              child: const Text('Retry', style: TextStyle(fontSize: 12)),
+            ),
           ]),
         ),
       );
@@ -228,8 +239,8 @@ class _FeeScreenState extends State<FeeScreen> {
             : constraints.maxWidth > 720
                 ? 2
                 : 1;
-        final w = (constraints.maxWidth - (cols - 1) * 12) / cols;
-        return Wrap(spacing: 12, runSpacing: 12, children: [
+        final w = (constraints.maxWidth - (cols - 1) * 10) / cols;
+        return Wrap(spacing: 10, runSpacing: 10, children: [
           SizedBox(
             width: w,
             child: AdminMetricCard(
@@ -324,10 +335,10 @@ class _FeeScreenState extends State<FeeScreen> {
     final palette = context.palette;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: palette.border),
       ),
       child: Column(
@@ -339,30 +350,30 @@ class _FeeScreenState extends State<FeeScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: AppColors.success.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Icon(Icons.trending_up_rounded,
-                        color: AppColors.success, size: 20),
+                        color: AppColors.success, size: 16),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Annual Fee Realization Meter',
-                        style: GoogleFonts.nunitoSans(
+                        style: GoogleFonts.inter(
                           fontWeight: FontWeight.w700,
-                          fontSize: 16,
+                          fontSize: 13,
                           color: AppColors.textPrimary,
                         ),
                       ),
                       Text(
-                        'Overall progress of school fees collected vs outstanding projected dues',
-                        style: GoogleFonts.nunitoSans(
-                          fontSize: 12,
+                        'Progress of collected fees vs outstanding projected dues',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -372,7 +383,7 @@ class _FeeScreenState extends State<FeeScreen> {
               ),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: (rate >= 0.75
                           ? AppColors.success
@@ -380,7 +391,7 @@ class _FeeScreenState extends State<FeeScreen> {
                               ? AppColors.warning
                               : AppColors.error)
                       .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -389,19 +400,19 @@ class _FeeScreenState extends State<FeeScreen> {
                       rate >= 0.75
                           ? Icons.check_circle_outline
                           : Icons.timelapse_rounded,
-                      size: 15,
+                      size: 13,
                       color: rate >= 0.75
                           ? AppColors.success
                           : rate >= 0.4
                               ? AppColors.warning
                               : AppColors.error,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Text(
                       '$pct% Realized',
-                      style: GoogleFonts.nunitoSans(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
                         color: rate >= 0.75
                             ? AppColors.success
                             : rate >= 0.4
@@ -414,12 +425,12 @@ class _FeeScreenState extends State<FeeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: rate,
-              minHeight: 12,
+              minHeight: 8,
               backgroundColor: palette.canvas,
               valueColor: AlwaysStoppedAnimation<Color>(
                 rate >= 0.75
@@ -430,7 +441,7 @@ class _FeeScreenState extends State<FeeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 24,
             runSpacing: 10,
@@ -712,24 +723,36 @@ class _AttentionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Icon(icon, color: AppColors.warning, size: 20),
+            Icon(icon, color: AppColors.warning, size: 17),
             const SizedBox(width: 8),
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
           ]),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           ...lines.map((line) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 4),
                 child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('• ',
-                          style: TextStyle(color: AppColors.textSecondary)),
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                       Expanded(
-                        child: Text(line,
-                            style: Theme.of(context).textTheme.bodySmall),
+                        child: Text(
+                          line,
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
                     ]),
               )),
@@ -756,29 +779,36 @@ class _QuickActionsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Quick Actions', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: [
+          Text(
+            'Quick Actions',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 6, children: [
             ElevatedButton.icon(
               onPressed: onCollect,
-              icon: const Icon(Icons.point_of_sale_outlined, size: 17),
+              icon: const Icon(Icons.point_of_sale_outlined, size: 15),
               label: const Text('Collect Fee'),
             ),
             OutlinedButton.icon(
               onPressed: onDues,
-              icon: const Icon(Icons.pending_actions_outlined, size: 17),
+              icon: const Icon(Icons.pending_actions_outlined, size: 15),
               label: const Text('View Dues'),
             ),
             OutlinedButton.icon(
               onPressed: onReport,
-              icon: const Icon(Icons.summarize_outlined, size: 17),
+              icon: const Icon(Icons.summarize_outlined, size: 15),
               label: const Text('Reports'),
             ),
             OutlinedButton.icon(
               onPressed: onSetup,
-              icon: const Icon(Icons.settings_applications_outlined, size: 17),
+              icon: const Icon(Icons.settings_applications_outlined, size: 15),
               label: const Text('Setup'),
             ),
           ]),

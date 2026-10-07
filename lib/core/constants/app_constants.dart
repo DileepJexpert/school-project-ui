@@ -3,30 +3,32 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Primary palette — Navy & Gold
-  static const Color navy = Color(0xFF17324D);
-  static const Color navyLight = Color(0xFF254D70);
-  static const Color navyDark = Color(0xFF0D2235);
-  static const Color gold = Color(0xFF2563EB);
-  static const Color goldLight = Color(0xFF60A5FA);
-  static const Color goldPale = Color(0xFFEFF6FF);
+  // Katasticho ERP Brand Palette (Teal-600 & Teal-500)
+  static const Color navy = Color(0xFF0F8576);     // Brand Primary (Teal-600)
+  static const Color navyLight = Color(0xFF14A08C); // Brand Secondary (Teal-500)
+  static const Color navyDark = Color(0xFF0A5C52);  // Brand Dark
+  static const Color gold = Color(0xFFB45309);      // Accent Amber
+  static const Color goldLight = Color(0xFFD97706);
+  static const Color goldPale = Color(0xFFFEF3E2);
 
-  // Neutrals
-  static const Color cream = Color(0xFFF6F8FB);
-  static const Color creamDark = Color(0xFFF1F5F9);
+  // Neutrals — Warm neutral (Katasticho ERP design system)
+  static const Color cream = Color(0xFFF7F7F5);     // App Canvas (--bg-app)
+  static const Color creamDark = Color(0xFFEFEFEC); // Subtle bg
   static const Color white = Color(0xFFFFFFFF);
-  static const Color border = Color(0xFFE2E8F0);
+  static const Color border = Color(0xFFE5E5E1);    // Border (--border)
+  static const Color borderStrong = Color(0xFFD4D4CF);
+  static const Color sidebarBg = Color(0xFF0F172A); // Slate-900 sidebar seed
 
-  // Text
-  static const Color textPrimary = Color(0xFF172033);
-  static const Color textSecondary = Color(0xFF5F6B7A);
-  static const Color textLight = Color(0xFF94A3B8);
+  // Text — Warm-tinted near-black & grey
+  static const Color textPrimary = Color(0xFF1A1A18);
+  static const Color textSecondary = Color(0xFF5F5F59);
+  static const Color textLight = Color(0xFF94948D);
 
   // Semantic
-  static const Color success = Color(0xFF059669);
-  static const Color error = Color(0xFFDC2626);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color info = Color(0xFF3B82F6);
+  static const Color success = Color(0xFF15803D);
+  static const Color error = Color(0xFFBE3A34);
+  static const Color warning = Color(0xFFB45309);
+  static const Color info = Color(0xFF1D4ED8);
 
   // Gradients
   static const LinearGradient heroGradient = LinearGradient(
@@ -38,26 +40,26 @@ class AppColors {
   static const LinearGradient goldGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [gold, goldLight],
+    colors: [navy, navyLight],
   );
 }
 
 class AppSizes {
   AppSizes._();
 
-  // Padding
+  // Padding — compact ERP density
   static const double paddingXS = 4.0;
   static const double paddingSM = 8.0;
-  static const double paddingMD = 16.0;
-  static const double paddingLG = 24.0;
-  static const double paddingXL = 32.0;
-  static const double paddingXXL = 48.0;
+  static const double paddingMD = 12.0;
+  static const double paddingLG = 16.0;
+  static const double paddingXL = 24.0;
+  static const double paddingXXL = 36.0;
 
-  // Border radius
-  static const double radiusSM = 6.0;
-  static const double radiusMD = 8.0;
-  static const double radiusLG = 10.0;
-  static const double radiusXL = 12.0;
+  // Border radius — capped at 8px per Katasticho ERP specification
+  static const double radiusSM = 4.0;
+  static const double radiusMD = 6.0;
+  static const double radiusLG = 8.0;
+  static const double radiusXL = 8.0;
 
   // Breakpoints
   static const double mobile = 600.0;

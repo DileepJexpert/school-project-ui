@@ -67,7 +67,32 @@ async def list_structures(
     _permission(user, "read")
     tenant = await _tenant(db, user, x_tenant_id)
     rows = await _many(db, "SELECT id, class_name, academic_year FROM fee_structures WHERE tenant_id = ? AND academic_year = ? ORDER BY class_name", tenant, _year(year))
-    return [await _wire(db, row) for row in rows]
+    if not rows:
+        return []
+    struct_ids = [r["id"] for r in rows]
+    placeholders = ",".join("?" for _ in struct_ids)
+    all_components = await _many(db, f"SELECT structure_id, name, amount, frequency, description FROM fee_components WHERE structure_id IN ({placeholders}) ORDER BY position", *struct_ids)
+    comp_by_struct = {}
+    for c in all_components:
+        comp_by_struct.setdefault(c["structure_id"], []).append(c)
+
+    return [
+        {
+            "id": r["id"],
+            "className": r["class_name"],
+            "academicYear": r["academic_year"],
+            "feeComponents": [
+                {
+                    "feeName": c["name"],
+                    "amount": c["amount"] / 100.0,
+                    "frequency": c["frequency"],
+                    "description": c["description"],
+                }
+                for c in comp_by_struct.get(r["id"], [])
+            ],
+        }
+        for r in rows
+    ]
 
 
 @router.post("")
@@ -134,3 +159,16 @@ async def delete_structure(
         db.prepare("DELETE FROM fee_structures WHERE tenant_id = ? AND id = ?").bind(tenant, structure_id),
     ])
     return Response(status_code=204)
+
+
+root_router = APIRouter(prefix="/feestructures", tags=["fee setup root"])
+for _route in list(router.routes):
+    _subpath = _route.path[len("/api/feestructures"):]
+    root_router.add_api_route(
+        _subpath,
+        _route.endpoint,
+        methods=_route.methods,
+        response_model=_route.response_model,
+        status_code=_route.status_code,
+    )
+

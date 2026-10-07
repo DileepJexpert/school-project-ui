@@ -414,6 +414,7 @@ async def collect_fee(
 # ROUTE 4: GET /api/fees/dues
 # =========================================================================
 @router.get("/api/fees/dues")
+@router.get("/fees/dues")
 async def get_outstanding_dues(
     academicYear: str | None = Query(default=None),
     db=Depends(_db),
@@ -423,22 +424,65 @@ async def get_outstanding_dues(
     _permission(user, "read")
     tenant = await _tenant(db, user, x_tenant_id)
 
-    query = "SELECT id, full_name, class_name, academic_year, roll_number, parent_details, contact_details FROM students WHERE tenant_id = ? AND status = 'ACTIVE'"
+    query = (
+        "SELECT fp.id AS profile_id, s.id, s.full_name, s.class_name, s.academic_year, "
+        "s.roll_number, s.parent_details, s.contact_details, "
+        "COALESCE(SUM(i.amount_due - i.paid_amount - i.discount_amount), 0) AS due_cents, "
+        "COALESCE(SUM(i.amount_due), 0) AS total_cents, "
+        "COALESCE(SUM(i.paid_amount), 0) AS paid_cents, "
+        "COALESCE(SUM(i.discount_amount), 0) AS disc_cents "
+        "FROM fee_profiles fp "
+        "JOIN enrollments e ON e.id = fp.enrollment_id "
+        "JOIN students s ON s.id = e.student_id "
+        "JOIN fee_installments i ON i.profile_id = fp.id "
+        "WHERE fp.tenant_id = ? AND s.status = 'ACTIVE' "
+    )
     params = [tenant]
     if academicYear:
-        query += " AND academic_year = ?"
+        query += "AND s.academic_year = ? "
         params.append(_year(academicYear))
+    query += "GROUP BY fp.id HAVING due_cents > 0 ORDER BY due_cents DESC LIMIT 100"
 
-    students = await _many(db, query, *params)
+    rows = await _many(db, query, *params)
     dues_list = []
+    for r in rows:
+        parent_name = ""
+        parent_phone = ""
+        try:
+            p = json.loads(r.get("parent_details") or "{}")
+            parent_name = p.get("father", {}).get("name") or p.get("fatherName") or p.get("mother", {}).get("name") or p.get("motherName") or ""
+            parent_phone = (
+                p.get("fatherMobile")
+                or p.get("motherMobile")
+                or p.get("father", {}).get("mobile")
+                or p.get("mother", {}).get("mobile")
+                or ""
+            )
+        except Exception:
+            pass
+        if not parent_phone:
+            try:
+                c = json.loads(r.get("contact_details") or "{}")
+                parent_phone = c.get("primaryContactNumber") or c.get("phone") or ""
+            except Exception:
+                pass
 
-    for s in students:
-        _, installments, last_payment = await _get_or_create_profile(db, tenant, s)
-        profile_data = _build_profile_wire(s, installments, last_payment)
-        if profile_data["dueFees"] > 0:
-            dues_list.append(profile_data)
+        dues_list.append({
+            "studentId": r["id"],
+            "studentName": r["full_name"],
+            "className": r["class_name"],
+            "academicYear": r["academic_year"],
+            "rollNumber": r.get("roll_number") or "",
+            "parentName": parent_name,
+            "parentMobile": parent_phone,
+            "totalFees": _major(r["total_cents"]),
+            "paidFees": _major(r["paid_cents"]),
+            "discountFees": _major(r["disc_cents"]),
+            "dueFees": _major(r["due_cents"]),
+            "installments": [],
+            "lastPayment": None,
+        })
 
-    dues_list.sort(key=lambda x: -x["dueFees"])
     return dues_list
 
 

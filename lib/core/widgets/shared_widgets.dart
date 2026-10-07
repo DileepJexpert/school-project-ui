@@ -149,30 +149,18 @@ class _AccentCardState extends State<AccentCard> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: widget.padding ?? const EdgeInsets.all(20),
+          duration: const Duration(milliseconds: 150),
+          padding: widget.padding ?? const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: PublicColors.white,
+            color: Colors.white,
             border: Border.all(
-              color: _hovering ? PublicColors.gold : PublicColors.border,
+              color: _hovering ? context.palette.brand : context.palette.border,
+              width: 1,
             ),
-            borderRadius: BorderRadius.circular(AppSizes.radiusLG),
-            boxShadow: _hovering
-                ? [
-                    BoxShadow(
-                        color: PublicColors.navy.withValues(alpha: 0.07),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6))
-                  ]
-                : const [
-                    BoxShadow(
-                        color: Color(0x080F172A),
-                        blurRadius: 10,
-                        offset: Offset(0, 3))
-                  ],
+            borderRadius: BorderRadius.circular(8),
           ),
           transform: _hovering
-              ? Matrix4.translationValues(0.0, -2.0, 0.0)
+              ? Matrix4.translationValues(0.0, -1.0, 0.0)
               : Matrix4.identity(),
           child: widget.child,
         ),
@@ -285,14 +273,14 @@ class AdminPageHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 36,
-          height: 36,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             color: context.palette.brand.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(color: context.palette.border),
           ),
-          child: Icon(icon, color: context.palette.brand, size: 18),
+          child: Icon(icon, color: context.palette.brand, size: 16),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -302,18 +290,20 @@ class AdminPageHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontSize: compact ? 17 : 19,
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: GoogleFonts.inter(
+                  fontSize: compact ? 16 : 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.2,
+                ),
               ),
               if (subtitle.isNotEmpty)
                 Text(
                   subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                  style: GoogleFonts.inter(
+                    color: AppColors.textSecondary,
+                    fontSize: 11.5,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -369,46 +359,56 @@ class AdminMetricCard extends StatelessWidget {
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: color, size: 22),
+                child: Icon(icon, color: color, size: 17),
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       value,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: AppColors.textPrimary,
-                            fontSize: 22,
-                          ),
+                      style: GoogleFonts.inter(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                      style: GoogleFonts.inter(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (caption != null) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         caption!,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: color,
-                            ),
+                        style: GoogleFonts.inter(
+                          color: color,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ],
@@ -446,27 +446,29 @@ class AdminModuleCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 30,
+                    height: 30,
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Icon(icon, color: color, size: 22),
+                    child: Icon(icon, color: color, size: 16),
                   ),
                   const Spacer(),
                   if (badge != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 5),
+                          horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
                         color: context.palette.canvas,
                         borderRadius: BorderRadius.circular(999),
@@ -474,26 +476,39 @@ class AdminModuleCard extends StatelessWidget {
                       ),
                       child: Text(
                         badge!,
-                        style: Theme.of(context).textTheme.labelSmall,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     )
                   else
                     Icon(Icons.arrow_forward_rounded,
-                        color: color.withValues(alpha: 0.85), size: 20),
+                        color: color.withValues(alpha: 0.85), size: 16),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      height: 1.45,
-                    ),
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

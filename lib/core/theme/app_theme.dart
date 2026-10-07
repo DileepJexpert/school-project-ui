@@ -121,22 +121,21 @@ class AppTheme {
         elevation: 0,
         color: palette.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: palette.border.withValues(alpha: 0.8), width: 1),
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: palette.border, width: 1),
         ),
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: palette.surface,
-        elevation: 10,
-        shadowColor: const Color(0x26101828),
+        elevation: 4,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: palette.border.withValues(alpha: 0.7)),
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: palette.border),
         ),
-        titleTextStyle: GoogleFonts.poppins(
-          fontSize: 18,
+        titleTextStyle: GoogleFonts.inter(
+          fontSize: 16,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
         ),
@@ -146,31 +145,45 @@ class AppTheme {
           backgroundColor: palette.brand,
           foregroundColor: AppColors.white,
           elevation: 0,
-          minimumSize: const Size(0, 42),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          minimumSize: const Size(0, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
-          textStyle: GoogleFonts.nunitoSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
+          textStyle: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: palette.brand,
-          side: BorderSide(color: palette.border),
-          minimumSize: const Size(0, 42),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          side: BorderSide(color: palette.border, width: 1),
+          elevation: 0,
+          minimumSize: const Size(0, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
-          textStyle: GoogleFonts.nunitoSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
+          textStyle: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: palette.brand,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -178,22 +191,22 @@ class AppTheme {
         filled: true,
         fillColor: palette.surface,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: palette.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: palette.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: palette.brand, width: 1.5),
         ),
-        hintStyle: GoogleFonts.nunitoSans(
+        hintStyle: GoogleFonts.inter(
           color: AppColors.textLight,
-          fontSize: 14,
+          fontSize: 13,
         ),
       ),
       dividerTheme: DividerThemeData(
@@ -203,16 +216,17 @@ class AppTheme {
       ),
       dataTableTheme: DataTableThemeData(
         headingRowColor: WidgetStateProperty.all(palette.canvas),
-        headingRowHeight: 44,
-        dataRowMinHeight: 44,
-        dataRowMaxHeight: 52,
-        dividerThickness: 0.7,
-        headingTextStyle: GoogleFonts.nunitoSans(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
+        headingRowHeight: 38,
+        dataRowMinHeight: 38,
+        dataRowMaxHeight: 44,
+        dividerThickness: 1.0,
+        headingTextStyle: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
           color: AppColors.textSecondary,
         ),
-        dataTextStyle: GoogleFonts.nunitoSans(
+        dataTextStyle: GoogleFonts.inter(
           fontSize: 13,
           color: AppColors.textPrimary,
         ),
@@ -226,12 +240,12 @@ class AppTheme {
         backgroundColor: palette.canvas,
         selectedColor: palette.brand,
         labelStyle:
-            GoogleFonts.nunitoSans(fontSize: 13, fontWeight: FontWeight.w600),
+            GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusSM),
+          borderRadius: BorderRadius.circular(999),
           side: BorderSide(color: palette.border),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       ),
       extensions: [palette],
     );
@@ -240,16 +254,16 @@ class AppTheme {
   static AppThemePalette _paletteFor(AppThemePreset preset) {
     return switch (preset) {
       AppThemePreset.modern => const AppThemePalette(
-          brand: Color(0xFF17324D),
-          brandDark: Color(0xFF0D2235),
-          accent: Color(0xFF2563EB),
-          canvas: Color(0xFFF6F8FB),
+          brand: Color(0xFF0F8576),      // Katasticho Teal-600
+          brandDark: Color(0xFF0A5C52),  // Katasticho Deep Teal
+          accent: Color(0xFF14A08C),     // Katasticho Teal-500
+          canvas: Color(0xFFF7F7F5),     // Katasticho Warm Neutral (--bg-app)
           surface: Colors.white,
-          border: Color(0xFFE2E8F0),
+          border: Color(0xFFE5E5E1),     // Katasticho Warm Border (--border)
           heroGradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0D2235), Color(0xFF17324D), Color(0xFF254D70)],
+            colors: [Color(0xFF0A5C52), Color(0xFF0F8576), Color(0xFF14A08C)],
           ),
         ),
       AppThemePreset.classic => const AppThemePalette(
@@ -283,95 +297,95 @@ class AppTheme {
 
   static TextTheme _buildTextTheme() {
     return TextTheme(
-      // Display — Cormorant Garamond (serif headers)
-      displayLarge: GoogleFonts.cormorantGaramond(
-        fontSize: 44,
+      // Display
+      displayLarge: GoogleFonts.inter(
+        fontSize: 32,
         fontWeight: FontWeight.w700,
-        color: AppColors.navy,
-        height: 1.12,
+        color: AppColors.textPrimary,
+        letterSpacing: -0.5,
       ),
-      displayMedium: GoogleFonts.cormorantGaramond(
-        fontSize: 34,
-        fontWeight: FontWeight.w700,
-        color: AppColors.navy,
-        height: 1.15,
-      ),
-      displaySmall: GoogleFonts.cormorantGaramond(
+      displayMedium: GoogleFonts.inter(
         fontSize: 26,
         fontWeight: FontWeight.w700,
-        color: AppColors.navy,
-        height: 1.2,
+        color: AppColors.textPrimary,
+        letterSpacing: -0.3,
+      ),
+      displaySmall: GoogleFonts.inter(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
       ),
 
       // Headline
-      headlineLarge: GoogleFonts.cormorantGaramond(
-        fontSize: 24,
-        fontWeight: FontWeight.w600,
-        color: AppColors.navy,
-      ),
-      headlineMedium: GoogleFonts.cormorantGaramond(
+      headlineLarge: GoogleFonts.inter(
         fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: AppColors.navy,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
+        letterSpacing: -0.2,
       ),
-      headlineSmall: GoogleFonts.nunitoSans(
+      headlineMedium: GoogleFonts.inter(
         fontSize: 18,
         fontWeight: FontWeight.w700,
-        color: AppColors.navy,
+        color: AppColors.textPrimary,
+      ),
+      headlineSmall: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
       ),
 
       // Title
-      titleLarge: GoogleFonts.nunitoSans(
-        fontSize: 20,
+      titleLarge: GoogleFonts.inter(
+        fontSize: 17,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
-      titleMedium: GoogleFonts.nunitoSans(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
-      ),
-      titleSmall: GoogleFonts.nunitoSans(
+      titleMedium: GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
+      titleSmall: GoogleFonts.inter(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
+      ),
 
-      // Body — Nunito Sans
-      bodyLarge: GoogleFonts.nunitoSans(
-        fontSize: 15,
+      // Body — Inter (finance-SaaS standard)
+      bodyLarge: GoogleFonts.inter(
+        fontSize: 14,
         fontWeight: FontWeight.w400,
         color: AppColors.textPrimary,
-        height: 1.55,
+        height: 1.45,
       ),
-      bodyMedium: GoogleFonts.nunitoSans(
-        fontSize: 13.5,
+      bodyMedium: GoogleFonts.inter(
+        fontSize: 13,
         fontWeight: FontWeight.w400,
         color: AppColors.textPrimary,
-        height: 1.5,
+        height: 1.4,
       ),
-      bodySmall: GoogleFonts.nunitoSans(
-        fontSize: 12,
+      bodySmall: GoogleFonts.inter(
+        fontSize: 11.5,
         fontWeight: FontWeight.w400,
         color: AppColors.textSecondary,
-        height: 1.6,
+        height: 1.35,
       ),
 
       // Label
-      labelLarge: GoogleFonts.nunitoSans(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.5,
-      ),
-      labelMedium: GoogleFonts.nunitoSans(
-        fontSize: 12,
+      labelLarge: GoogleFonts.inter(
+        fontSize: 13,
         fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
+        letterSpacing: 0.2,
       ),
-      labelSmall: GoogleFonts.nunitoSans(
+      labelMedium: GoogleFonts.inter(
+        fontSize: 11.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.2,
+      ),
+      labelSmall: GoogleFonts.inter(
         fontSize: 10,
         fontWeight: FontWeight.w600,
-        letterSpacing: 1.0,
+        letterSpacing: 0.4,
         color: AppColors.textSecondary,
       ),
     );

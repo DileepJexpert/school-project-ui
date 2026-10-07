@@ -104,8 +104,9 @@ def load_router_for_path(path: str):
 
     def _load_fee_structures():
         if "fee_structures" not in _loaded_routers:
-            from school_fee_structures import router as r
+            from school_fee_structures import router as r, root_router as rr
             app.include_router(r)
+            app.include_router(rr)
             _loaded_routers.add("fee_structures")
 
     def _load_admissions():
@@ -273,7 +274,7 @@ def load_router_for_path(path: str):
         _load_ai()
     elif "/whatsapp" in clean or "/whatsapp-config" in clean:
         _load_whatsapp()
-    elif "/fee-structures" in clean:
+    elif "/fee-structures" in clean or "/feestructures" in clean:
         _load_fee_structures()
     elif "/fees" in clean or "/student-fee-profiles" in clean:
         _load_fees()

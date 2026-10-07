@@ -270,7 +270,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       // Drawer only on mobile; tablet + desktop use persistent sidebar
       drawer: isMobile
           ? Drawer(
-              backgroundColor: AppColors.white,
+              backgroundColor: const Color(0xFF0F172A),
               child: _buildMenuList(),
             )
           : null,
@@ -285,7 +285,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               child: SizedBox(
                 width: sidebarWidth,
                 child: ColoredBox(
-                  color: context.palette.surface,
+                  color: const Color(0xFF0F172A),
                   child: _buildMenuList(),
                 ),
               ),
@@ -300,13 +300,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return BottomNavigationBar(
       currentIndex: currentIndex,
       type: BottomNavigationBarType.fixed,
-      backgroundColor: AppColors.white,
-      selectedItemColor: AppColors.navy,
-      unselectedItemColor: AppColors.textLight,
+      backgroundColor: Colors.white,
+      selectedItemColor: const Color(0xFF0F8576),
+      unselectedItemColor: const Color(0xFF94A3B8),
       selectedLabelStyle:
-          GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w600),
-      unselectedLabelStyle: GoogleFonts.poppins(fontSize: 10),
-      elevation: 8,
+          GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600),
+      unselectedLabelStyle: GoogleFonts.inter(fontSize: 10),
+      elevation: 4,
       items: const [
         BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined), label: 'Overview'),
@@ -373,23 +373,23 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         Container(
           padding: EdgeInsets.fromLTRB(
               16, Responsive.isMobile(context) ? 42 : 18, 16, 16),
-          decoration: BoxDecoration(
-            color: context.palette.surface,
-            border: Border(bottom: BorderSide(color: context.palette.border)),
+          decoration: const BoxDecoration(
+            color: Color(0xFF0B1120),
+            border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
-                    color: context.palette.brand,
-                    borderRadius: BorderRadius.circular(9),
+                    color: const Color(0xFF0F8576),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.school_rounded,
-                      color: Colors.white, size: 20),
+                      color: Colors.white, size: 18),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -397,15 +397,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(userName,
-                          style: GoogleFonts.nunitoSans(
-                              color: AppColors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700),
+                          style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
                       Text(userRole,
-                          style: GoogleFonts.nunitoSans(
-                              color: AppColors.textSecondary,
+                          style: GoogleFonts.inter(
+                              color: const Color(0xFF94A3B8),
                               fontSize: 11,
                               fontWeight: FontWeight.w500)),
                     ],
@@ -418,7 +418,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         const SizedBox(height: 4),
         // -- Grouped items (role-filtered)
         ...groupWidgets,
-        const Divider(indent: 16, endIndent: 16, height: 24),
+        const Divider(indent: 16, endIndent: 16, height: 24, color: Color(0xFF1E293B)),
         // -- Logout
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -430,11 +430,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               child: Row(
                 children: [
                   const Icon(Icons.logout_outlined,
-                      size: 20, color: AppColors.error),
+                      size: 18, color: Color(0xFFF87171)),
                   const SizedBox(width: 14),
                   Text('Logout',
-                      style: GoogleFonts.poppins(
-                          color: AppColors.error, fontSize: 14)),
+                      style: GoogleFonts.inter(
+                          color: const Color(0xFFF87171), fontSize: 13, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
@@ -450,11 +450,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 3),
       child: Text(
         title,
-        style: GoogleFonts.nunitoSans(
+        style: GoogleFonts.inter(
           fontSize: 9.5,
           fontWeight: FontWeight.w700,
-          color: AppColors.textLight,
-          letterSpacing: 1.2,
+          color: const Color(0xFF64748B),
+          letterSpacing: 1.1,
         ),
       ),
     );
@@ -462,7 +462,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildMenuItem(_MenuItem item, int index) {
     final isActive = _selectedIndex == index;
-    final brandColor = context.palette.brand;
+    const activeColor = Color(0xFF14A08C);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -470,40 +470,40 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           setState(() => _selectedIndex = index);
           if (Responsive.isMobile(context)) Navigator.pop(context);
         },
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
           decoration: BoxDecoration(
             color: isActive
-                ? brandColor.withValues(alpha: 0.12)
+                ? const Color(0xFF0F8576).withValues(alpha: 0.22)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
               Icon(
                 item.icon,
-                size: 19,
-                color: isActive ? brandColor : const Color(0xFF64748B),
+                size: 18,
+                color: isActive ? activeColor : const Color(0xFF64748B),
               ),
               const SizedBox(width: 11),
               Expanded(
                 child: Text(
                   item.label,
-                  style: GoogleFonts.nunitoSans(
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                    color: isActive ? brandColor : const Color(0xFF334155),
-                    fontSize: 13,
+                  style: GoogleFonts.inter(
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                    color: isActive ? Colors.white : const Color(0xFF94A3B8),
+                    fontSize: 12.5,
                   ),
                 ),
               ),
               if (isActive)
                 Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: brandColor,
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    color: activeColor,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -1123,73 +1123,67 @@ class _OverviewContentState extends State<_OverviewContent> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEAECF0)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A101828),
-              blurRadius: 14,
-              offset: Offset(0, 4),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE5E5E1)),
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         title,
-                        style: GoogleFonts.nunitoSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF64748B),
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF5F5F59),
                         ),
                       ),
                       Container(
-                        width: 40,
-                        height: 40,
+                        width: 30,
+                        height: 30,
                         decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
+                          color: color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Icon(icon, size: 20, color: color),
+                        child: Icon(icon, size: 16, color: color),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                   Text(
                     value,
-                    style: GoogleFonts.poppins(
-                      fontSize: 26,
+                    style: GoogleFonts.inter(
+                      fontSize: 19,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF0F172A),
+                      color: const Color(0xFF1A1A18),
                       height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           subtitle ?? 'Active System',
-                          style: GoogleFonts.nunitoSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
                             color: color,
                           ),
                         ),
@@ -1197,7 +1191,7 @@ class _OverviewContentState extends State<_OverviewContent> {
                       const Spacer(),
                       Icon(
                         Icons.arrow_forward_rounded,
-                        size: 15,
+                        size: 13,
                         color: Colors.grey.shade400,
                       ),
                     ],
