@@ -47,25 +47,6 @@ app = FastAPI(
     redoc_url=None,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
-
-
-@app.middleware("http")
-async def normalize_double_api_middleware(request: Request, call_next):
-    scope = request.scope
-    path = scope.get("path", "")
-    if path.startswith("/api/api/"):
-        scope["path"] = path[4:]
-        if "raw_path" in scope:
-            scope["raw_path"] = scope["path"].encode()
-    return await call_next(request)
-
-
 _routers_loaded = False
 
 

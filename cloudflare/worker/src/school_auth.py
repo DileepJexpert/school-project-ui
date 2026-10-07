@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import time
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -65,8 +66,8 @@ async def _db(request: Request):
 
 def password_hash(password: str) -> str:
     salt = secrets.token_bytes(16)
-    digest = hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1)
-    return "$scrypt$16384$8$1$" + base64.urlsafe_b64encode(salt).decode() + "$" + base64.urlsafe_b64encode(digest).decode()
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 10000)
+    return "$pbkdf2$10000$" + base64.urlsafe_b64encode(salt).decode() + "$" + base64.urlsafe_b64encode(digest).decode()
 
 
 try:
@@ -91,18 +92,23 @@ def _verify_password(password: str, stored: str) -> tuple[bool, bool]:
                 res = (valid, True)
             else:
                 res = (False, False)
-        else:
+        elif stored.startswith("$pbkdf2$"):
+            _, algorithm, iters, salt, expected = stored.split("$")
+            digest = hashlib.pbkdf2_hmac(
+                "sha256", password.encode(), base64.urlsafe_b64decode(salt), int(iters)
+            )
+            valid = hmac.compare_digest(digest, base64.urlsafe_b64decode(expected))
+            res = (valid, False)
+        elif stored.startswith("$scrypt$"):
             _, algorithm, n, r, p, salt, expected = stored.split("$")
-            if algorithm != "scrypt":
-                res = (False, False)
-            else:
-                n_int, r_int, p_int = int(n), int(r), int(p)
-                digest = hashlib.scrypt(
-                    password.encode(), salt=base64.urlsafe_b64decode(salt), n=n_int, r=r_int, p=p_int
-                )
-                valid = hmac.compare_digest(digest, base64.urlsafe_b64decode(expected))
-                needs_rehash = (n_int, r_int, p_int) != (16384, 8, 1)
-                res = (valid, needs_rehash)
+            n_int, r_int, p_int = int(n), int(r), int(p)
+            digest = hashlib.scrypt(
+                password.encode(), salt=base64.urlsafe_b64decode(salt), n=n_int, r=r_int, p=p_int
+            )
+            valid = hmac.compare_digest(digest, base64.urlsafe_b64decode(expected))
+            res = (valid, True)
+        else:
+            res = (False, False)
         if len(_PW_CACHE) > 256:
             _PW_CACHE.clear()
         _PW_CACHE[pw_key] = res
@@ -110,6 +116,9 @@ def _verify_password(password: str, stored: str) -> tuple[bool, bool]:
     except (ValueError, TypeError, OverflowError):
         return False, False
 
+
+
+_SESSION_CACHE: dict[str, dict] = {}
 
 
 def _token_hash(token: str) -> str:
@@ -200,6 +209,17 @@ async def _login(data: LoginInput, scope: str, db):
         for stmt in batch_statements:
             await stmt.run()
     user["last_login_at"] = now.isoformat()
+    session_user_data = {
+        **user,
+        "session_revoked_at": None,
+        "access_expires_at": (now + timedelta(seconds=ACCESS_SECONDS)).isoformat(),
+        "refresh_expires_at": (now + timedelta(days=REFRESH_DAYS)).isoformat(),
+        "tenant_active": 1,
+    }
+    _SESSION_CACHE[access_hash] = {
+        "user": session_user_data,
+        "expire_at": time.time() + 60.0,
+    }
     return {"token": access, "refreshToken": refresh, **_wire(user), "expiresIn": ACCESS_SECONDS}
 
 
@@ -276,6 +296,7 @@ async def logout(
 ):
     token = authorization[7:] if authorization and authorization.startswith("Bearer ") else ""
     token_hash = _token_hash(token)
+    _SESSION_CACHE.pop(token_hash, None)
     user = await _session_user(db, token_hash, refresh=False)
     if not _active(user, refresh=False):
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -297,8 +318,28 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Bearer token required")
     token = authorization[7:].strip()
     token_hash = _token_hash(token)
-    user = await _session_user(db, token_hash, refresh=False)
+
+    now_ts = time.time()
+    cached = _SESSION_CACHE.get(token_hash)
+    if cached and now_ts < cached.get("expire_at", 0):
+        user = cached["user"]
+    else:
+        user = await _session_user(db, token_hash, refresh=False)
+        if not _active(user, refresh=False):
+            _SESSION_CACHE.pop(token_hash, None)
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        try:
+            exp_dt = datetime.fromisoformat(user["access_expires_at"])
+            ttl = min(60.0, max(0.0, (exp_dt - _utc_now()).total_seconds()))
+        except Exception:
+            ttl = 60.0
+        if ttl > 0:
+            if len(_SESSION_CACHE) > 512:
+                _SESSION_CACHE.clear()
+            _SESSION_CACHE[token_hash] = {"user": user, "expire_at": now_ts + ttl}
+
     if not _active(user, refresh=False):
+        _SESSION_CACHE.pop(token_hash, None)
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     if user["tenant_id"] is not None:
         if not x_tenant_id or x_tenant_id.strip().lower() != user["tenant_id"]:

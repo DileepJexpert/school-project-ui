@@ -20,6 +20,15 @@ def _require_read(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Student read access required")
 
 
+def _safe_json(val, default=None):
+    if not val:
+        return default or {}
+    try:
+        return json.loads(val)
+    except Exception:
+        return default or {}
+
+
 def _wire(row: dict) -> dict:
     return {
         "id": row["id"],
@@ -37,9 +46,9 @@ def _wire(row: dict) -> dict:
         "admissionNumber": row["admission_number"],
         "rollNumber": row["roll_number"],
         "status": row["status"],
-        "parentDetails": json.loads(row["parent_details"]),
-        "contactDetails": json.loads(row["contact_details"]),
-        "previousSchoolDetails": json.loads(row["previous_school_details"]),
+        "parentDetails": _safe_json(row.get("parent_details")),
+        "contactDetails": _safe_json(row.get("contact_details")),
+        "previousSchoolDetails": _safe_json(row.get("previous_school_details")),
     }
 
 

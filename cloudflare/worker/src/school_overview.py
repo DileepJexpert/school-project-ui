@@ -91,6 +91,9 @@ async def _many(db, sql: str, *bindings) -> list[dict]:
     return _results(await stmt.all())
 
 
+_TENANT_CACHE: dict[str, tuple[bool, float]] = {}
+
+
 async def _tenant(db, user: dict, requested: str | None) -> str:
     # get_current_user already rejects a school token paired with another
     # X-Tenant-ID. A platform admin can explicitly select an active school.
@@ -101,8 +104,19 @@ async def _tenant(db, user: dict, requested: str | None) -> str:
     tenant = user_tenant or requested_tenant
     if not tenant:
         raise HTTPException(status_code=400, detail="School code required")
+    if user_tenant == tenant:
+        return tenant
+    import time
+    now = time.time()
+    cached = _TENANT_CACHE.get(tenant)
+    if cached and now < cached[1]:
+        if not cached[0]:
+            raise HTTPException(status_code=404, detail="School not found")
+        return tenant
     school = await _one(db, "SELECT active FROM tenants WHERE id = ?", tenant)
-    if not school or not school["active"]:
+    is_active = bool(school and school.get("active"))
+    _TENANT_CACHE[tenant] = (is_active, now + 300.0)
+    if not is_active:
         raise HTTPException(status_code=404, detail="School not found")
     return tenant
 
@@ -190,44 +204,38 @@ async def staff_dashboard(
 ):
     tenant = await _tenant(db, user, x_tenant_id)
     today = date.today().isoformat()
-    staff = await _one(
-        db, "SELECT COUNT(*) AS total, "
-        "COALESCE(SUM(CASE WHEN status = 'ACTIVE' THEN 1 ELSE 0 END), 0) AS active, "
-        "COALESCE(SUM(CASE WHEN status = 'ACTIVE' THEN basic_salary ELSE 0 END), 0) AS payroll "
-        "FROM staff WHERE tenant_id = ? AND deleted_at IS NULL",
-        tenant,
-    )
-    departments = await _many(
-        db, "SELECT department, COUNT(*) AS total FROM staff "
-        "WHERE tenant_id = ? AND deleted_at IS NULL GROUP BY department",
-        tenant,
-    )
-    leaves = await _one(
-        db, "SELECT COUNT(*) AS total FROM leave_requests "
-        "WHERE tenant_id = ? AND status = 'PENDING'",
-        tenant,
-    )
-    on_leave = await _one(
-        db, "SELECT COUNT(*) AS total FROM staff s "
-        "WHERE s.tenant_id = ? AND s.deleted_at IS NULL AND s.status = 'ACTIVE' "
-        "AND EXISTS (SELECT 1 FROM leave_requests l WHERE l.tenant_id = s.tenant_id "
-        "AND l.staff_id = s.id AND l.status = 'APPROVED' "
-        "AND l.from_date <= ? AND l.to_date >= ?)",
-        tenant, today, today,
-    )
-
-    all_staff = await _many(
-        db,
+    s1, b1 = _prepare_sql(
         "SELECT id, full_name, department, designation, basic_salary, status, details "
         "FROM staff WHERE tenant_id = ? AND deleted_at IS NULL",
-        tenant,
+        [tenant],
     )
-    approved_leaves = await _many(
-        db,
+    s2, b2 = _prepare_sql(
+        "SELECT COUNT(*) AS total FROM leave_requests WHERE tenant_id = ? AND status = 'PENDING'",
+        [tenant],
+    )
+    s3, b3 = _prepare_sql(
         "SELECT staff_id FROM leave_requests WHERE tenant_id = ? AND status = 'APPROVED' "
         "AND from_date <= ? AND to_date >= ?",
-        tenant, today, today,
+        [tenant, today, today],
     )
+
+    try:
+        res = await db.batch([
+            db.prepare(s1).bind(*b1),
+            db.prepare(s2).bind(*b2),
+            db.prepare(s3).bind(*b3),
+        ])
+        res_py = res.to_py() if hasattr(res, "to_py") else res
+        all_staff = _results(res_py[0]) if len(res_py) > 0 else []
+        leaves_rows = _results(res_py[1]) if len(res_py) > 1 else []
+        pending_leaves_count = leaves_rows[0].get("total", 0) if leaves_rows else 0
+        approved_leaves = _results(res_py[2]) if len(res_py) > 2 else []
+    except Exception:
+        all_staff = await _many(db, s1, *b1)
+        leaves_rows = await _many(db, s2, *b2)
+        pending_leaves_count = leaves_rows[0].get("total", 0) if leaves_rows else 0
+        approved_leaves = await _many(db, s3, *b3)
+
     on_leave_ids = {r.get("staff_id") for r in approved_leaves if r.get("staff_id")}
 
     cat_keys = ["TEACHER", "DRIVER", "PEON", "ADMIN", "ACCOUNTANT", "SECURITY", "OTHER"]
@@ -258,10 +266,15 @@ async def staff_dashboard(
         for k in cat_keys
     }
 
-    total_staff_count = staff.get("total", 0)
-    total_payroll_amount = _money(staff.get("payroll"))
+    total_staff_count = len(all_staff)
+    active_staff_count = 0
+    total_payroll_amount = 0.0
+    department_counts: dict[str, int] = {}
 
+    on_leave_today_count = 0
     for s in all_staff:
+        dep = s.get("department") or "General"
+        department_counts[dep] = department_counts.get(dep, 0) + 1
         det = {}
         if s.get("details"):
             try:
@@ -287,11 +300,14 @@ async def staff_dashboard(
         g["count"] += 1
         is_active = (s.get("status") or "ACTIVE").upper() == "ACTIVE"
         if is_active:
+            active_staff_count += 1
             g["activeCount"] += 1
             salary_val = (s.get("basic_salary") or 0) / 100.0
             g["totalSalary"] += salary_val
+            total_payroll_amount += salary_val
             if s.get("id") in on_leave_ids:
                 g["onLeaveToday"] += 1
+                on_leave_today_count += 1
             else:
                 g["presentToday"] += 1
 
@@ -323,11 +339,11 @@ async def staff_dashboard(
 
     return {
         "totalStaff": total_staff_count,
-        "activeStaff": staff.get("active", 0),
-        "onLeaveToday": on_leave.get("total", 0),
-        "pendingLeaveRequests": leaves.get("total", 0),
-        "departmentWise": {r["department"]: r["total"] for r in departments},
-        "totalMonthlyPayroll": total_payroll_amount,
+        "activeStaff": active_staff_count,
+        "onLeaveToday": on_leave_today_count,
+        "pendingLeaveRequests": pending_leaves_count,
+        "departmentWise": department_counts,
+        "totalMonthlyPayroll": round(total_payroll_amount, 2),
         "categoryBreakdown": category_breakdown,
     }
 

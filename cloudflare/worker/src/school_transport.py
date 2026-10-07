@@ -92,10 +92,11 @@ async def list_buses(
                b.driver_mobile AS driverMobile, b.route_id AS routeId,
                b.capacity, b.status, b.insurance_expiry AS insuranceExpiry,
                b.notes, b.created_at AS createdAt,
-               (SELECT COUNT(*) FROM transport_assignments a 
-                WHERE a.tenant_id = b.tenant_id AND a.bus_id = b.id AND a.status = 'ACTIVE') AS assignedCount
+               COALESCE(COUNT(CASE WHEN a.status = 'ACTIVE' THEN 1 END), 0) AS assignedCount
         FROM buses b
+        LEFT JOIN transport_assignments a ON a.tenant_id = b.tenant_id AND a.bus_id = b.id
         WHERE b.tenant_id = ? AND b.deleted_at IS NULL
+        GROUP BY b.id
         ORDER BY b.bus_number ASC
         """,
         tenant,
@@ -249,10 +250,11 @@ async def list_routes(
         SELECT r.id, r.zone_name AS zoneName, r.display_name AS displayName,
                r.areas_covered AS areasCovered, r.stops, r.first_pickup_time AS firstPickupTime,
                ROUND(r.monthly_fee / 100.0, 2) AS monthlyFee, r.created_at AS createdAt,
-               (SELECT COUNT(*) FROM transport_assignments a 
-                WHERE a.tenant_id = r.tenant_id AND a.route_id = r.id AND a.status = 'ACTIVE') AS assignedCount
+               COALESCE(COUNT(CASE WHEN a.status = 'ACTIVE' THEN 1 END), 0) AS assignedCount
         FROM transport_routes r
+        LEFT JOIN transport_assignments a ON a.tenant_id = r.tenant_id AND a.route_id = r.id
         WHERE r.tenant_id = ? AND r.deleted_at IS NULL
+        GROUP BY r.id
         ORDER BY r.zone_name ASC
         """,
         tenant,

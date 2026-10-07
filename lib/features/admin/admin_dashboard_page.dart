@@ -337,8 +337,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildMenuList() {
     final auth = AuthService.instance;
-    // Build a flat index so that tapping a group item knows its global index.
-    int globalIndex = 0;
     final groupWidgets = <Widget>[];
 
     for (final group in _groups) {
@@ -347,10 +345,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final visibleIndices = <int>[];
       for (final item in group.items) {
         if (auth.canAccessMenu(item.label)) {
+          final realIndex = _allItems.indexOf(item);
           visibleItems.add(item);
-          visibleIndices.add(globalIndex);
+          visibleIndices.add(realIndex);
         }
-        globalIndex++;
       }
       // Only render the group header if it has visible items
       if (visibleItems.isNotEmpty) {
