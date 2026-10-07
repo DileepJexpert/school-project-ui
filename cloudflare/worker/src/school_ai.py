@@ -321,7 +321,10 @@ for rtr in (config_router, config_root_router):
     rtr.add_api_route("/usage-report", _handle_get_usage_report, methods=["GET"])
 
 for rtr in (chat_router, chat_root_router):
+    rtr.add_api_route("/config", _handle_get_config, methods=["GET"])
+    rtr.add_api_route("/config", _handle_update_config, methods=["PUT"])
     rtr.add_api_route("/chat", _handle_ai_chat, methods=["POST"])
     rtr.add_api_route("/conversations", _handle_get_conversations, methods=["GET"])
     rtr.add_api_route("/conversations/{id}", _handle_get_conversation, methods=["GET"])
     rtr.add_api_route("/usage", _handle_get_my_usage, methods=["GET"])
+

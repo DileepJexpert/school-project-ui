@@ -39,7 +39,14 @@ REQUIRED_TABLES = {
     "fee_installments", "payments", "payment_allocations",
 }
 
-app = FastAPI(title="School Cloudflare Worker API", version="0.1.0")
+app = FastAPI(
+    title="School Cloudflare Worker API",
+    version="0.1.0",
+    openapi_url=None,
+    docs_url=None,
+    redoc_url=None,
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -49,83 +56,246 @@ app.add_middleware(
 _routers_loaded = False
 
 
+_loaded_routers = set()
+
+
+def load_router_for_path(path: str):
+    clean = path.lower().split("?", 1)[0]
+
+    def _load_auth():
+        if "auth" not in _loaded_routers:
+            from school_auth import router as r
+            app.include_router(r)
+            _loaded_routers.add("auth")
+
+    def _load_overview():
+        if "overview" not in _loaded_routers:
+            from school_overview import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("overview")
+
+    def _load_students():
+        if "students" not in _loaded_routers:
+            from school_students import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("students")
+
+    def _load_setup():
+        if "setup" not in _loaded_routers:
+            from school_setup import router as r
+            app.include_router(r)
+            _loaded_routers.add("setup")
+
+    def _load_fee_structures():
+        if "fee_structures" not in _loaded_routers:
+            from school_fee_structures import router as r
+            app.include_router(r)
+            _loaded_routers.add("fee_structures")
+
+    def _load_admissions():
+        if "admissions" not in _loaded_routers:
+            from school_admissions import router as r
+            app.include_router(r)
+            _loaded_routers.add("admissions")
+
+    def _load_fees():
+        if "fees" not in _loaded_routers:
+            from school_fees import router as r
+            app.include_router(r)
+            _loaded_routers.add("fees")
+
+    def _load_homework():
+        if "homework" not in _loaded_routers:
+            from school_homework import router as r
+            app.include_router(r)
+            _loaded_routers.add("homework")
+
+    def _load_videos():
+        if "videos" not in _loaded_routers:
+            from school_videos import router as r
+            app.include_router(r)
+            _loaded_routers.add("videos")
+
+    def _load_expenses():
+        if "expenses" not in _loaded_routers:
+            from school_expenses import router as r
+            app.include_router(r)
+            _loaded_routers.add("expenses")
+
+    def _load_attendance():
+        if "attendance" not in _loaded_routers:
+            from school_attendance import router as r
+            app.include_router(r)
+            _loaded_routers.add("attendance")
+
+    def _load_transport():
+        if "transport" not in _loaded_routers:
+            from school_transport import router as r
+            app.include_router(r)
+            _loaded_routers.add("transport")
+
+    def _load_users():
+        if "users" not in _loaded_routers:
+            from school_users import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("users")
+
+    def _load_hr():
+        if "hr" not in _loaded_routers:
+            from school_hr import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("hr")
+
+    def _load_certificates():
+        if "certificates" not in _loaded_routers:
+            from school_certificates import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("certificates")
+
+    def _load_discipline():
+        if "discipline" not in _loaded_routers:
+            from school_discipline import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("discipline")
+
+    def _load_notifications():
+        if "notifications" not in _loaded_routers:
+            from school_notifications import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("notifications")
+
+    def _load_timetable():
+        if "timetable" not in _loaded_routers:
+            from school_timetable import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("timetable")
+
+    def _load_results():
+        if "results" not in _loaded_routers:
+            from school_results import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("results")
+
+    def _load_chat():
+        if "chat" not in _loaded_routers:
+            from school_chat import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("chat")
+
+    def _load_ai():
+        if "ai" not in _loaded_routers:
+            from school_ai import (
+                config_router as cr,
+                config_root_router as crr,
+                chat_router as chr,
+                chat_root_router as chrr,
+            )
+            app.include_router(cr)
+            app.include_router(crr)
+            app.include_router(chr)
+            app.include_router(chrr)
+            _loaded_routers.add("ai")
+
+    def _load_whatsapp():
+        if "whatsapp" not in _loaded_routers:
+            from school_whatsapp import router as r, root_router as rr
+            app.include_router(r)
+            app.include_router(rr)
+            _loaded_routers.add("whatsapp")
+
+    def _load_portals():
+        if "portals" not in _loaded_routers:
+            from school_portals import (
+                parent_router as pr,
+                parent_root_router as prr,
+                student_router as sr,
+                student_root_router as srr,
+            )
+            app.include_router(pr)
+            app.include_router(prr)
+            app.include_router(sr)
+            app.include_router(srr)
+            _loaded_routers.add("portals")
+
+    if "/auth" in clean:
+        _load_auth()
+    elif "/site-content" in clean or "/master-data" in clean or "/profile" in clean or "/overview" in clean:
+        _load_overview()
+    elif "/student-portal" in clean or "/parent" in clean:
+        _load_portals()
+    elif "/students" in clean:
+        _load_students()
+    elif "/staff" in clean or "/users" in clean:
+        _load_users()
+        _load_hr()
+        _load_overview()
+    elif "/salary" in clean or "/leave" in clean or "/staff-attendance" in clean or "/hr" in clean:
+        _load_hr()
+    elif "/certificates" in clean:
+        _load_certificates()
+    elif "/discipline" in clean:
+        _load_discipline()
+    elif "/notifications" in clean:
+        _load_notifications()
+    elif "/timetable" in clean:
+        _load_timetable()
+    elif "/results" in clean:
+        _load_results()
+    elif "/chat" in clean:
+        _load_chat()
+    elif "/ai" in clean or "/ai-config" in clean:
+        _load_ai()
+    elif "/whatsapp" in clean or "/whatsapp-config" in clean:
+        _load_whatsapp()
+    elif "/fee-structures" in clean:
+        _load_fee_structures()
+    elif "/fees" in clean or "/student-fee-profiles" in clean:
+        _load_fees()
+    elif "/reports" in clean:
+        _load_overview()
+        _load_fees()
+    elif "/admissions" in clean:
+        _load_admissions()
+    elif "/homework" in clean:
+        _load_homework()
+    elif "/videos" in clean:
+        _load_videos()
+    elif "/expenses" in clean:
+        _load_expenses()
+    elif "/attendance" in clean:
+        _load_attendance()
+    elif "/transport" in clean:
+        _load_transport()
+    elif "/setup" in clean:
+        _load_setup()
+    else:
+        _load_auth()
+        _load_overview()
+
+
+
 def _load_routers():
     global _routers_loaded
     if _routers_loaded:
         return
-    from school_auth import router as school_auth_router
-    from school_overview import router as school_overview_router, root_router as school_overview_root_router
-    from school_students import router as school_students_router, root_router as school_students_root_router
-    from school_setup import router as school_setup_router
-    from school_fee_structures import router as school_fee_structures_router
-    from school_admissions import router as school_admissions_router
-    from school_fees import router as school_fees_router
-    from school_homework import router as school_homework_router
-    from school_videos import router as school_videos_router
-    from school_expenses import router as school_expenses_router
-    from school_attendance import router as school_attendance_router
-    from school_transport import router as school_transport_router
-    from school_users import router as school_users_router, root_router as school_users_root_router
-    from school_hr import router as school_hr_router, root_router as school_hr_root_router
-    from school_certificates import router as school_certificates_router, root_router as school_certificates_root_router
-    from school_discipline import router as school_discipline_router, root_router as school_discipline_root_router
-    from school_notifications import router as school_notifications_router, root_router as school_notifications_root_router
-    from school_timetable import router as school_timetable_router, root_router as school_timetable_root_router
-    from school_results import router as school_results_router, root_router as school_results_root_router
-    from school_chat import router as school_chat_router, root_router as school_chat_root_router
-    from school_ai import (
-        config_router as school_ai_config_router,
-        config_root_router as school_ai_config_root_router,
-        chat_router as school_ai_chat_router,
-        chat_root_router as school_ai_chat_root_router,
-    )
-    from school_whatsapp import router as school_whatsapp_router, root_router as school_whatsapp_root_router
-    from school_portals import (
-        parent_router as school_parent_router,
-        parent_root_router as school_parent_root_router,
-        student_router as school_student_router,
-        student_root_router as school_student_root_router,
-    )
-    app.include_router(school_auth_router)
-    app.include_router(school_overview_router)
-    app.include_router(school_overview_root_router)
-    app.include_router(school_students_router)
-    app.include_router(school_students_root_router)
-    app.include_router(school_setup_router)
-    app.include_router(school_fee_structures_router)
-    app.include_router(school_admissions_router)
-    app.include_router(school_fees_router)
-    app.include_router(school_homework_router)
-    app.include_router(school_videos_router)
-    app.include_router(school_expenses_router)
-    app.include_router(school_attendance_router)
-    app.include_router(school_transport_router)
-    app.include_router(school_users_router)
-    app.include_router(school_users_root_router)
-    app.include_router(school_hr_router)
-    app.include_router(school_hr_root_router)
-    app.include_router(school_certificates_router)
-    app.include_router(school_certificates_root_router)
-    app.include_router(school_discipline_router)
-    app.include_router(school_discipline_root_router)
-    app.include_router(school_notifications_router)
-    app.include_router(school_notifications_root_router)
-    app.include_router(school_timetable_router)
-    app.include_router(school_timetable_root_router)
-    app.include_router(school_results_router)
-    app.include_router(school_results_root_router)
-    app.include_router(school_chat_router)
-    app.include_router(school_chat_root_router)
-    app.include_router(school_ai_config_router)
-    app.include_router(school_ai_config_root_router)
-    app.include_router(school_ai_chat_router)
-    app.include_router(school_ai_chat_root_router)
-    app.include_router(school_whatsapp_router)
-    app.include_router(school_whatsapp_root_router)
-    app.include_router(school_parent_router)
-    app.include_router(school_parent_root_router)
-    app.include_router(school_student_router)
-    app.include_router(school_student_root_router)
+    for route in [
+        "/auth", "/overview", "/students", "/setup", "/fee-structures",
+        "/admissions", "/fees", "/homework", "/videos", "/expenses",
+        "/attendance", "/transport", "/users", "/staff", "/certificates",
+        "/discipline", "/notifications", "/timetable", "/results",
+        "/chat", "/ai", "/whatsapp", "/parent",
+    ]:
+        load_router_for_path(route)
     _routers_loaded = True
 
 

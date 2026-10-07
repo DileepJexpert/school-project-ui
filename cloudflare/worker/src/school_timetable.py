@@ -187,6 +187,9 @@ async def _handle_delete_class_timetable(
 # Routes
 for r in (router, root_router):
     r.add_api_route("/{className}", _handle_get_class_timetable, methods=["GET"])
+    r.add_api_route("/class/{className}", _handle_get_class_timetable, methods=["GET"])
     r.add_api_route("", _handle_save_timetable, methods=["POST"])
     r.add_api_route("/entry/{id}", _handle_delete_entry, methods=["DELETE"])
     r.add_api_route("/{className}", _handle_delete_class_timetable, methods=["DELETE"])
+    r.add_api_route("/class/{className}", _handle_delete_class_timetable, methods=["DELETE"])
+

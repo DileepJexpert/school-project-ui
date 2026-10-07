@@ -1,8 +1,10 @@
 """Thin Cloudflare bootstrap; the FastAPI route graph loads on first request."""
 
+import json
 import os
-import sys
 from pathlib import Path
+import sys
+import traceback
 
 vendor_path = Path(__file__).resolve().parent / "vendor"
 if vendor_path.is_dir() and str(vendor_path) not in sys.path:
@@ -30,15 +32,27 @@ class Default(WorkerEntrypoint):
                 },
             )
 
-        if self._app is None:
-            import full_entry
+        try:
+            if self._app is None:
+                import full_entry
 
-            full_entry._load_routers()
-            self._full = full_entry
-            self._app = full_entry.app
-        path = str(request.url).split("?", 1)[0]
-        if "/api/expenses" in path:
-            finance = getattr(self.env, "FINANCE", None)
-            if finance is not None:
-                return await finance.fetch(request)
-        return await asgi_fetch(self._app, request, self.env, self.ctx)
+                self._full = full_entry
+                self._app = full_entry.app
+            path = str(request.url).split("?", 1)[0]
+            self._full.load_router_for_path(path)
+            if "/api/expenses" in path:
+                finance = getattr(self.env, "FINANCE", None)
+                if finance is not None:
+                    return await finance.fetch(request)
+            return await asgi_fetch(self._app, request, self.env, self.ctx)
+        except Exception as exc:
+            return Response(
+                json.dumps({"error": str(exc), "traceback": traceback.format_exc()}),
+                status=500,
+                headers={
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                    "Access-Control-Allow-Headers": "*",
+                },
+            )

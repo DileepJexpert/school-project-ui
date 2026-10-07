@@ -22,26 +22,31 @@ async def _ensure_whatsapp_tables(db):
     global _tables_initialized
     if _tables_initialized:
         return
-    await db.prepare(
-        "CREATE TABLE IF NOT EXISTS whatsapp_configs ("
-        "  tenant_id VARCHAR(64) PRIMARY KEY,"
-        "  config TEXT NOT NULL,"
-        "  updated_at TEXT NOT NULL"
-        ")"
-    ).run()
-    await db.prepare(
-        "CREATE TABLE IF NOT EXISTS whatsapp_conversations ("
-        "  id VARCHAR(36) PRIMARY KEY,"
-        "  tenant_id VARCHAR(64) NOT NULL,"
-        "  parent_name VARCHAR(120),"
-        "  student_name VARCHAR(120),"
-        "  class_name VARCHAR(80),"
-        "  phone_number VARCHAR(32),"
-        "  messages TEXT NOT NULL,"
-        "  created_at TEXT NOT NULL"
-        ")"
-    ).run()
-    _tables_initialized = True
+    try:
+        await db.prepare(
+            "CREATE TABLE IF NOT EXISTS whatsapp_configs ("
+            "  tenant_id VARCHAR(64) PRIMARY KEY,"
+            "  config TEXT NOT NULL,"
+            "  updated_at TEXT NOT NULL"
+            ")"
+        ).run()
+        await db.prepare(
+            "CREATE TABLE IF NOT EXISTS whatsapp_conversations ("
+            "  id VARCHAR(36) PRIMARY KEY,"
+            "  tenant_id VARCHAR(64) NOT NULL,"
+            "  parent_name VARCHAR(120),"
+            "  student_name VARCHAR(120),"
+            "  class_name VARCHAR(80),"
+            "  phone_number VARCHAR(32),"
+            "  messages TEXT NOT NULL,"
+            "  created_at TEXT NOT NULL"
+            ")"
+        ).run()
+        _tables_initialized = True
+    except Exception:
+        pass
+
+
 
 
 class UpdateWhatsAppConfigInput(BaseModel):
@@ -203,6 +208,9 @@ async def _handle_send_test(
 
 for rtr in (router, root_router):
     rtr.add_api_route("", _handle_get_config, methods=["GET"])
+    rtr.add_api_route("/settings", _handle_get_config, methods=["GET"])
     rtr.add_api_route("", _handle_update_config, methods=["PUT"])
+    rtr.add_api_route("/settings", _handle_update_config, methods=["PUT"])
     rtr.add_api_route("/conversations", _handle_get_conversations, methods=["GET"])
     rtr.add_api_route("/test", _handle_send_test, methods=["POST"])
+

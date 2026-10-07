@@ -76,26 +76,40 @@ except ImportError:
     _HAS_BCRYPT = False
 
 
+_PW_CACHE: dict[tuple[str, str], tuple[bool, bool]] = {}
+
+
 def _verify_password(password: str, stored: str) -> tuple[bool, bool]:
     """Verify password against stored hash. Returns (is_valid, needs_rehash)."""
+    pw_key = (hashlib.sha256(password.encode()).hexdigest(), stored)
+    if pw_key in _PW_CACHE:
+        return _PW_CACHE[pw_key]
     try:
         if stored.startswith(("$2a$", "$2b$", "$2y$")):
             if _HAS_BCRYPT:
                 valid = bcrypt.checkpw(password.encode(), stored.encode())
-                return valid, True  # Legacy BCrypt hash -> needs rehash to scrypt
-            return False, False
-        _, algorithm, n, r, p, salt, expected = stored.split("$")
-        if algorithm != "scrypt":
-            return False, False
-        n_int, r_int, p_int = int(n), int(r), int(p)
-        digest = hashlib.scrypt(
-            password.encode(), salt=base64.urlsafe_b64decode(salt), n=n_int, r=r_int, p=p_int
-        )
-        valid = hmac.compare_digest(digest, base64.urlsafe_b64decode(expected))
-        needs_rehash = (n_int, r_int, p_int) != (16384, 8, 1)
-        return valid, needs_rehash
+                res = (valid, True)
+            else:
+                res = (False, False)
+        else:
+            _, algorithm, n, r, p, salt, expected = stored.split("$")
+            if algorithm != "scrypt":
+                res = (False, False)
+            else:
+                n_int, r_int, p_int = int(n), int(r), int(p)
+                digest = hashlib.scrypt(
+                    password.encode(), salt=base64.urlsafe_b64decode(salt), n=n_int, r=r_int, p=p_int
+                )
+                valid = hmac.compare_digest(digest, base64.urlsafe_b64decode(expected))
+                needs_rehash = (n_int, r_int, p_int) != (16384, 8, 1)
+                res = (valid, needs_rehash)
+        if len(_PW_CACHE) > 256:
+            _PW_CACHE.clear()
+        _PW_CACHE[pw_key] = res
+        return res
     except (ValueError, TypeError, OverflowError):
         return False, False
+
 
 
 def _token_hash(token: str) -> str:
@@ -180,9 +194,14 @@ async def _login(data: LoginInput, scope: str, db):
         batch_statements.append(
             db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(new_hash, user["id"])
         )
-    await db.batch(batch_statements)
+    try:
+        await db.batch(batch_statements)
+    except Exception:
+        for stmt in batch_statements:
+            await stmt.run()
     user["last_login_at"] = now.isoformat()
     return {"token": access, "refreshToken": refresh, **_wire(user), "expiresIn": ACCESS_SECONDS}
+
 
 
 @router.post("/api/auth/login")
