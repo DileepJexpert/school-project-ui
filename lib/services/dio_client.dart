@@ -67,12 +67,19 @@ class DioClient {
           final tenantId = prefs.getString('tenant_id') ?? _publicTenantId;
           options.headers['X-Tenant-ID'] = tenantId;
 
-          // Normalize paths so they always resolve properly under /api
-          if (options.path.startsWith('/') &&
-              !options.path.startsWith('/api') &&
-              !options.path.startsWith('/platform')) {
-            options.path = '/api${options.path}';
+          // Normalize paths so they always resolve properly under /api without duplicating
+          if (_baseUrl.endsWith('/api') || _baseUrl.endsWith('/api/')) {
+            if (options.path.startsWith('/api/')) {
+              options.path = options.path.substring(4);
+            }
+          } else {
+            if (options.path.startsWith('/') &&
+                !options.path.startsWith('/api') &&
+                !options.path.startsWith('/platform')) {
+              options.path = '/api${options.path}';
+            }
           }
+
 
           // Never send stale Authorization header on login endpoints
           if (!options.path.endsWith('/auth/login')) {
