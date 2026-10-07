@@ -67,6 +67,7 @@ def _load_routers():
     from school_transport import router as school_transport_router
     from school_users import router as school_users_router, root_router as school_users_root_router
     from school_hr import router as school_hr_router, root_router as school_hr_root_router
+    from school_certificates import router as school_certificates_router, root_router as school_certificates_root_router
     app.include_router(school_auth_router)
     app.include_router(school_overview_router)
     app.include_router(school_overview_root_router)
@@ -84,6 +85,8 @@ def _load_routers():
     app.include_router(school_users_root_router)
     app.include_router(school_hr_router)
     app.include_router(school_hr_root_router)
+    app.include_router(school_certificates_router)
+    app.include_router(school_certificates_root_router)
     _routers_loaded = True
 
 

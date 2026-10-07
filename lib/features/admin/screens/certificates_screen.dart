@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shared_widgets.dart';
+import '../../../models/student_model.dart';
 import '../../../services/certificate_api_service.dart';
 import '../../../services/certificate_print_service.dart';
+import '../../../services/student_api_service.dart';
 
 class CertificatesScreen extends StatefulWidget {
   const CertificatesScreen({super.key});
@@ -298,20 +300,22 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     final serial = certificate['serialNumber'] as String? ?? '';
     final generatedAt = certificate['generatedAt'] as String? ?? '';
     final reason = certificate['reason'] as String? ?? '';
+    final className = certificate['className'] as String? ?? '';
+    final admissionNo = certificate['admissionNumber'] as String? ?? '';
     final typeInfo = _certificateTypes.firstWhere(
       (item) => item.code == type,
       orElse: () => _certificateTypes.first,
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: typeInfo.color.withValues(alpha: 0.1),
+              color: typeInfo.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(typeInfo.icon, color: typeInfo.color, size: 22),
@@ -323,12 +327,15 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      studentName,
-                      style: GoogleFonts.nunitoSans(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        color: AppColors.navy,
+                    Flexible(
+                      child: Text(
+                        studentName,
+                        style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: AppColors.navy,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -347,19 +354,41 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                         ),
                       ),
                     ),
+                    if (className.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.navy.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          className,
+                          style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 3),
                 Text(
                   [
                     if (serial.isNotEmpty) 'Serial: $serial',
+                    if (admissionNo.isNotEmpty) 'Adm: $admissionNo',
                     if (reason.isNotEmpty) 'Purpose: $reason',
-                    if (generatedAt.isNotEmpty) generatedAt,
+                    if (generatedAt.isNotEmpty)
+                      generatedAt.length > 10 ? generatedAt.substring(0, 10) : generatedAt,
                   ].join(' · '),
                   style: GoogleFonts.nunitoSans(
                     color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -377,9 +406,50 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
               CertificatePrintService.printCertificate(certificate: certificate);
             },
           ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.textLight),
+            tooltip: 'Revoke Certificate',
+            onPressed: () => _confirmDeleteCertificate(certificate),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteCertificate(Map<String, dynamic> cert) async {
+    final id = cert['id'] as String?;
+    if (id == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Revoke Certificate', style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w800)),
+        content: Text(
+          'Are you sure you want to revoke/delete certificate ${cert['serialNumber'] ?? ''} for ${cert['studentName'] ?? 'this student'}?',
+          style: GoogleFonts.nunitoSans(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Revoke / Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await CertificateApiService.deleteCertificate(id);
+        _snack('Certificate revoked successfully.');
+        _loadCertificates();
+      } catch (e) {
+        _snack('Failed to revoke certificate: $e', isError: true);
+      }
+    }
   }
 
   Widget _emptyState() {
@@ -452,50 +522,188 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     );
   }
 
-  void _showGenerateDialog({String? preselectedType}) {
+  void _showGenerateDialog({String? preselectedType}) async {
+    List<StudentModel> students = [];
+    try {
+      students = await StudentApiService.getAllStudents();
+    } catch (_) {}
+
+    if (!mounted) return;
+
     final studentIdCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
     String certType = preselectedType ?? _certificateTypes.first.code;
+    StudentModel? selectedStudent;
+
+    if (students.isNotEmpty) {
+      selectedStudent = students.first;
+      studentIdCtrl.text = selectedStudent.admissionNumber ?? selectedStudent.id ?? '';
+    }
+
+    final quickPurposes = [
+      'Passport Application',
+      'School Relocation / Transfer',
+      'Higher Studies Admission',
+      'Scholarship Verification',
+      'Identity & Residence Proof',
+    ];
 
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(
-            'Generate Certificate',
-            style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w900),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.navy.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.verified_user_outlined, color: AppColors.navy, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Generate Certificate',
+                style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w900, fontSize: 18),
+              ),
+            ],
           ),
           content: SizedBox(
-            width: 420,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: studentIdCtrl,
-                decoration: const InputDecoration(labelText: 'Student ID *'),
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (students.isNotEmpty) ...[
+                    Text(
+                      'Select Student',
+                      style: GoogleFonts.nunitoSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFF2563EB), width: 1.5),
+                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white,
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<StudentModel>(
+                          value: selectedStudent,
+                          isExpanded: true,
+                          icon: const Icon(Icons.arrow_drop_down_circle_outlined, color: Color(0xFF2563EB)),
+                          items: students.map((s) {
+                            return DropdownMenuItem<StudentModel>(
+                              value: s,
+                              child: Text(
+                                '${s.fullName} (${s.classForAdmission ?? "Class"} · ${s.admissionNumber ?? s.id ?? ""})',
+                                style: GoogleFonts.nunitoSans(fontSize: 13, fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (s) {
+                            if (s != null) {
+                              setDialogState(() {
+                                selectedStudent = s;
+                                studentIdCtrl.text = s.admissionNumber ?? s.id ?? '';
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextField(
+                    controller: studentIdCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Student ID or Admission Number *',
+                      labelStyle: GoogleFonts.nunitoSans(fontSize: 13),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    value: certType,
+                    decoration: InputDecoration(
+                      labelText: 'Certificate Type',
+                      labelStyle: GoogleFonts.nunitoSans(fontSize: 13),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    items: _certificateTypes
+                        .map((type) => DropdownMenuItem(
+                              value: type.code,
+                              child: Row(
+                                children: [
+                                  Icon(type.icon, size: 18, color: type.color),
+                                  const SizedBox(width: 8),
+                                  Text(type.label, style: GoogleFonts.nunitoSans(fontSize: 13, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => certType = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: reasonCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Purpose / Reason for Certificate',
+                      labelStyle: GoogleFonts.nunitoSans(fontSize: 13),
+                      hintText: 'e.g. Higher studies admission, passport, transfer…',
+                      hintStyle: GoogleFonts.nunitoSans(fontSize: 12, color: AppColors.textLight),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Quick suggestions:',
+                    style: GoogleFonts.nunitoSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textLight),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: quickPurposes.map((p) {
+                      return InkWell(
+                        onTap: () {
+                          setDialogState(() => reasonCtrl.text = p);
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            p,
+                            style: GoogleFonts.nunitoSans(
+                              fontSize: 11,
+                              color: const Color(0xFF2563EB),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: certType,
-                decoration:
-                    const InputDecoration(labelText: 'Certificate Type'),
-                items: _certificateTypes
-                    .map((type) => DropdownMenuItem(
-                          value: type.code,
-                          child: Text(type.label),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setDialogState(() => certType = value);
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: reasonCtrl,
-                decoration: const InputDecoration(labelText: 'Reason'),
-                maxLines: 2,
-              ),
-            ]),
+            ),
           ),
           actions: [
             TextButton(
@@ -503,25 +711,46 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
               onPressed: () async {
-                if (studentIdCtrl.text.trim().isEmpty) {
-                  _snack('Student ID is required.', isError: true);
+                final targetId = studentIdCtrl.text.trim();
+                if (targetId.isEmpty) {
+                  _snack('Student ID or Admission Number is required.', isError: true);
                   return;
                 }
                 try {
-                  await CertificateApiService.generateCertificate({
-                    'studentId': studentIdCtrl.text.trim(),
+                  final newCert = await CertificateApiService.generateCertificate({
+                    'studentId': targetId,
                     'certificateType': certType,
                     'reason': reasonCtrl.text.trim(),
                   });
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
-                  _snack('Certificate generated.');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Certificate ${newCert["serialNumber"] ?? ""} generated successfully!'),
+                        backgroundColor: AppColors.success,
+                        action: SnackBarAction(
+                          label: 'Print Now',
+                          textColor: Colors.white,
+                          onPressed: () {
+                            CertificatePrintService.printCertificate(certificate: newCert);
+                          },
+                        ),
+                      ),
+                    );
+                  }
                   _loadCertificates();
                 } catch (e) {
                   _snack('Failed to generate certificate: $e', isError: true);
                 }
               },
-              child: const Text('Generate'),
+              child: const Text('Generate Certificate'),
             ),
           ],
         ),

@@ -24,4 +24,8 @@ class CertificateApiService {
     final response = await DioClient.get(_base);
     return response.data as List<dynamic>;
   }
+
+  static Future<void> deleteCertificate(String id) async {
+    await DioClient.delete('$_base/$id');
+  }
 }
