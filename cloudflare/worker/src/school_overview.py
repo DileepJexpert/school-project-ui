@@ -50,12 +50,45 @@ def _results(value) -> list[dict]:
     return [_record(item) for item in value]
 
 
+def _prepare_sql(sql: str, params: list | tuple) -> tuple[str, list]:
+    new_params = []
+    parts = sql.split("?")
+    if len(parts) - 1 != len(params):
+        return sql, list(params)
+    out_sql = []
+    for i, p in enumerate(params):
+        out_sql.append(parts[i])
+        if p is None:
+            out_sql.append("NULL")
+        else:
+            out_sql.append("?")
+            new_params.append(p)
+    out_sql.append(parts[-1])
+    return "".join(out_sql), new_params
+
+
+async def _run(db, sql: str, *bindings):
+    s, b = _prepare_sql(sql, bindings)
+    stmt = db.prepare(s)
+    if b:
+        stmt = stmt.bind(*b)
+    return await stmt.run()
+
+
 async def _one(db, sql: str, *bindings) -> dict:
-    return _record(await db.prepare(sql).bind(*bindings).first())
+    s, b = _prepare_sql(sql, bindings)
+    stmt = db.prepare(s)
+    if b:
+        stmt = stmt.bind(*b)
+    return _record(await stmt.first())
 
 
 async def _many(db, sql: str, *bindings) -> list[dict]:
-    return _results(await db.prepare(sql).bind(*bindings).all())
+    s, b = _prepare_sql(sql, bindings)
+    stmt = db.prepare(s)
+    if b:
+        stmt = stmt.bind(*b)
+    return _results(await stmt.all())
 
 
 async def _tenant(db, user: dict, requested: str | None) -> str:

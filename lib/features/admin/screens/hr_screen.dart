@@ -187,80 +187,71 @@ class _HrScreenState extends State<HrScreen> {
         totalStaff == 0 ? 0 : (activeStaff / totalStaff * 100).round();
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        gradient: context.palette.heroGradient,
-        borderRadius: BorderRadius.circular(18),
+        color: context.palette.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.palette.border),
       ),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'HR & Staff Management',
-                      style: GoogleFonts.nunitoSans(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Payroll Desk',
-                        style: GoogleFonts.nunitoSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
                 Text(
-                  'Directory, categorization (teachers, drivers, peons), leave tracking and monthly salary payouts in one desk.',
+                  'HR & Staff Management',
                   style: GoogleFonts.nunitoSans(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.82),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: context.palette.brand.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Payroll Desk',
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: context.palette.brand,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              color: AppColors.success.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '₹${_formatCurrency(payroll)}',
+                  '₹${_formatCurrency(payroll)}/mo',
                   style: GoogleFonts.nunitoSans(
-                    fontSize: 20,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: AppColors.success,
                   ),
                 ),
+                const SizedBox(width: 8),
                 Text(
-                  '$activePercent% staff active',
+                  '$activePercent% active',
                   style: GoogleFonts.nunitoSans(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.82),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -269,6 +260,7 @@ class _HrScreenState extends State<HrScreen> {
         ],
       ),
     );
+
   }
 
   Widget _buildMetrics() {

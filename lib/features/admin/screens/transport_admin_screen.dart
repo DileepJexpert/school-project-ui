@@ -28,20 +28,41 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
 
   List<TransportBus> _buses = [];
   List<TransportRoute> _routes = [];
+  List<StudentTransportAssignment> _assignments = [];
   List<StudentModel> _studentResults = [];
   TransportStats? _stats;
   Timer? _debounce;
 
   bool _loadingBuses = true;
   bool _loadingRoutes = true;
-  bool _loadingStats = true;
+  bool _loadingAssignments = true;
   bool _searching = false;
   String _statusFilter = 'ALL';
+  bool _isTableView = true;
+
+  int get _totalAssigned =>
+      _stats?.totalStudentsAssigned ??
+      _buses.fold<int>(0, (sum, b) => sum + b.assignedCount);
+
+  int get _totalCapacity =>
+      _buses.fold<int>(0, (sum, b) => sum + b.capacity);
+
+  int get _activeBusesCount =>
+      _buses.where((b) => b.status == 'ACTIVE').length;
+
+  int get _maintenanceBusesCount =>
+      _buses.where((b) => b.status == 'MAINTENANCE').length;
+
+  int get _retiredBusesCount =>
+      _buses.where((b) => b.status == 'RETIRED').length;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
+    _tabs.addListener(() {
+      if (mounted) setState(() {});
+    });
     _searchCtrl.addListener(_onSearchChanged);
     _fetchAll();
   }
@@ -61,7 +82,12 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
   }
 
   Future<void> _fetchAll() async {
-    await Future.wait([_fetchBuses(), _fetchRoutes(), _fetchStats()]);
+    await Future.wait([
+      _fetchBuses(),
+      _fetchRoutes(),
+      _fetchStats(),
+      _fetchAssignments(),
+    ]);
   }
 
   Future<void> _fetchBuses() async {
@@ -94,15 +120,51 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
 
   Future<void> _fetchStats() async {
     if (!mounted) return;
-    setState(() => _loadingStats = true);
     try {
       final stats = await TransportApiService.getStats();
       if (!mounted) return;
       setState(() => _stats = stats);
     } catch (_) {
       // The metrics strip can fall back to locally loaded lists.
+    }
+  }
+
+  Future<void> _fetchAssignments() async {
+    if (!mounted) return;
+    setState(() => _loadingAssignments = true);
+    try {
+      final assignments = await TransportApiService.getAllAssignments();
+      if (!mounted) return;
+      setState(() => _assignments = assignments);
+    } catch (_) {
+      // Fallback
     } finally {
-      if (mounted) setState(() => _loadingStats = false);
+      if (mounted) setState(() => _loadingAssignments = false);
+    }
+  }
+
+  TransportBus? _busById(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final bus in _buses) {
+      if (bus.id == id) return bus;
+    }
+    return null;
+  }
+
+  Future<void> _deleteAssignment(StudentTransportAssignment a) async {
+    final confirmed = await _confirm(
+      title: 'Remove student',
+      message: 'Remove ${a.studentName} from bus transport?',
+    );
+    if (confirmed != true || a.id == null) return;
+    try {
+      await TransportApiService.removeAssignment(a.id!);
+      await _fetchAssignments();
+      await _fetchBuses();
+      await _fetchStats();
+      _snack('Student removed from transport.');
+    } catch (e) {
+      _snack('Could not remove assignment: $e', isError: true);
     }
   }
 
@@ -180,18 +242,26 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
               return;
             }
 
+            final cap = int.tryParse(capacityCtrl.text.trim()) ?? 0;
+            if (cap <= 0) {
+              _snack('Please enter a valid capacity greater than 0.',
+                  isError: true);
+              return;
+            }
+
             setDialogState(() => saving = true);
             final payload = {
               'busNumber': busCtrl.text.trim(),
               'driverName': driverCtrl.text.trim(),
               'driverMobile': mobileCtrl.text.trim(),
-              'capacity': int.tryParse(capacityCtrl.text.trim()) ?? 0,
+              'capacity': cap,
               'status': status,
-              if (routeId != null) 'routeId': routeId,
-              if (insuranceCtrl.text.trim().isNotEmpty)
-                'insuranceExpiry': insuranceCtrl.text.trim(),
-              if (notesCtrl.text.trim().isNotEmpty)
-                'notes': notesCtrl.text.trim(),
+              'routeId': routeId,
+              'insuranceExpiry': insuranceCtrl.text.trim().isEmpty
+                  ? null
+                  : insuranceCtrl.text.trim(),
+              'notes':
+                  notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
             };
 
             try {
@@ -204,6 +274,7 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
               }
               await _fetchBuses();
               await _fetchStats();
+              await _fetchAssignments();
               if (ctx.mounted) Navigator.pop(ctx);
             } catch (e) {
               _snack('Could not save bus: $e', isError: true);
@@ -701,45 +772,15 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
 
   @override
   Widget build(BuildContext context) {
-    final padding = Responsive.contentPadding(context);
+    final padding = Responsive.isMobile(context) ? 10.0 : 14.0;
 
     return Padding(
-      padding: EdgeInsets.all(padding),
+      padding: EdgeInsets.fromLTRB(padding, padding * 0.75, padding, padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
-          const SizedBox(height: 14),
-          _buildMetrics(),
-          const SizedBox(height: 14),
-          Container(
-            decoration: BoxDecoration(
-              color: context.palette.surface,
-              border: Border.all(color: context.palette.border),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: TabBar(
-              controller: _tabs,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              dividerColor: Colors.transparent,
-              labelColor: context.palette.brand,
-              unselectedLabelColor: AppColors.textSecondary,
-              indicatorColor: context.palette.brand,
-              labelStyle: GoogleFonts.nunitoSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-              ),
-              tabs: const [
-                Tab(icon: Icon(Icons.directions_bus_outlined), text: 'Fleet'),
-                Tab(icon: Icon(Icons.route_outlined), text: 'Routes'),
-                Tab(
-                    icon: Icon(Icons.person_pin_circle_outlined),
-                    text: 'Assign'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
+          _buildCompactHeader(),
+          const SizedBox(height: 8),
           Expanded(
             child: TabBarView(
               controller: _tabs,
@@ -755,110 +796,130 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildCompactHeader() {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        gradient: context.palette.heroGradient,
-        borderRadius: BorderRadius.circular(18),
+        color: context.palette.surface,
+        border: Border.all(color: context.palette.border),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Transport',
-                  style: GoogleFonts.nunitoSans(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
+          Container(
+            height: 36,
+            decoration: BoxDecoration(
+              color: context.palette.canvas,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: context.palette.border.withValues(alpha: 0.6)),
+            ),
+            child: TabBar(
+              controller: _tabs,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                color: context.palette.brand,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: AppColors.textSecondary,
+              labelStyle: GoogleFonts.nunitoSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+              tabs: [
+                Tab(
+                  height: 34,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.directions_bus_outlined, size: 15),
+                      const SizedBox(width: 5),
+                      Text('Fleet (${_buses.length})'),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Manage fleet, routes and student bus assignments from one compact desk.',
-                  style: GoogleFonts.nunitoSans(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.78),
+                Tab(
+                  height: 34,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.route_outlined, size: 15),
+                      const SizedBox(width: 5),
+                      Text('Routes (${_routes.length})'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  height: 34,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.person_pin_circle_outlined, size: 15),
+                      const SizedBox(width: 5),
+                      Text('Assign ($_totalAssigned)'),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+          const SizedBox(width: 10),
+          if (isDesktop) ...[
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _StatPill(
+                      icon: Icons.check_circle_outline,
+                      color: AppColors.success,
+                      label: '$_activeBusesCount Active',
+                    ),
+                    const SizedBox(width: 6),
+                    _StatPill(
+                      icon: Icons.build_outlined,
+                      color: AppColors.warning,
+                      label: '$_maintenanceBusesCount Maint',
+                    ),
+                    const SizedBox(width: 6),
+                    _StatPill(
+                      icon: Icons.route_outlined,
+                      color: AppColors.info,
+                      label: '${_routes.length} Routes',
+                    ),
+                    const SizedBox(width: 6),
+                    _StatPill(
+                      icon: Icons.airline_seat_recline_normal_outlined,
+                      color: context.palette.brand,
+                      label: '$_totalAssigned/$_totalCapacity Seats',
+                    ),
+                  ],
+                ),
+              ),
             ),
-            onPressed: _fetchAll,
+          ] else
+            const Spacer(),
+          const SizedBox(width: 6),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Refresh'),
+            tooltip: 'Refresh',
+            visualDensity: VisualDensity.compact,
+            onPressed: _fetchAll,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMetrics() {
-    final stats = _stats;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 820;
-        final width = compact
-            ? (constraints.maxWidth - 10) / 2
-            : (constraints.maxWidth - 40) / 5;
-        return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _MetricCard(
-              width: width,
-              label: 'Buses',
-              value: '${stats?.totalBuses ?? _buses.length}',
-              icon: Icons.directions_bus_outlined,
-              color: context.palette.brand,
-              loading: _loadingStats && stats == null,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'Active',
-              value:
-                  '${stats?.activeBuses ?? _buses.where((b) => b.status == 'ACTIVE').length}',
-              icon: Icons.check_circle_outline,
-              color: AppColors.success,
-              loading: _loadingStats && stats == null,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'Maintenance',
-              value:
-                  '${stats?.maintenanceBuses ?? _buses.where((b) => b.status == 'MAINTENANCE').length}',
-              icon: Icons.build_outlined,
-              color: AppColors.warning,
-              loading: _loadingStats && stats == null,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'Routes',
-              value: '${stats?.totalRoutes ?? _routes.length}',
-              icon: Icons.route_outlined,
-              color: AppColors.info,
-              loading: _loadingStats && stats == null,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'Assigned',
-              value:
-                  '${stats?.totalStudentsAssigned ?? _buses.fold<int>(0, (sum, bus) => sum + bus.assignedCount)}',
-              icon: Icons.groups_outlined,
-              color: AppColors.success,
-              loading: _loadingStats && stats == null,
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -867,14 +928,23 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
       return const Center(child: CircularProgressIndicator());
     }
 
+    final isDesktop = MediaQuery.of(context).size.width >= 720;
+
     return Column(
       children: [
         _FleetToolbar(
           selected: _statusFilter,
           onChanged: (value) => setState(() => _statusFilter = value),
+          isTableView: _isTableView,
+          onToggleView: () => setState(() => _isTableView = !_isTableView),
           onAdd: () => _openBusDialog(),
+          busCount: _filteredBuses.length,
+          allCount: _buses.length,
+          activeCount: _activeBusesCount,
+          maintenanceCount: _maintenanceBusesCount,
+          retiredCount: _retiredBusesCount,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Expanded(
           child: _filteredBuses.isEmpty
               ? _StateCard(
@@ -888,23 +958,33 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
                 )
               : RefreshIndicator(
                   onRefresh: _fetchAll,
-                  child: ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _filteredBuses.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final bus = _filteredBuses[index];
-                      return _BusRow(
-                        bus: bus,
-                        route: _routeById(bus.routeId),
-                        statusColor: _statusColor(bus.status),
-                        onEdit: () => _openBusDialog(existing: bus),
-                        onDelete: () => _deleteBus(bus),
-                        onRoster: () => _openRosterSheet(bus),
-                        onToggleMaintenance: () => _toggleMaintenance(bus),
-                      );
-                    },
-                  ),
+                  child: _isTableView && isDesktop
+                      ? _BusTable(
+                          buses: _filteredBuses,
+                          routeById: _routeById,
+                          statusColor: _statusColor,
+                          onEdit: (bus) => _openBusDialog(existing: bus),
+                          onDelete: (bus) => _deleteBus(bus),
+                          onRoster: (bus) => _openRosterSheet(bus),
+                          onToggleMaintenance: (bus) => _toggleMaintenance(bus),
+                        )
+                      : ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _filteredBuses.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final bus = _filteredBuses[index];
+                            return _BusRow(
+                              bus: bus,
+                              route: _routeById(bus.routeId),
+                              statusColor: _statusColor(bus.status),
+                              onEdit: () => _openBusDialog(existing: bus),
+                              onDelete: () => _deleteBus(bus),
+                              onRoster: () => _openRosterSheet(bus),
+                              onToggleMaintenance: () => _toggleMaintenance(bus),
+                            );
+                          },
+                        ),
                 ),
         ),
       ],
@@ -932,99 +1012,144 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_routes.isEmpty) {
-      return _StateCard(
-        icon: Icons.route_outlined,
-        title: 'No routes configured',
-        subtitle: 'Create transport zones, stops and monthly fees.',
-        actionLabel: 'Add route',
-        onAction: () => _openRouteDialog(),
-      );
-    }
+    final isDesktop = MediaQuery.of(context).size.width >= 720;
 
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${_routes.length} active route records',
-                style: GoogleFonts.nunitoSans(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w800,
+        _Panel(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${_routes.length} active transport route${_routes.length == 1 ? '' : 's'}',
+                  style: GoogleFonts.nunitoSans(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => _openRouteDialog(),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Add route'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _fetchAll,
-            child: ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: _routes.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) => _RouteRow(
-                route: _routes[index],
-                currency: _currency,
-                onEdit: () => _openRouteDialog(existing: _routes[index]),
-                onDelete: () => _deleteRoute(_routes[index]),
+              if (isDesktop) ...[
+                IconButton(
+                  icon: Icon(
+                    _isTableView ? Icons.grid_view_rounded : Icons.table_chart_rounded,
+                    size: 18,
+                    color: context.palette.brand,
+                  ),
+                  tooltip: _isTableView ? 'Switch to Card view' : 'Switch to Table view',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() => _isTableView = !_isTableView),
+                ),
+                const SizedBox(width: 8),
+              ],
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                onPressed: () => _openRouteDialog(),
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('Add route'),
               ),
-            ),
+            ],
           ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _routes.isEmpty
+              ? _StateCard(
+                  icon: Icons.route_outlined,
+                  title: 'No routes configured',
+                  subtitle: 'Create transport zones, stops and monthly fees.',
+                  actionLabel: 'Add route',
+                  onAction: () => _openRouteDialog(),
+                )
+              : RefreshIndicator(
+                  onRefresh: _fetchAll,
+                  child: _isTableView && isDesktop
+                      ? _RouteTable(
+                          routes: _routes,
+                          currency: _currency,
+                          onEdit: (route) => _openRouteDialog(existing: route),
+                          onDelete: (route) => _deleteRoute(route),
+                        )
+                      : ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _routes.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) => _RouteRow(
+                            route: _routes[index],
+                            currency: _currency,
+                            onEdit: () => _openRouteDialog(existing: _routes[index]),
+                            onDelete: () => _deleteRoute(_routes[index]),
+                          ),
+                        ),
+                ),
         ),
       ],
     );
   }
 
   Widget _buildAssignTab() {
+    final isDesktop = MediaQuery.of(context).size.width >= 720;
+
     return Column(
       children: [
         _Panel(
-          padding: const EdgeInsets.all(10),
-          child: TextField(
-            controller: _searchCtrl,
-            decoration: InputDecoration(
-              hintText: 'Search student by name...',
-              prefixIcon: const Icon(Icons.search_rounded, size: 20),
-              suffixIcon: _searching
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : _searchCtrl.text.isNotEmpty
-                      ? IconButton(
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(() => _studentResults = []);
-                          },
-                          icon: const Icon(Icons.close_rounded, size: 18),
-                        )
-                      : null,
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchCtrl,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    hintText: 'Search student by name to assign...',
+                    prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                    suffixIcon: _searching
+                        ? const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : _searchCtrl.text.isNotEmpty
+                            ? IconButton(
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  _searchCtrl.clear();
+                                  setState(() => _studentResults = []);
+                                },
+                                icon: const Icon(Icons.close_rounded, size: 16),
+                              )
+                            : null,
+                  ),
+                ),
+              ),
+              if (_assignments.isNotEmpty && isDesktop) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    _isTableView ? Icons.grid_view_rounded : Icons.table_chart_rounded,
+                    size: 18,
+                    color: context.palette.brand,
+                  ),
+                  tooltip: _isTableView ? 'Switch to Card view' : 'Switch to Table view',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() => _isTableView = !_isTableView),
+                ),
+              ],
+            ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Expanded(
-          child: _searchCtrl.text.trim().length < 2
-              ? const _StateCard(
-                  icon: Icons.person_search_outlined,
-                  title: 'Search a student',
-                  subtitle:
-                      'Type at least two characters to assign or reassign transport.',
-                )
-              : _studentResults.isEmpty && !_searching
+          child: _searchCtrl.text.trim().length >= 2
+              ? (_studentResults.isEmpty && !_searching
                   ? const _StateCard(
                       icon: Icons.search_off_outlined,
                       title: 'No students found',
@@ -1038,58 +1163,811 @@ class _TransportAdminScreenState extends State<TransportAdminScreen>
                         onAssign: () =>
                             _openAssignDialog(_studentResults[index]),
                       ),
-                    ),
+                    ))
+              : (_loadingAssignments && _assignments.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _assignments.isEmpty
+                      ? const _StateCard(
+                          icon: Icons.person_pin_circle_outlined,
+                          title: 'No students assigned yet',
+                          subtitle:
+                              'Search a student above to assign them to a bus and route.',
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _fetchAll,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 2),
+                                child: Text(
+                                  '${_assignments.length} assigned bus rider${_assignments.length == 1 ? '' : 's'}',
+                                  style: GoogleFonts.nunitoSans(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Expanded(
+                                child: _isTableView && isDesktop
+                                    ? _AssignmentTable(
+                                        assignments: _assignments,
+                                        busById: _busById,
+                                        routeById: _routeById,
+                                        onEdit: (a) {
+                                          final student = StudentModel(
+                                            id: a.studentId,
+                                            fullName: a.studentName,
+                                            classForAdmission: a.className,
+                                            rollNumber: a.rollNumber,
+                                          );
+                                          _openAssignDialog(student);
+                                        },
+                                        onRemove: _deleteAssignment,
+                                      )
+                                    : ListView.separated(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        itemCount: _assignments.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 8),
+                                        itemBuilder: (context, index) {
+                                          final a = _assignments[index];
+                                          final bus = _busById(a.busId);
+                                          final route = _routeById(a.routeId);
+                                          return _AssignmentRow(
+                                            assignment: a,
+                                            bus: bus,
+                                            route: route,
+                                            onEdit: () {
+                                              final student = StudentModel(
+                                                id: a.studentId,
+                                                fullName: a.studentName,
+                                                classForAdmission: a.className,
+                                                rollNumber: a.rollNumber,
+                                              );
+                                              _openAssignDialog(student);
+                                            },
+                                            onRemove: () =>
+                                                _deleteAssignment(a),
+                                          );
+                                        },
+                                      ),
+                              ),
+                            ],
+                          ),
+                        )),
         ),
       ],
     );
   }
 }
 
+
 class _FleetToolbar extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onChanged;
+  final bool isTableView;
+  final VoidCallback onToggleView;
   final VoidCallback onAdd;
+  final int busCount;
+  final int allCount;
+  final int activeCount;
+  final int maintenanceCount;
+  final int retiredCount;
 
   const _FleetToolbar({
     required this.selected,
     required this.onChanged,
+    required this.isTableView,
+    required this.onToggleView,
     required this.onAdd,
+    required this.busCount,
+    required this.allCount,
+    required this.activeCount,
+    required this.maintenanceCount,
+    required this.retiredCount,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 720;
+
     return _Panel(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: Row(
         children: [
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children:
-                    ['ALL', 'ACTIVE', 'MAINTENANCE', 'RETIRED'].map((status) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      selected: selected == status,
-                      label: Text(_pretty(status)),
-                      onSelected: (_) => onChanged(status),
-                    ),
-                  );
-                }).toList(),
+                children: [
+                  _filterChip(context, 'ALL', 'All ($allCount)'),
+                  _filterChip(context, 'ACTIVE', 'Active ($activeCount)'),
+                  _filterChip(context, 'MAINTENANCE', 'Maint ($maintenanceCount)'),
+                  _filterChip(context, 'RETIRED', 'Retired ($retiredCount)'),
+                ],
               ),
             ),
           ),
+          if (isDesktop) ...[
+            IconButton(
+              icon: Icon(
+                isTableView ? Icons.grid_view_rounded : Icons.table_chart_rounded,
+                size: 18,
+                color: context.palette.brand,
+              ),
+              tooltip: isTableView ? 'Switch to Card view' : 'Switch to Table view',
+              visualDensity: VisualDensity.compact,
+              onPressed: onToggleView,
+            ),
+            const SizedBox(width: 6),
+          ],
           ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
             onPressed: onAdd,
-            icon: const Icon(Icons.add_rounded, size: 18),
+            icon: const Icon(Icons.add_rounded, size: 16),
             label: const Text('Add bus'),
           ),
         ],
       ),
     );
   }
+
+  Widget _filterChip(BuildContext context, String value, String label) {
+    final isSelected = selected == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: ChoiceChip(
+        selected: isSelected,
+        visualDensity: VisualDensity.compact,
+        label: Text(label),
+        labelStyle: GoogleFonts.nunitoSans(
+          fontSize: 12,
+          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+          color: isSelected ? Colors.white : AppColors.textPrimary,
+        ),
+        selectedColor: context.palette.brand,
+        onSelected: (_) => onChanged(value),
+      ),
+    );
+  }
 }
+
+class _StatPill extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+
+  const _StatPill({
+    required this.icon,
+    required this.color,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.nunitoSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BusTable extends StatelessWidget {
+  final List<TransportBus> buses;
+  final TransportRoute? Function(String?) routeById;
+  final Color Function(String) statusColor;
+  final void Function(TransportBus) onEdit;
+  final void Function(TransportBus) onDelete;
+  final void Function(TransportBus) onRoster;
+  final void Function(TransportBus) onToggleMaintenance;
+
+  const _BusTable({
+    required this.buses,
+    required this.routeById,
+    required this.statusColor,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onRoster,
+    required this.onToggleMaintenance,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    headingRowHeight: 40,
+                    dataRowMinHeight: 48,
+                    dataRowMaxHeight: 56,
+                    columnSpacing: 18,
+                    horizontalMargin: 14,
+                    headingRowColor: WidgetStatePropertyAll(
+                      context.palette.surface.withValues(alpha: 0.6),
+                    ),
+                    columns: const [
+                      DataColumn(
+                          label: Text('Bus #',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Driver Name & Phone',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Assigned Route',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Seats & Occupancy',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Status',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Insurance',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Actions',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                    ],
+                    rows: buses.map((bus) {
+                      final route = routeById(bus.routeId);
+                      final stColor = statusColor(bus.status);
+                      final occupancy = bus.capacity <= 0
+                          ? 0.0
+                          : (bus.assignedCount / bus.capacity).clamp(0.0, 1.0);
+                      final occupancyColor = occupancy >= 1
+                          ? AppColors.error
+                          : occupancy >= 0.8
+                              ? AppColors.warning
+                              : AppColors.success;
+
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: stColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(Icons.directions_bus_outlined,
+                                      color: stColor, size: 16),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  bus.busNumber,
+                                  style: GoogleFonts.nunitoSans(
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DataCell(
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  bus.driverName,
+                                  style: GoogleFonts.nunitoSans(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.phone_outlined,
+                                        size: 11,
+                                        color: AppColors.textSecondary),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      bus.driverMobile,
+                                      style: GoogleFonts.nunitoSans(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          DataCell(
+                            route != null
+                                ? _MiniChip(
+                                    label: _routeName(route),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                  )
+                                : const Text('No route',
+                                    style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12)),
+                          ),
+                          DataCell(
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '${bus.assignedCount}/${bus.capacity} seats',
+                                      style: GoogleFonts.nunitoSans(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                        color: occupancyColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '(${(occupancy * 100).toStringAsFixed(0)}%)',
+                                      style: GoogleFonts.nunitoSans(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                SizedBox(
+                                  width: 80,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(99),
+                                    child: LinearProgressIndicator(
+                                      value: occupancy,
+                                      minHeight: 4,
+                                      backgroundColor: occupancyColor
+                                          .withValues(alpha: 0.12),
+                                      valueColor:
+                                          AlwaysStoppedAnimation(occupancyColor),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DataCell(_MiniChip(
+                              label: _pretty(bus.status), color: stColor)),
+                          DataCell(
+                            Text(
+                              bus.insuranceExpiry?.isNotEmpty == true
+                                  ? bus.insuranceExpiry!
+                                  : '—',
+                              style: GoogleFonts.nunitoSans(
+                                  fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ),
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.people_alt_outlined,
+                                      size: 18),
+                                  tooltip:
+                                      'View roster (${bus.assignedCount})',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => onRoster(bus),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  tooltip: 'Edit bus',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => onEdit(bus),
+                                ),
+                                PopupMenuButton<String>(
+                                  tooltip: 'More actions',
+                                  icon: const Icon(Icons.more_vert_rounded,
+                                      size: 18),
+                                  onSelected: (val) {
+                                    if (val == 'maintenance') {
+                                      onToggleMaintenance(bus);
+                                    }
+                                    if (val == 'delete') onDelete(bus);
+                                  },
+                                  itemBuilder: (ctx) => [
+                                    PopupMenuItem(
+                                      value: 'maintenance',
+                                      child: Text(bus.status == 'MAINTENANCE'
+                                          ? 'Mark active'
+                                          : 'Mark maintenance'),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Delete bus',
+                                          style: TextStyle(
+                                              color: AppColors.error)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _RouteTable extends StatelessWidget {
+  final List<TransportRoute> routes;
+  final NumberFormat currency;
+  final void Function(TransportRoute) onEdit;
+  final void Function(TransportRoute) onDelete;
+
+  const _RouteTable({
+    required this.routes,
+    required this.currency,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    headingRowHeight: 40,
+                    dataRowMinHeight: 48,
+                    dataRowMaxHeight: 56,
+                    columnSpacing: 18,
+                    horizontalMargin: 14,
+                    headingRowColor: WidgetStatePropertyAll(
+                      context.palette.surface.withValues(alpha: 0.6),
+                    ),
+                    columns: const [
+                      DataColumn(
+                          label: Text('Route / Zone',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Areas Covered',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Stops',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('1st Pickup',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Monthly Fee',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Actions',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                    ],
+                    rows: routes.map((route) {
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: context.palette.brand
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(Icons.route_outlined,
+                                      color: context.palette.brand, size: 16),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _routeName(route),
+                                  style: GoogleFonts.nunitoSans(
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              route.areasCovered.isNotEmpty
+                                  ? route.areasCovered
+                                  : '—',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.nunitoSans(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              route.stops.isNotEmpty
+                                  ? '${route.stops.length} stop${route.stops.length == 1 ? '' : 's'}'
+                                  : 'None',
+                              style: GoogleFonts.nunitoSans(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              route.firstPickupTime,
+                              style: GoogleFonts.nunitoSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            _MiniChip(
+                              label: currency.format(route.monthlyFee),
+                              color: AppColors.success,
+                            ),
+                          ),
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  tooltip: 'Edit route',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => onEdit(route),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 18, color: AppColors.error),
+                                  tooltip: 'Delete route',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => onDelete(route),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _AssignmentTable extends StatelessWidget {
+  final List<StudentTransportAssignment> assignments;
+  final TransportBus? Function(String?) busById;
+  final TransportRoute? Function(String?) routeById;
+  final void Function(StudentTransportAssignment) onEdit;
+  final void Function(StudentTransportAssignment) onRemove;
+
+  const _AssignmentTable({
+    required this.assignments,
+    required this.busById,
+    required this.routeById,
+    required this.onEdit,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    headingRowHeight: 40,
+                    dataRowMinHeight: 48,
+                    dataRowMaxHeight: 56,
+                    columnSpacing: 18,
+                    horizontalMargin: 14,
+                    headingRowColor: WidgetStatePropertyAll(
+                      context.palette.surface.withValues(alpha: 0.6),
+                    ),
+                    columns: const [
+                      DataColumn(
+                          label: Text('Student',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Class & Roll',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Bus',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Route',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Stop',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                      DataColumn(
+                          label: Text('Actions',
+                              style: TextStyle(fontWeight: FontWeight.w800))),
+                    ],
+                    rows: assignments.map((a) {
+                      final bus = busById(a.busId);
+                      final route = routeById(a.routeId);
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: context.palette.brand
+                                      .withValues(alpha: 0.1),
+                                  child: Text(
+                                    a.studentName.isNotEmpty
+                                        ? a.studentName[0].toUpperCase()
+                                        : '?',
+                                    style: GoogleFonts.nunitoSans(
+                                      color: context.palette.brand,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  a.studentName,
+                                  style: GoogleFonts.nunitoSans(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '${a.className}${a.rollNumber != null && a.rollNumber!.isNotEmpty ? " · Roll ${a.rollNumber}" : ""}',
+                              style: GoogleFonts.nunitoSans(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            _MiniChip(
+                              label: bus != null
+                                  ? 'Bus ${bus.busNumber}'
+                                  : 'Bus #${a.busId}',
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          DataCell(
+                            _MiniChip(
+                              label: route != null
+                                  ? _routeName(route)
+                                  : 'Route #${a.routeId}',
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              a.pickupStop?.isNotEmpty == true
+                                  ? a.pickupStop!
+                                  : '—',
+                              style: GoogleFonts.nunitoSans(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  tooltip: 'Change assignment',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => onEdit(a),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.person_remove_outlined,
+                                      size: 18, color: AppColors.error),
+                                  tooltip: 'Remove from transport',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => onRemove(a),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 
 class _BusRow extends StatelessWidget {
   final TransportBus bus;
@@ -1195,25 +2073,39 @@ class _BusRow extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          PopupMenuButton<String>(
-            tooltip: 'Actions',
-            onSelected: (value) {
-              if (value == 'roster') onRoster();
-              if (value == 'edit') onEdit();
-              if (value == 'maintenance') onToggleMaintenance();
-              if (value == 'delete') onDelete();
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'roster', child: Text('View roster')),
-              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-              PopupMenuItem(
-                value: 'maintenance',
-                child: Text(bus.status == 'MAINTENANCE'
-                    ? 'Mark active'
-                    : 'Mark maintenance'),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.people_alt_outlined, size: 20),
+                tooltip: 'View roster (${bus.assignedCount})',
+                onPressed: onRoster,
               ),
-              const PopupMenuItem(value: 'delete', child: Text('Delete')),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                tooltip: 'Edit bus',
+                onPressed: onEdit,
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'More actions',
+                onSelected: (value) {
+                  if (value == 'maintenance') onToggleMaintenance();
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'maintenance',
+                    child: Text(bus.status == 'MAINTENANCE'
+                        ? 'Mark active'
+                        : 'Mark maintenance'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete bus',
+                        style: TextStyle(color: AppColors.error)),
+                  ),
+                ],
+              ),
             ],
           ),
         ],
@@ -1309,15 +2201,119 @@ class _RouteRow extends StatelessWidget {
               ],
             ),
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') onEdit();
-              if (value == 'delete') onDelete();
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'edit', child: Text('Edit')),
-              PopupMenuItem(value: 'delete', child: Text('Delete')),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                tooltip: 'Edit route',
+                onPressed: onEdit,
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline,
+                    size: 20, color: AppColors.error),
+                tooltip: 'Delete route',
+                onPressed: onDelete,
+              ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssignmentRow extends StatelessWidget {
+  final StudentTransportAssignment assignment;
+  final TransportBus? bus;
+  final TransportRoute? route;
+  final VoidCallback onEdit;
+  final VoidCallback onRemove;
+
+  const _AssignmentRow({
+    required this.assignment,
+    required this.bus,
+    required this.route,
+    required this.onEdit,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: context.palette.brand.withValues(alpha: 0.1),
+            child: Text(
+              assignment.studentName.isNotEmpty
+                  ? assignment.studentName[0].toUpperCase()
+                  : '?',
+              style: GoogleFonts.nunitoSans(
+                color: context.palette.brand,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  assignment.studentName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                  ),
+                ),
+                Text(
+                  '${assignment.className}${assignment.rollNumber != null && assignment.rollNumber!.isNotEmpty ? " · Roll ${assignment.rollNumber}" : ""}',
+                  style: GoogleFonts.nunitoSans(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _MiniChip(
+                      label: bus != null
+                          ? 'Bus ${bus!.busNumber}'
+                          : 'Bus #${assignment.busId}',
+                      color: AppColors.navy,
+                    ),
+                    _MiniChip(
+                      label: route != null
+                          ? _routeName(route)
+                          : 'Route #${assignment.routeId}',
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    if (assignment.pickupStop?.isNotEmpty == true)
+                      _MiniChip(
+                        label: 'Stop: ${assignment.pickupStop}',
+                        color: AppColors.info,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 20),
+            tooltip: 'Change assignment',
+            onPressed: onEdit,
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_remove_outlined,
+                size: 20, color: AppColors.error),
+            tooltip: 'Remove from transport',
+            onPressed: onRemove,
           ),
         ],
       ),
@@ -1670,74 +2666,7 @@ class _DialogTitle extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  final double width;
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final bool loading;
 
-  const _MetricCard({
-    required this.width,
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    this.loading = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: _Panel(
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: loading
-                  ? const LinearProgressIndicator(minHeight: 4)
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          value,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.nunitoSans(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.nunitoSans(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _Panel extends StatelessWidget {
   final Widget child;

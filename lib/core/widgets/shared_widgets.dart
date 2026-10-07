@@ -256,9 +256,7 @@ class AdminPageScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Padding(
       padding: padding ??
-          EdgeInsets.all(Responsive.isMobile(context)
-              ? AppSizes.paddingMD
-              : AppSizes.paddingLG),
+          EdgeInsets.all(Responsive.isMobile(context) ? 10.0 : 14.0),
       child: child,
     );
     if (!scrollable) return content;
@@ -284,37 +282,41 @@ class AdminPageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = Responsive.isMobile(context);
     final header = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: compact ? 42 : 48,
-          height: compact ? 42 : 48,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: context.palette.brand.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+            borderRadius: BorderRadius.circular(AppSizes.radiusMD),
             border: Border.all(color: context.palette.border),
           ),
-          child:
-              Icon(icon, color: context.palette.brand, size: compact ? 21 : 24),
+          child: Icon(icon, color: context.palette.brand, size: 18),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 title,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontSize: compact ? 20 : 24,
+                      fontSize: compact ? 17 : 19,
+                      fontWeight: FontWeight.w800,
                     ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
+              if (subtitle.isNotEmpty)
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
             ],
           ),
         ),
@@ -327,17 +329,17 @@ class AdminPageHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           header,
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: actions),
         ],
       );
     }
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(child: header),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Wrap(spacing: 8, runSpacing: 8, children: actions),
       ],
     );

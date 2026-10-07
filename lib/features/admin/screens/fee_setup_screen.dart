@@ -1244,20 +1244,20 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
                           ]),
                     )
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(12),
                       child: Column(children: [
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(18),
-                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          margin: const EdgeInsets.only(bottom: 10),
                           decoration: BoxDecoration(
-                            gradient: palette.heroGradient,
-                            borderRadius:
-                                BorderRadius.circular(AppSizes.radiusLG),
+                            color: palette.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: palette.border),
                           ),
                           child: Wrap(
-                            spacing: 28,
-                            runSpacing: 14,
+                            spacing: 20,
+                            runSpacing: 8,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               _setupSummary(
@@ -1385,24 +1385,24 @@ class _FeeSetupScreenState extends State<FeeSetupScreen> {
   Widget _setupSummary(String label, String value, IconData icon) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Container(
-        width: 36,
-        height: 36,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(10),
+          color: context.palette.brand.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: Colors.white, size: 19),
+        child: Icon(icon, color: context.palette.brand, size: 16),
       ),
-      const SizedBox(width: 9),
+      const SizedBox(width: 8),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(value,
             style: GoogleFonts.nunitoSans(
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w800,
-                fontSize: 16)),
+                fontSize: 14)),
         Text(label,
             style: GoogleFonts.nunitoSans(
-                color: Colors.white.withValues(alpha: 0.78), fontSize: 11)),
+                color: AppColors.textSecondary, fontSize: 11)),
       ]),
     ]);
   }

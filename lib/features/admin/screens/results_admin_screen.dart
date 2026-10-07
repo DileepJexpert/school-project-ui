@@ -348,7 +348,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
@@ -358,8 +358,8 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
             Text(
                 'Select class + exam + subject → load students → enter marks → submit.',
                 style: GoogleFonts.nunitoSans(
-                    color: AppColors.textSecondary, fontSize: 13)),
-            const SizedBox(height: 24),
+                    color: AppColors.textSecondary, fontSize: 12)),
+            const SizedBox(height: 12),
 
             // ── Filters ───────────────────────────────────────────────────
             Wrap(spacing: 12, runSpacing: 12, children: [

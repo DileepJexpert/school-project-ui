@@ -104,26 +104,32 @@ class _TimetableScreenState extends State<TimetableScreen>
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Timetable',
-              style: GoogleFonts.cormorantGaramond(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy)),
-          Text('View and manage the class schedule',
-              style: GoogleFonts.nunitoSans(
-                  color: AppColors.textSecondary, fontSize: 13)),
-          const SizedBox(height: 20),
+          Row(
+            children: [
+              Text('Timetable',
+                  style: GoogleFonts.cormorantGaramond(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy)),
+              const SizedBox(width: 10),
+              Text('• View and manage class schedule',
+                  style: GoogleFonts.nunitoSans(
+                      color: AppColors.textSecondary, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 8),
           _buildFilterBar(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Expanded(child: _buildBody()),
         ],
       ),
     );
   }
+
 
   Widget _buildFilterBar() {
     return Card(

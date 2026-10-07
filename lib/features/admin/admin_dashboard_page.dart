@@ -660,108 +660,84 @@ class _OverviewContentState extends State<_OverviewContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Modern Hero Banner ──────────────────────────────────
+              // ── Sleek Compact Overview Header Bar ──────────────────────────────────
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      context.palette.brand,
-                      context.palette.brandDark,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: palette.border),
+                  boxShadow: const [
                     BoxShadow(
-                      color: context.palette.brand.withValues(alpha: 0.22),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
+                      color: Color(0x060F172A),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 4,
                         children: [
+                          Text(
+                            'Welcome, $userName',
+                            style: GoogleFonts.poppins(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
+                              color: context.palette.brand.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: context.palette.brand.withValues(alpha: 0.2)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.verified_rounded,
-                                    size: 14, color: Colors.white),
-                                const SizedBox(width: 6),
+                                Icon(Icons.verified_rounded, size: 12, color: context.palette.brand),
+                                const SizedBox(width: 4),
                                 Text(
-                                  'Academic Year $academicYear • ${AppStrings.schoolName}',
+                                  'AY $academicYear • ${AppStrings.schoolName}',
                                   style: GoogleFonts.nunitoSans(
-                                    fontSize: 11.5,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                                    color: context.palette.brand,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Welcome Back, $userName!',
-                            style: GoogleFonts.poppins(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Manage students, admissions, attendance, and finances from one unified workspace.',
-                            style: GoogleFonts.nunitoSans(
-                              fontSize: 13.5,
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
-                          ),
                         ],
                       ),
                     ),
-                    if (!Responsive.isMobile(context)) ...[
-                      const SizedBox(width: 16),
-                      ElevatedButton.icon(
-                        onPressed: _loading ? null : _loadData,
-                        icon: _loading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.refresh_rounded, size: 18),
-                        label: const Text('Refresh'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.18),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
+                    OutlinedButton.icon(
+                      onPressed: _loading ? null : _loadData,
+                      icon: _loading
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh_rounded, size: 16),
+                      label: const Text('Refresh'),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+
               if (_error != null) ...[
                 Container(
                   margin: const EdgeInsets.only(bottom: 20),

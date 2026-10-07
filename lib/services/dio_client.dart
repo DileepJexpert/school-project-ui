@@ -20,8 +20,19 @@ class DioClient {
   );
   static String _baseUrl = _buildBaseUrl;
 
+  static String get _cleanServerRoot {
+    var u = _baseUrl.trim();
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
+    if (u.endsWith('/api')) {
+      u = u.substring(0, u.length - 4);
+    }
+    return u;
+  }
+
   /// Expose the base URL so AuthService can derive the platform URL from it.
-  static String get baseUrl => _baseUrl;
+  static String get baseUrl => '$_cleanServerRoot/api';
 
   DioClient._();
 
@@ -47,7 +58,7 @@ class DioClient {
     }
     _dio = Dio(
       BaseOptions(
-        baseUrl: _baseUrl,
+        baseUrl: _cleanServerRoot,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
         headers: {
@@ -67,16 +78,19 @@ class DioClient {
           final tenantId = prefs.getString('tenant_id') ?? _publicTenantId;
           options.headers['X-Tenant-ID'] = tenantId;
 
-          // Normalize paths so they always resolve properly under /api without duplicating
-          if (_baseUrl.endsWith('/api') || _baseUrl.endsWith('/api/')) {
-            if (options.path.startsWith('/api/')) {
-              options.path = options.path.substring(4);
+          // Normalize path to cleanly resolve under origin root without duplicate /api
+          var p = options.path;
+          if (!p.startsWith('http://') && !p.startsWith('https://')) {
+            while (p.startsWith('/')) {
+              p = p.substring(1);
             }
-          } else {
-            if (options.path.startsWith('/') &&
-                !options.path.startsWith('/api') &&
-                !options.path.startsWith('/platform')) {
-              options.path = '/api${options.path}';
+            while (p.startsWith('api/')) {
+              p = p.substring(4);
+            }
+            if (p.startsWith('platform/') || p.startsWith('health/')) {
+              options.path = '/$p';
+            } else {
+              options.path = '/api/$p';
             }
           }
 
@@ -138,7 +152,7 @@ class DioClient {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('api_base_url', url);
     _baseUrl = url;
-    _dio.options.baseUrl = url;
+    _dio.options.baseUrl = _cleanServerRoot;
   }
 
   static Future<bool> _tryRefreshToken() async {
@@ -146,7 +160,7 @@ class DioClient {
     if (refreshToken == null) return false;
     try {
       final response = await Dio().post(
-        '$_baseUrl/auth/refresh',
+        '$_cleanServerRoot/api/auth/refresh',
         data: {'refreshToken': refreshToken},
         options: Options(headers: {'Content-Type': 'application/json'}),
       );

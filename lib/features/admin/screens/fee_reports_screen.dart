@@ -141,53 +141,35 @@ class _FeeReportsScreenState extends State<FeeReportsScreen> {
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        gradient: context.palette.heroGradient,
-        borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x140F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
+        color: context.palette.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.palette.border),
       ),
       child: Row(children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(AppSizes.radiusLG),
+        Icon(Icons.insights_rounded, color: context.palette.brand, size: 20),
+        const SizedBox(width: 10),
+        Text(
+          'Fee Intelligence & Reports',
+          style: GoogleFonts.nunitoSans(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
           ),
-          child: const Icon(Icons.insights_rounded, color: Colors.white),
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              'Fee Intelligence',
-              style: GoogleFonts.nunitoSans(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            Text(
-              'Collections, discounts, payment modes and receipts.',
-              style: GoogleFonts.nunitoSans(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
-          ]),
+        const SizedBox(width: 8),
+        Text(
+          '• Collections, discounts, payment modes and receipts',
+          style: GoogleFonts.nunitoSans(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
         ),
       ]),
     );
   }
+
 
   Widget _buildFilters() {
     return Card(

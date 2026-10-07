@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from school_auth import _db, get_current_user
-from school_overview import _many, _one, _tenant
+from school_overview import _many, _one, _run, _tenant
 
 
 router = APIRouter(prefix="/api/transport", tags=["transport"])
@@ -124,17 +124,17 @@ async def create_bus(
 
     bus_id = uuid4().hex
     now = _utc_now()
-    await db.prepare(
+    await _run(
+        db,
         """
         INSERT INTO buses (id, tenant_id, bus_number, driver_name, driver_mobile,
                            route_id, capacity, status, insurance_expiry, notes, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-    ).bind(
+        """,
         bus_id, tenant, bus_num, data.driverName.strip(),
-        data.driverMobile.strip(), data.routeId, data.capacity,
-        data.status, data.insuranceExpiry, data.notes, now
-    ).run()
+        data.driverMobile.strip(), data.routeId or None, data.capacity,
+        data.status, data.insuranceExpiry or None, data.notes or None, now
+    )
 
     return {
         "id": bus_id,
@@ -179,18 +179,18 @@ async def update_bus(
     if conflict:
         raise HTTPException(status_code=409, detail="Bus number already in use by another bus")
 
-    await db.prepare(
+    await _run(
+        db,
         """
         UPDATE buses SET bus_number = ?, driver_name = ?, driver_mobile = ?,
                          route_id = ?, capacity = ?, status = ?,
                          insurance_expiry = ?, notes = ?
         WHERE tenant_id = ? AND id = ?
-        """
-    ).bind(
+        """,
         bus_num, data.driverName.strip(), data.driverMobile.strip(),
-        data.routeId, data.capacity, data.status,
-        data.insuranceExpiry, data.notes, tenant, bus_id
-    ).run()
+        data.routeId or None, data.capacity, data.status,
+        data.insuranceExpiry or None, data.notes or None, tenant, bus_id
+    )
 
     return {
         "id": bus_id,
@@ -223,9 +223,11 @@ async def delete_bus(
     if not bus:
         raise HTTPException(status_code=404, detail="Bus not found")
 
-    await db.prepare(
-        "UPDATE buses SET deleted_at = ? WHERE tenant_id = ? AND id = ?"
-    ).bind(_utc_now(), tenant, bus_id).run()
+    await _run(
+        db,
+        "UPDATE buses SET deleted_at = ? WHERE tenant_id = ? AND id = ?",
+        _utc_now(), tenant, bus_id
+    )
 
     return Response(status_code=204)
 
@@ -290,18 +292,18 @@ async def create_route(
     fee_cents = int(round(data.monthlyFee * 100))
     stops_json = json.dumps(data.stops)
 
-    await db.prepare(
+    await _run(
+        db,
         """
         INSERT INTO transport_routes (id, tenant_id, zone_name, display_name,
                                       areas_covered, stops, first_pickup_time,
                                       monthly_fee, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-    ).bind(
+        """,
         route_id, tenant, zone_name, data.displayName or zone_name,
         data.areasCovered, stops_json, data.firstPickupTime.strip(),
         fee_cents, now
-    ).run()
+    )
 
     return {
         "id": route_id,
@@ -339,17 +341,17 @@ async def update_route(
     fee_cents = int(round(data.monthlyFee * 100))
     stops_json = json.dumps(data.stops)
 
-    await db.prepare(
+    await _run(
+        db,
         """
         UPDATE transport_routes SET zone_name = ?, display_name = ?, areas_covered = ?,
                                     stops = ?, first_pickup_time = ?, monthly_fee = ?
         WHERE tenant_id = ? AND id = ?
-        """
-    ).bind(
+        """,
         zone_name, data.displayName or zone_name, data.areasCovered,
         stops_json, data.firstPickupTime.strip(), fee_cents,
         tenant, route_id
-    ).run()
+    )
 
     return {
         "id": route_id,
@@ -380,9 +382,11 @@ async def delete_route(
     if not route:
         raise HTTPException(status_code=404, detail="Route not found")
 
-    await db.prepare(
-        "UPDATE transport_routes SET deleted_at = ? WHERE tenant_id = ? AND id = ?"
-    ).bind(_utc_now(), tenant, route_id).run()
+    await _run(
+        db,
+        "UPDATE transport_routes SET deleted_at = ? WHERE tenant_id = ? AND id = ?",
+        _utc_now(), tenant, route_id
+    )
 
     return Response(status_code=204)
 
@@ -479,23 +483,25 @@ async def assign_student(
     # Deactivate existing assignment if any
     now = _utc_now()
     today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    await db.prepare(
-        "UPDATE transport_assignments SET status = 'INACTIVE' WHERE tenant_id = ? AND student_id = ?"
-    ).bind(tenant, data.studentId).run()
+    await _run(
+        db,
+        "UPDATE transport_assignments SET status = 'INACTIVE' WHERE tenant_id = ? AND student_id = ?",
+        tenant, data.studentId
+    )
 
     assign_id = uuid4().hex
-    await db.prepare(
+    await _run(
+        db,
         """
         INSERT INTO transport_assignments (id, tenant_id, student_id, student_name,
                                            class_name, roll_number, bus_id, route_id,
                                            pickup_stop, status, assigned_date, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-    ).bind(
+        """,
         assign_id, tenant, data.studentId, data.studentName.strip(),
-        data.className.strip(), data.rollNumber or "", data.busId, data.routeId,
-        data.pickupStop or "", "ACTIVE", today_date, now
-    ).run()
+        data.className.strip(), data.rollNumber or None, data.busId, data.routeId,
+        data.pickupStop or None, "ACTIVE", today_date, now
+    )
 
     return {
         "id": assign_id,
@@ -522,9 +528,11 @@ async def remove_assignment(
     _require_write(user)
     tenant = await _tenant(db, user, x_tenant_id)
 
-    await db.prepare(
-        "UPDATE transport_assignments SET status = 'INACTIVE' WHERE tenant_id = ? AND id = ?"
-    ).bind(tenant, assignment_id).run()
+    await _run(
+        db,
+        "UPDATE transport_assignments SET status = 'INACTIVE' WHERE tenant_id = ? AND id = ?",
+        tenant, assignment_id
+    )
 
     return Response(status_code=204)
 

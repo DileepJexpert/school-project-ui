@@ -182,20 +182,20 @@ class _StudentsScreenState extends State<StudentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
-          const SizedBox(height: 16),
-          _buildStatsRow(),
-          const SizedBox(height: 16),
-          _buildSearchBar(),
-          const SizedBox(height: 12),
-          _buildClassFilterRow(),
           const SizedBox(height: 10),
+          _buildStatsRow(),
+          const SizedBox(height: 10),
+          _buildSearchBar(),
+          const SizedBox(height: 8),
+          _buildClassFilterRow(),
+          const SizedBox(height: 6),
           _buildStatusAndSort(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Expanded(child: _buildBody()),
         ],
       ),
