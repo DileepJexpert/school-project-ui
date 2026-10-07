@@ -32,6 +32,7 @@ import 'screens/certificates_screen.dart';
 import 'screens/homework_screen.dart';
 import 'screens/video_management_screen.dart';
 import 'screens/ai_config_screen.dart';
+import 'screens/whatsapp_config_screen.dart';
 import '../../features/chat/chat_list_screen.dart';
 
 // --------- Menu data ---------
@@ -105,6 +106,10 @@ final _allItems = [
       icon: Icons.smart_toy_outlined, label: 'AI Settings', isLive: true), // 17
   const _MenuItem(
       icon: Icons.settings_outlined, label: 'Settings', isLive: true), // 18
+  const _MenuItem(
+      icon: Icons.chat_bubble_outline,
+      label: 'WhatsApp Agent',
+      isLive: true), // 19
 ];
 
 final _groups = [
@@ -124,7 +129,9 @@ final _groups = [
     _allItems[11],
     _allItems[12]
   ]),
-  _MenuGroup(title: 'COMMUNICATION', items: [_allItems[13], _allItems[14]]),
+  _MenuGroup(
+      title: 'COMMUNICATION',
+      items: [_allItems[13], _allItems[14], _allItems[19]]),
   _MenuGroup(title: 'HR & PAYROLL', items: [_allItems[15]]),
   _MenuGroup(
       title: 'ADMINISTRATION',
@@ -190,6 +197,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return const AiConfigScreen();
       case 18:
         return const SettingsScreen();
+      case 19:
+        return const WhatsAppConfigScreen();
       default:
         return const SizedBox.shrink();
     }
@@ -541,6 +550,7 @@ class _OverviewContentState extends State<_OverviewContent> {
     'Certificates': 16,
     'AI Settings': 17,
     'Settings': 18,
+    'WhatsApp Agent': 19,
   };
 
   @override
@@ -1009,6 +1019,7 @@ class _OverviewContentState extends State<_OverviewContent> {
                 _liveChip(Icons.menu_book_outlined, 'Homework'),
                 _liveChip(Icons.video_library_outlined, 'Video Tutorials'),
                 _liveChip(Icons.smart_toy_outlined, 'AI Settings'),
+                _liveChip(Icons.chat_bubble_outline, 'WhatsApp Agent'),
               ]),
             ],
           ),

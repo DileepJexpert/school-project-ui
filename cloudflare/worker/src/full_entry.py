@@ -55,7 +55,7 @@ def _load_routers():
         return
     from school_auth import router as school_auth_router
     from school_overview import router as school_overview_router, root_router as school_overview_root_router
-    from school_students import router as school_students_router
+    from school_students import router as school_students_router, root_router as school_students_root_router
     from school_setup import router as school_setup_router
     from school_fee_structures import router as school_fee_structures_router
     from school_admissions import router as school_admissions_router
@@ -68,10 +68,29 @@ def _load_routers():
     from school_users import router as school_users_router, root_router as school_users_root_router
     from school_hr import router as school_hr_router, root_router as school_hr_root_router
     from school_certificates import router as school_certificates_router, root_router as school_certificates_root_router
+    from school_discipline import router as school_discipline_router, root_router as school_discipline_root_router
+    from school_notifications import router as school_notifications_router, root_router as school_notifications_root_router
+    from school_timetable import router as school_timetable_router, root_router as school_timetable_root_router
+    from school_results import router as school_results_router, root_router as school_results_root_router
+    from school_chat import router as school_chat_router, root_router as school_chat_root_router
+    from school_ai import (
+        config_router as school_ai_config_router,
+        config_root_router as school_ai_config_root_router,
+        chat_router as school_ai_chat_router,
+        chat_root_router as school_ai_chat_root_router,
+    )
+    from school_whatsapp import router as school_whatsapp_router, root_router as school_whatsapp_root_router
+    from school_portals import (
+        parent_router as school_parent_router,
+        parent_root_router as school_parent_root_router,
+        student_router as school_student_router,
+        student_root_router as school_student_root_router,
+    )
     app.include_router(school_auth_router)
     app.include_router(school_overview_router)
     app.include_router(school_overview_root_router)
     app.include_router(school_students_router)
+    app.include_router(school_students_root_router)
     app.include_router(school_setup_router)
     app.include_router(school_fee_structures_router)
     app.include_router(school_admissions_router)
@@ -87,6 +106,26 @@ def _load_routers():
     app.include_router(school_hr_root_router)
     app.include_router(school_certificates_router)
     app.include_router(school_certificates_root_router)
+    app.include_router(school_discipline_router)
+    app.include_router(school_discipline_root_router)
+    app.include_router(school_notifications_router)
+    app.include_router(school_notifications_root_router)
+    app.include_router(school_timetable_router)
+    app.include_router(school_timetable_root_router)
+    app.include_router(school_results_router)
+    app.include_router(school_results_root_router)
+    app.include_router(school_chat_router)
+    app.include_router(school_chat_root_router)
+    app.include_router(school_ai_config_router)
+    app.include_router(school_ai_config_root_router)
+    app.include_router(school_ai_chat_router)
+    app.include_router(school_ai_chat_root_router)
+    app.include_router(school_whatsapp_router)
+    app.include_router(school_whatsapp_root_router)
+    app.include_router(school_parent_router)
+    app.include_router(school_parent_root_router)
+    app.include_router(school_student_router)
+    app.include_router(school_student_root_router)
     _routers_loaded = True
 
 
@@ -592,10 +631,32 @@ BaseDefault = asgi.entrypoint(app)
 
 class Default(BaseDefault):
     async def on_fetch(self, request):
+        if request.method == "OPTIONS":
+            return Response(
+                status=204,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Max-Age": "86400",
+                },
+            )
         _load_routers()
         path = str(request.url).split("?", 1)[0]
         if "/api/expenses" in path:
             finance = getattr(self.env, "FINANCE", None)
             if finance is not None:
                 return await finance.fetch(request)
-        return await self.fetch(request)
+        try:
+            return await self.fetch(request)
+        except Exception as exc:
+            return Response(
+                json.dumps({"detail": f"Internal server error: {exc}"}),
+                status=500,
+                headers={
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                    "Access-Control-Allow-Headers": "*",
+                },
+            )

@@ -11,6 +11,7 @@ from school_overview import _many, _one, _tenant
 
 
 router = APIRouter(prefix="/api/students", tags=["students"])
+root_router = APIRouter(prefix="/students", tags=["students_root"])
 
 
 def _require_read(user: dict) -> None:
@@ -50,24 +51,32 @@ _COLUMNS = (
 )
 
 
-@router.get("")
-async def list_students(
+async def _handle_list_students(
+    className: str | None = Query(default=None),
+    academicYear: str | None = Query(default=None),
     db=Depends(_db),
     user: dict = Depends(get_current_user),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
 ):
     _require_read(user)
     tenant = await _tenant(db, user, x_tenant_id)
-    rows = await _many(
-        db,
-        f"SELECT {_COLUMNS} FROM students WHERE tenant_id = ? ORDER BY full_name, id",
-        tenant,
-    )
+    query = f"SELECT {_COLUMNS} FROM students WHERE tenant_id = ?"
+    params = [tenant]
+
+    if className and className.strip() and className.strip().upper() != "ALL":
+        query += " AND class_name = ?"
+        params.append(className.strip())
+
+    if academicYear and academicYear.strip() and academicYear.strip().upper() != "ALL":
+        query += " AND academic_year = ?"
+        params.append(academicYear.strip())
+
+    query += " ORDER BY full_name, id"
+    rows = await _many(db, query, *params)
     return [_wire(row) for row in rows]
 
 
-@router.get("/search")
-async def search_students(
+async def _handle_search_students(
     name: str = Query(default="", max_length=200),
     db=Depends(_db),
     user: dict = Depends(get_current_user),
@@ -84,8 +93,7 @@ async def search_students(
     return [_wire(row) for row in rows]
 
 
-@router.get("/{student_id}")
-async def get_student(
+async def _handle_get_student(
     student_id: str,
     db=Depends(_db),
     user: dict = Depends(get_current_user),
@@ -101,3 +109,9 @@ async def get_student(
     if not row:
         raise HTTPException(status_code=404, detail="Student not found")
     return _wire(row)
+
+
+for rtr in (router, root_router):
+    rtr.add_api_route("", _handle_list_students, methods=["GET"])
+    rtr.add_api_route("/search", _handle_search_students, methods=["GET"])
+    rtr.add_api_route("/{student_id}", _handle_get_student, methods=["GET"])
