@@ -44,7 +44,16 @@ class Default(WorkerEntrypoint):
                 finance = getattr(self.env, "FINANCE", None)
                 if finance is not None:
                     return await finance.fetch(request)
-            return await asgi_fetch(self._app, request, self.env, self.ctx)
+            resp = await asgi_fetch(self._app, request, self.env, self.ctx)
+
+            try:
+                resp.headers.set("Access-Control-Allow-Origin", "*")
+                resp.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+                resp.headers.set("Access-Control-Allow-Headers", "*")
+            except Exception:
+                pass
+            return resp
+
         except Exception as exc:
             return Response(
                 json.dumps({"error": str(exc), "traceback": traceback.format_exc()}),

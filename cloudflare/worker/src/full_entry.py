@@ -132,9 +132,11 @@ def load_router_for_path(path: str):
 
     def _load_transport():
         if "transport" not in _loaded_routers:
-            from school_transport import router as r
+            from school_transport import router as r, root_router as rr
             app.include_router(r)
+            app.include_router(rr)
             _loaded_routers.add("transport")
+
 
     def _load_users():
         if "users" not in _loaded_routers:

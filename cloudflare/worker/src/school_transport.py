@@ -53,7 +53,7 @@ def _require_read(user: dict) -> None:
     if (
         "*" not in permissions
         and "transport:read" not in permissions
-        and role not in ("ADMIN", "SUPER_ADMIN", "TRANSPORT_MANAGER", "STAFF")
+        and role not in ("ADMIN", "SUPER_ADMIN", "SCHOOL_ADMIN", "TRANSPORT_MANAGER", "STAFF")
     ):
         raise HTTPException(status_code=403, detail="Transport read access required")
 
@@ -64,9 +64,10 @@ def _require_write(user: dict) -> None:
     if (
         "*" not in permissions
         and "transport:write" not in permissions
-        and role not in ("ADMIN", "SUPER_ADMIN", "TRANSPORT_MANAGER")
+        and role not in ("ADMIN", "SUPER_ADMIN", "SCHOOL_ADMIN", "TRANSPORT_MANAGER")
     ):
         raise HTTPException(status_code=403, detail="Transport write access required")
+
 
 
 def _utc_now() -> str:
@@ -566,3 +567,16 @@ async def transport_stats(
         "totalRoutes": total_routes,
         "totalStudentsAssigned": total_students,
     }
+
+
+root_router = APIRouter(prefix="/transport", tags=["transport_root"])
+for _route in list(router.routes):
+    _subpath = _route.path[len("/api/transport"):]
+    root_router.add_api_route(
+        _subpath,
+        _route.endpoint,
+        methods=_route.methods,
+        response_model=_route.response_model,
+        status_code=_route.status_code,
+    )
+
