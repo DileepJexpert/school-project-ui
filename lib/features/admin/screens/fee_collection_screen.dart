@@ -403,6 +403,9 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
               ),
               const SizedBox(height: 12),
               _receiptRow('Student Name', s.name),
+              if (s.admissionNumber.isNotEmpty || r.admissionNumber.isNotEmpty)
+                _receiptRow('Admission No',
+                    s.admissionNumber.isNotEmpty ? s.admissionNumber : r.admissionNumber),
               _receiptRow('Class & Roll',
                   '${s.className}${s.rollNumber.isNotEmpty ? ' • Roll: ${s.rollNumber}' : ''}'),
               _receiptRow(
@@ -514,7 +517,9 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                 studentName: s.name,
                 className: s.className,
                 rollNumber: s.rollNumber,
-                admissionNumber: s.id,
+                admissionNumber: s.admissionNumber.isNotEmpty
+                    ? s.admissionNumber
+                    : (r.admissionNumber.isNotEmpty ? r.admissionNumber : ''),
                 paymentDate: _dateFmt.format(r.paymentDate),
                 paymentMode: r.paymentMode,
                 amountPaid: r.amountPaid,

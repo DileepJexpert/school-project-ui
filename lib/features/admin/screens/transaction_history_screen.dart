@@ -166,7 +166,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       studentName: txn.studentName,
       className: txn.className,
       rollNumber: txn.rollNumber,
-      admissionNumber: txn.id,
+      admissionNumber: txn.admissionNumber.isNotEmpty ? txn.admissionNumber : txn.id,
       paymentDate: _dateFmt.format(txn.paymentDate),
       paymentMode: txn.paymentMode,
       amountPaid: txn.amountPaid,

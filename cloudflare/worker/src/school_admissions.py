@@ -83,6 +83,55 @@ def _student_values(item: StudentInput, tenant: str, student_id: str, admission_
     )
 
 
+def _normalize_class_code(class_name: str | None) -> str:
+    c = (class_name or "").strip().upper()
+    if not c:
+        return "GEN"
+    if "NUR" in c:
+        return "NUR"
+    if "LKG" in c or "JR" in c:
+        return "LKG"
+    if "UKG" in c or "SR" in c:
+        return "UKG"
+    if "PLAY" in c:
+        return "PG"
+    digits = "".join(ch for ch in c if ch.isdigit())
+    if digits:
+        try:
+            return f"C{int(digits):02d}"
+        except Exception:
+            return f"C{digits}"
+    clean = "".join(ch for ch in c if ch.isalnum())
+    return (clean[:4] or "GEN").upper()
+
+
+async def _generate_admission_number(
+    db, tenant: str, class_name: str, doa: date | str | None = None, prefix: str = "ADM"
+) -> str:
+    if isinstance(doa, str) and len(doa) >= 7:
+        date_code = doa[:7].replace("-", "")
+    elif isinstance(doa, date):
+        date_code = doa.strftime("%Y%m")
+    else:
+        date_code = date.today().strftime("%Y%m")
+
+    cls_code = _normalize_class_code(class_name)
+
+    if prefix == "ENQ":
+        row = await _one(db, "SELECT COUNT(*) AS total FROM students WHERE tenant_id = ? AND status = 'ENQUIRY'", tenant)
+    else:
+        row = await _one(db, "SELECT COUNT(*) AS total FROM students WHERE tenant_id = ? AND status <> 'ENQUIRY'", tenant)
+
+    start_seq = max(1, int(row.get("total", 0)) + 1)
+    seq = start_seq
+    while True:
+        candidate = f"{prefix}-{date_code}-{cls_code}-{seq:04d}"
+        existing = await _one(db, "SELECT id FROM students WHERE tenant_id = ? AND admission_number = ?", tenant, candidate)
+        if not existing:
+            return candidate
+        seq += 1
+
+
 _INSERT_STUDENT = (
     "INSERT INTO students (id, tenant_id, full_name, date_of_birth, gender, "
     "blood_group, nationality, religion, mother_tongue, aadhar_number, "
@@ -130,7 +179,11 @@ async def create_enquiry(
     tenant = await _tenant(db, user, x_tenant_id)
     class_name, year = await _validate_context(db, tenant, item, enquiry=True)
     student_id = uuid4().hex
-    admission_number = f"ENQ-{uuid4().hex[:16].upper()}"
+    admission_number = item.admissionNumber.strip() if item.admissionNumber else ""
+    if not admission_number:
+        admission_number = await _generate_admission_number(
+            db, tenant, class_name, item.dateOfAdmission, prefix="ENQ"
+        )
     await db.prepare(_INSERT_STUDENT).bind(*_student_values(item, tenant, student_id, admission_number, "ENQUIRY", class_name, year)).run()
     return await _created(db, tenant, student_id)
 
@@ -147,7 +200,11 @@ async def admit_student(
     class_name, year = await _validate_context(db, tenant, item)
     structure, components = await _structure(db, tenant, class_name, year)
     student_id = uuid4().hex
-    admission_number = item.admissionNumber.strip() or f"ADM-{uuid4().hex[:16].upper()}"
+    admission_number = item.admissionNumber.strip() if item.admissionNumber else ""
+    if not admission_number:
+        admission_number = await _generate_admission_number(
+            db, tenant, class_name, item.dateOfAdmission, prefix="ADM"
+        )
     existing = await _one(db, "SELECT id FROM students WHERE tenant_id = ? AND admission_number = ?", tenant, admission_number)
     if existing:
         raise HTTPException(status_code=409, detail="Duplicate admission number")
@@ -201,9 +258,13 @@ async def save_student(
     if old["status"] != "ENQUIRY" and not enrollment:
         raise HTTPException(status_code=409, detail="Student enrollment is missing")
     structure, components = await _structure(db, tenant, class_name, year) if activating_enquiry else (None, [])
-    admission_number = item.admissionNumber.strip() or old["admission_number"]
-    if activating_enquiry and admission_number.startswith("ENQ-"):
-        admission_number = f"ADM-{uuid4().hex[:16].upper()}"
+    admission_number = item.admissionNumber.strip() if item.admissionNumber else ""
+    if not admission_number:
+        admission_number = old["admission_number"]
+    if activating_enquiry and (not admission_number or admission_number.startswith("ENQ-")):
+        admission_number = await _generate_admission_number(
+            db, tenant, class_name, item.dateOfAdmission, prefix="ADM"
+        )
     duplicate = await _one(db, "SELECT id FROM students WHERE tenant_id = ? AND admission_number = ? AND id <> ?", tenant, admission_number, student_id)
     if duplicate:
         raise HTTPException(status_code=409, detail="Duplicate admission number")

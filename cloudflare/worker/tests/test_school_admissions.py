@@ -159,3 +159,25 @@ def test_enquiry_accepts_base_class_but_admission_requires_section():
     assert admitted.status_code == 200, admitted.text
     assert admitted.json()["classForAdmission"] == "Class 1 - A"
     assert db.execute("SELECT COUNT(*) FROM enrollments WHERE student_id = ?", (student_id,)).fetchone()[0] == 1
+
+
+def test_sequential_admission_number_generation():
+    client, db = _client()
+    headers = {"X-Tenant-ID": "school-a"}
+
+    db.executescript("""
+        INSERT INTO fee_structures VALUES ('fs1', 'school-a', 'Class 1 - A', '2026-2027');
+        INSERT INTO fee_components VALUES ('fs1', 0, 'Annual', 100000, 'YEARLY');
+    """)
+
+    # Student 1 admitted
+    res1 = client.post("/api/students/add", json=PAYLOAD, headers=headers).json()
+    assert res1["admissionNumber"] == "ADM-202609-C01-0001", res1["admissionNumber"]
+
+    # Student 2 admitted
+    res2 = client.post("/api/students/add", json={**PAYLOAD, "fullName": "Student Two"}, headers=headers).json()
+    assert res2["admissionNumber"] == "ADM-202609-C01-0002", res2["admissionNumber"]
+
+    # Enquiry 1
+    enq1 = client.post("/api/students/enquiry", json={**PAYLOAD, "fullName": "Enquiry One"}, headers=headers).json()
+    assert enq1["admissionNumber"] == "ENQ-202609-C01-0001", enq1["admissionNumber"]

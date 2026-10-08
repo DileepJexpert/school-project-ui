@@ -183,6 +183,8 @@ def _build_profile_wire(student: dict, installments: list[dict], last_payment: d
             "receiptNumber": last_payment["receipt_number"],
             "studentId": student["id"],
             "studentName": student["full_name"],
+            "admissionNumber": student.get("admission_number") or "",
+            "className": student.get("class_name") or "",
             "paymentDate": last_payment["payment_date"],
             "amountPaid": _major(last_payment["amount_paid"]),
             "discount": _major(last_payment["discount"]),
@@ -194,6 +196,7 @@ def _build_profile_wire(student: dict, installments: list[dict], last_payment: d
     return {
         "id": student["id"],
         "name": student["full_name"],
+        "admissionNumber": student.get("admission_number") or "",
         "className": student["class_name"],
         "academicYear": student["academic_year"],
         "rollNumber": student.get("roll_number") or "",
@@ -224,7 +227,7 @@ async def search_fee_profiles(
     _permission(user, "read")
     tenant = await _tenant(db, user, x_tenant_id)
 
-    query = "SELECT id, full_name, class_name, academic_year, roll_number, parent_details, contact_details FROM students WHERE tenant_id = ?"
+    query = "SELECT id, full_name, admission_number, class_name, academic_year, roll_number, parent_details, contact_details FROM students WHERE tenant_id = ?"
     params = [tenant]
 
     if name.strip():
@@ -292,6 +295,24 @@ class FeeCollectRequest(BaseModel):
     academicYear: str | None = None
 
 
+async def _generate_receipt_number(db, tenant: str, payment_date: datetime | None = None) -> str:
+    dt = payment_date or datetime.now(timezone.utc)
+    date_code = dt.strftime("%Y%m")
+    row = await _one(db, "SELECT COUNT(*) AS total FROM payments WHERE tenant_id = ?", tenant)
+    start_seq = max(1, int(row.get("total", 0)) + 1)
+    seq = start_seq
+    while True:
+        candidate = f"REC-{date_code}-{seq:05d}"
+        existing = await _one(
+            db,
+            "SELECT id FROM payments WHERE tenant_id = ? AND receipt_number = ?",
+            tenant, candidate,
+        )
+        if not existing:
+            return candidate
+        seq += 1
+
+
 @router.post("/api/fees/collect", status_code=201)
 async def collect_fee(
     data: FeeCollectRequest,
@@ -305,7 +326,7 @@ async def collect_fee(
     try:
         student = await _one(
             db,
-            "SELECT id, full_name, class_name, academic_year FROM students WHERE tenant_id = ? AND id = ?",
+            "SELECT id, full_name, admission_number, class_name, academic_year FROM students WHERE tenant_id = ? AND id = ?",
             tenant, data.studentId,
         )
         if not student:
@@ -317,7 +338,7 @@ async def collect_fee(
         amount_to_allocate = int(_minor(data.amount))
         discount_to_allocate = int(_minor(data.discount))
         payment_id = uuid4().hex
-        receipt_number = f"REC-{uuid4().hex[:10].upper()}"
+        receipt_number = await _generate_receipt_number(db, tenant)
         now_iso = datetime.now(timezone.utc).isoformat()
 
         statements = []
@@ -401,6 +422,8 @@ async def collect_fee(
         "receiptNumber": receipt_number,
         "studentId": student["id"],
         "studentName": student["full_name"],
+        "admissionNumber": student.get("admission_number") or "",
+        "className": student.get("class_name") or "",
         "paymentDate": now_iso,
         "amountPaid": float(data.amount),
         "discount": float(data.discount),
@@ -425,7 +448,7 @@ async def get_outstanding_dues(
     tenant = await _tenant(db, user, x_tenant_id)
 
     query = (
-        "SELECT fp.id AS profile_id, s.id, s.full_name, s.class_name, s.academic_year, "
+        "SELECT fp.id AS profile_id, s.id, s.full_name, s.admission_number, s.class_name, s.academic_year, "
         "s.roll_number, s.parent_details, s.contact_details, "
         "COALESCE(SUM(i.amount_due - i.paid_amount - i.discount_amount), 0) AS due_cents, "
         "COALESCE(SUM(i.amount_due), 0) AS total_cents, "
@@ -470,6 +493,7 @@ async def get_outstanding_dues(
         dues_list.append({
             "studentId": r["id"],
             "studentName": r["full_name"],
+            "admissionNumber": r.get("admission_number") or "",
             "className": r["class_name"],
             "academicYear": r["academic_year"],
             "rollNumber": r.get("roll_number") or "",
@@ -500,8 +524,13 @@ async def list_payments(
 
     payments = await _many(
         db,
-        "SELECT p.id, p.receipt_number, p.payment_date, p.amount_paid, p.discount, p.payment_mode, p.remarks, p.student_name_snapshot, p.profile_id "
-        "FROM payments p WHERE p.tenant_id = ? AND p.voided_at IS NULL ORDER BY p.payment_date DESC LIMIT 100",
+        "SELECT p.id, p.receipt_number, p.payment_date, p.amount_paid, p.discount, p.payment_mode, p.remarks, "
+        "       p.student_name_snapshot, p.profile_id, s.admission_number, s.id AS student_id, e.class_name "
+        "FROM payments p "
+        "LEFT JOIN fee_profiles fp ON fp.id = p.profile_id "
+        "LEFT JOIN enrollments e ON e.id = fp.enrollment_id "
+        "LEFT JOIN students s ON s.id = e.student_id "
+        "WHERE p.tenant_id = ? AND p.voided_at IS NULL ORDER BY p.payment_date DESC LIMIT 100",
         tenant,
     )
 
@@ -510,7 +539,10 @@ async def list_payments(
             "id": p["id"],
             "transactionId": p["id"],
             "receiptNumber": p["receipt_number"],
+            "studentId": p.get("student_id") or "",
             "studentName": p.get("student_name_snapshot") or "Student",
+            "admissionNumber": p.get("admission_number") or "",
+            "className": p.get("class_name") or "",
             "paymentDate": p["payment_date"],
             "amountPaid": _major(p["amount_paid"]),
             "discount": _major(p["discount"]),
@@ -539,7 +571,8 @@ async def fee_report_summary(
 
     sql = (
         "SELECT p.id, p.receipt_number, p.payment_date, p.amount_paid, p.discount, p.payment_mode, p.remarks, "
-        "       s.full_name AS student_name, e.class_name, COALESCE(e.roll_number, s.roll_number, '') AS roll_number, "
+        "       s.id AS student_id, s.admission_number, s.full_name AS student_name, e.class_name, "
+        "       COALESCE(e.roll_number, s.roll_number, '') AS roll_number, "
         "       s.parent_details, s.contact_details, u.full_name AS collector_name "
         "FROM payments p "
         "JOIN fee_profiles fp ON fp.id = p.profile_id "
@@ -628,7 +661,9 @@ async def fee_report_summary(
 
         content.append({
             "id": p["id"],
+            "studentId": p.get("student_id") or "",
             "studentName": p.get("student_name") or "Student",
+            "admissionNumber": p.get("admission_number") or "",
             "className": c_name,
             "rollNumber": p.get("roll_number") or "",
             "receiptNumber": p.get("receipt_number") or "",

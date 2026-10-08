@@ -1,9 +1,10 @@
 from calendar import month_abbr
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import school_year_start_month
@@ -11,8 +12,59 @@ from app.models import ClassYearClosure, Enrollment, FeeInstallment, FeeProfile,
 from app.schemas import StudentInput
 
 
-def _number(prefix: str) -> str:
-    return f"{prefix}-{uuid4().hex[:16].upper()}"
+def _normalize_class_code(class_name: str | None) -> str:
+    c = (class_name or "").strip().upper()
+    if not c:
+        return "GEN"
+    if "NUR" in c:
+        return "NUR"
+    if "LKG" in c or "JR" in c:
+        return "LKG"
+    if "UKG" in c or "SR" in c:
+        return "UKG"
+    if "PLAY" in c:
+        return "PG"
+    digits = "".join(ch for ch in c if ch.isdigit())
+    if digits:
+        try:
+            return f"C{int(digits):02d}"
+        except Exception:
+            return f"C{digits}"
+    clean = "".join(ch for ch in c if ch.isalnum())
+    return (clean[:4] or "GEN").upper()
+
+
+def _generate_admission_number(
+    session: Session, tenant: str, class_name: str, doa=None, prefix: str = "ADM"
+) -> str:
+    if isinstance(doa, str) and len(doa) >= 7:
+        date_code = doa[:7].replace("-", "")
+    elif hasattr(doa, "strftime"):
+        date_code = doa.strftime("%Y%m")
+    else:
+        date_code = datetime.now(timezone.utc).strftime("%Y%m")
+
+    cls_code = _normalize_class_code(class_name)
+
+    if prefix == "ENQ":
+        count = session.scalar(
+            select(func.count(Student.id)).where(Student.tenant_id == tenant, Student.status == "ENQUIRY")
+        ) or 0
+    else:
+        count = session.scalar(
+            select(func.count(Student.id)).where(Student.tenant_id == tenant, Student.status != "ENQUIRY")
+        ) or 0
+
+    start_seq = max(1, count + 1)
+    seq = start_seq
+    while True:
+        candidate = f"{prefix}-{date_code}-{cls_code}-{seq:04d}"
+        existing = session.scalar(
+            select(Student.id).where(Student.tenant_id == tenant, Student.admission_number == candidate)
+        )
+        if not existing:
+            return candidate
+        seq += 1
 
 
 def matching_structure(
@@ -115,9 +167,15 @@ def create_student(session: Session, tenant: str, data: StudentInput, *, enquiry
     student = Student(tenant_id=tenant)
     apply_input(student, data)
     student.status = "ENQUIRY" if enquiry else "ACTIVE"
-    student.admission_number = (
-        _number("ENQ") if enquiry else data.admission_number.strip() or _number("ADM")
-    )
+    sub_adm = data.admission_number.strip() if data.admission_number else ""
+    if enquiry:
+        student.admission_number = sub_adm or _generate_admission_number(
+            session, tenant, data.class_for_admission, data.date_of_admission, prefix="ENQ"
+        )
+    else:
+        student.admission_number = sub_adm or _generate_admission_number(
+            session, tenant, data.class_for_admission, data.date_of_admission, prefix="ADM"
+        )
     session.add(student)
     session.flush()
     if structure is not None:
@@ -161,12 +219,13 @@ def update_student(session: Session, student: Student, data: StudentInput) -> St
     apply_input(student, data)
     student.status = data.status
     if activating_enquiry:
-        submitted_number = data.admission_number.strip()
-        student.admission_number = (
-            _number("ADM")
-            if not submitted_number or submitted_number.startswith("ENQ-")
-            else submitted_number
-        )
+        submitted_number = data.admission_number.strip() if data.admission_number else ""
+        if not submitted_number or submitted_number.startswith("ENQ-"):
+            student.admission_number = _generate_admission_number(
+                session, student.tenant_id, new_class, data.date_of_admission, prefix="ADM"
+            )
+        else:
+            student.admission_number = submitted_number
         add_enrollment_and_profile(session, student, structure)
     elif promoting:
         old_enrollment = session.scalar(

@@ -95,6 +95,8 @@ class PaymentRecord {
   final String receiptNumber;
   final String studentId;
   final String studentName;
+  final String admissionNumber;
+  final String className;
   final DateTime paymentDate;
   final double amountPaid;
   final double discount;
@@ -107,6 +109,8 @@ class PaymentRecord {
     required this.receiptNumber,
     required this.studentId,
     required this.studentName,
+    this.admissionNumber = '',
+    this.className = '',
     required this.paymentDate,
     required this.amountPaid,
     required this.discount,
@@ -120,6 +124,8 @@ class PaymentRecord {
         receiptNumber: json['receiptNumber'] ?? '',
         studentId: json['studentId'] ?? '',
         studentName: json['studentName'] ?? '',
+        admissionNumber: json['admissionNumber'] ?? json['admission_number'] ?? '',
+        className: json['className'] ?? json['class_name'] ?? '',
         paymentDate: json['paymentDate'] != null
             ? DateTime.tryParse(json['paymentDate'].toString()) ?? DateTime.now()
             : DateTime.now(),
@@ -136,6 +142,7 @@ class PaymentRecord {
 class StudentFeeProfile {
   final String id;
   final String name;
+  final String admissionNumber;
   final String className;
   final String rollNumber;
   final String parentName;
@@ -150,6 +157,7 @@ class StudentFeeProfile {
   StudentFeeProfile({
     required this.id,
     required this.name,
+    this.admissionNumber = '',
     required this.className,
     required this.rollNumber,
     required this.parentName,
@@ -166,6 +174,7 @@ class StudentFeeProfile {
       StudentFeeProfile(
         id: json['id'] ?? '',
         name: json['name'] ?? '',
+        admissionNumber: json['admissionNumber'] ?? json['admission_number'] ?? '',
         className: json['className'] ?? '',
         rollNumber: json['rollNumber'] ?? '',
         parentName: json['parentName'] ?? '',
@@ -278,6 +287,7 @@ class PaymentModeSummary {
 class TransactionRecord {
   final String id;
   final String studentName;
+  final String admissionNumber;
   final String className;
   final String rollNumber;
   final String receiptNumber;
@@ -293,6 +303,7 @@ class TransactionRecord {
   TransactionRecord({
     required this.id,
     required this.studentName,
+    this.admissionNumber = '',
     required this.className,
     required this.rollNumber,
     required this.receiptNumber,
@@ -310,6 +321,7 @@ class TransactionRecord {
       TransactionRecord(
         id: json['id'] ?? '',
         studentName: json['studentName'] ?? '',
+        admissionNumber: json['admissionNumber'] ?? json['admission_number'] ?? '',
         className: json['className'] ?? '',
         rollNumber: json['rollNumber'] ?? '',
         receiptNumber: json['receiptNumber'] ?? '',

@@ -44,6 +44,24 @@ def _replay(session: Session, tenant: str, key: str, fingerprint: str) -> dict |
     return payment_wire(payment, student)
 
 
+def _generate_receipt_number(session: Session, tenant: str, payment_date: datetime | None = None) -> str:
+    dt = payment_date or datetime.now(timezone.utc)
+    date_code = dt.strftime("%Y%m")
+    count = session.scalar(
+        select(func.count(Payment.id)).where(Payment.tenant_id == tenant)
+    ) or 0
+    start_seq = max(1, count + 1)
+    seq = start_seq
+    while True:
+        candidate = f"REC-{date_code}-{seq:05d}"
+        existing = session.scalar(
+            select(Payment.id).where(Payment.tenant_id == tenant, Payment.receipt_number == candidate)
+        )
+        if not existing:
+            return candidate
+        seq += 1
+
+
 @router.post("/collect", status_code=201)
 def collect_fee(
     data: FeePaymentInput,
@@ -94,11 +112,12 @@ def collect_fee(
                     detail="Amount plus discount must equal selected installment balances",
                 )
 
+            payment_dt = datetime.now(timezone.utc)
             payment = Payment(
                 tenant_id=tenant,
                 profile=profile,
-                receipt_number=f"R-{uuid4().hex.upper()}",
-                payment_date=datetime.now(timezone.utc),
+                receipt_number=_generate_receipt_number(session, tenant, payment_dt),
+                payment_date=payment_dt,
                 amount_paid=data.amount,
                 discount=data.discount,
                 payment_mode=data.payment_mode,

@@ -1619,7 +1619,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                                   studentName: t.studentName,
                                   className: t.className,
                                   rollNumber: t.rollNumber,
-                                  admissionNumber: t.id,
+                                  admissionNumber: t.admissionNumber.isNotEmpty ? t.admissionNumber : t.id,
                                   paymentDate: _dateFmt.format(t.paymentDate),
                                   paymentMode: t.paymentMode,
                                   amountPaid: t.amountPaid,
